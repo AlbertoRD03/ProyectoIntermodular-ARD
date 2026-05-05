@@ -21,7 +21,13 @@ const startServer = async () => {
 
     await connectMongoDB();
 
-    const PORT = process.env.PORT || 3000;
+    const PORT = process.env.PORT || (process.env.NODE_ENV === 'production' ? undefined : 3000);
+    if (!PORT) {
+      throw new Error(
+        '🚨 PORT no definido. Render requiere que la app escuche en process.env.PORT.'
+      );
+    }
+
     app.listen(PORT, () => {
       console.log(`🚀 FitTrack Server listo en puerto ${PORT}`);
     });
