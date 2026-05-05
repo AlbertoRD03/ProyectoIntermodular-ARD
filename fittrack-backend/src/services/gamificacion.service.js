@@ -1,6 +1,6 @@
-import { User, Achievement, UserAchievement, PersonalGoal } from '../models/mysql/index.js';
 import Session from '../models/mongodb/Session.js';
 import GoalProgress from '../models/mongodb/GoalProgress.js';
+import { isMySQLEnabled } from '../utils/mysqlEnabled.js';
 
 const LOGROS_REGLAS = [
   {
@@ -38,6 +38,11 @@ const ACHIEVEMENT_RULES = [
 
 export const checkLogros = async (userId) => {
   if (!userId) throw new Error('userId requerido');
+  if (!isMySQLEnabled()) {
+    throw new Error('MySQL desactivado (ENABLE_MYSQL=true para activarlo).');
+  }
+
+  const { Achievement, UserAchievement } = await import('../models/mysql/index.js');
 
   const sessionCount = await Session.countDocuments({ usuario_id: userId });
   const unlocked = [];
@@ -66,6 +71,11 @@ export const checkLogros = async (userId) => {
 
 export const checkAndUnlockAchievements = async (userId) => {
   if (!userId) throw new Error('userId requerido');
+  if (!isMySQLEnabled()) {
+    throw new Error('MySQL desactivado (ENABLE_MYSQL=true para activarlo).');
+  }
+
+  const { User, Achievement } = await import('../models/mysql/index.js');
 
   const [totalSesiones, user] = await Promise.all([
     Session.countDocuments({ usuario_id: userId }),
@@ -104,6 +114,11 @@ export const checkAndUnlockAchievements = async (userId) => {
 
 export const calculateGoalProgress = async (goalId) => {
   if (!goalId) throw new Error('goalId requerido');
+  if (!isMySQLEnabled()) {
+    throw new Error('MySQL desactivado (ENABLE_MYSQL=true para activarlo).');
+  }
+
+  const { PersonalGoal } = await import('../models/mysql/index.js');
 
   const [goal, progressDocs] = await Promise.all([
     PersonalGoal.findByPk(goalId),

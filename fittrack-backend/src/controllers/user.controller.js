@@ -1,12 +1,17 @@
-import User from '../models/mysql/User.js';
 import {
   getUserProfile,
   updateUserProfile,
   deleteUserFull
 } from '../services/user.service.js';
+import { isMySQLEnabled, isMySQLDisabledError } from '../utils/mysqlEnabled.js';
 
 export const completeOnboarding = async (req, res) => {
   try {
+    if (!isMySQLEnabled()) {
+      return res.status(503).json({ error: 'MySQL desactivado' });
+    }
+
+    const { default: User } = await import('../models/mysql/User.js');
     const userId = req.user.id;
     const {
       fecha_nacimiento,
@@ -48,7 +53,8 @@ export const getProfile = async (req, res) => {
 
     return res.status(200).json({ user });
   } catch (error) {
-    return res.status(500).json({ error: 'Error al obtener el perfil' });
+    const status = isMySQLDisabledError(error) ? 503 : 500;
+    return res.status(status).json({ error: isMySQLDisabledError(error) ? error.message : 'Error al obtener el perfil' });
   }
 };
 
@@ -66,7 +72,8 @@ export const updateProfile = async (req, res) => {
 
     return res.status(200).json({ message: 'Perfil actualizado', user: updatedUser });
   } catch (error) {
-    return res.status(500).json({ error: 'Error al actualizar el perfil' });
+    const status = isMySQLDisabledError(error) ? 503 : 500;
+    return res.status(status).json({ error: isMySQLDisabledError(error) ? error.message : 'Error al actualizar el perfil' });
   }
 };
 
@@ -87,6 +94,7 @@ export const deleteAccount = async (req, res) => {
       result
     });
   } catch (error) {
-    return res.status(500).json({ error: 'Error al eliminar la cuenta' });
+    const status = isMySQLDisabledError(error) ? 503 : 500;
+    return res.status(status).json({ error: isMySQLDisabledError(error) ? error.message : 'Error al eliminar la cuenta' });
   }
 };

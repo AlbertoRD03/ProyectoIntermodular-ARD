@@ -1,9 +1,14 @@
-import { Achievement, UserAchievement, PersonalGoal } from '../models/mysql/index.js';
 import GoalProgress from '../models/mongodb/GoalProgress.js';
 import { checkLogros, calculateGoalProgress } from '../services/gamificacion.service.js';
+import { isMySQLEnabled, isMySQLDisabledError } from '../utils/mysqlEnabled.js';
 
 export const listLogros = async (req, res) => {
   try {
+    if (!isMySQLEnabled()) {
+      return res.status(503).json({ error: 'MySQL desactivado' });
+    }
+
+    const { Achievement, UserAchievement } = await import('../models/mysql/index.js');
     const userId = req.user.id;
     await checkLogros(userId);
 
@@ -15,12 +20,18 @@ export const listLogros = async (req, res) => {
 
     res.status(200).json({ items: logros });
   } catch (error) {
-    res.status(500).json({ error: 'Error al obtener logros' });
+    const status = isMySQLDisabledError(error) ? 503 : 500;
+    res.status(status).json({ error: isMySQLDisabledError(error) ? error.message : 'Error al obtener logros' });
   }
 };
 
 export const createGoal = async (req, res) => {
   try {
+    if (!isMySQLEnabled()) {
+      return res.status(503).json({ error: 'MySQL desactivado' });
+    }
+
+    const { PersonalGoal } = await import('../models/mysql/index.js');
     const userId = req.user.id;
     const { tipo, valor_inicial, valor_objetivo, unidad, fecha_limite } = req.body;
 
@@ -39,12 +50,18 @@ export const createGoal = async (req, res) => {
 
     res.status(201).json({ message: 'Objetivo creado con éxito', goal });
   } catch (error) {
-    res.status(500).json({ error: 'Error al crear el objetivo' });
+    const status = isMySQLDisabledError(error) ? 503 : 500;
+    res.status(status).json({ error: isMySQLDisabledError(error) ? error.message : 'Error al crear el objetivo' });
   }
 };
 
 export const registerGoalProgress = async (req, res) => {
   try {
+    if (!isMySQLEnabled()) {
+      return res.status(503).json({ error: 'MySQL desactivado' });
+    }
+
+    const { PersonalGoal } = await import('../models/mysql/index.js');
     const userId = req.user.id;
     const goalId = Number(req.params.id);
     const { valor_registrado, fecha } = req.body;
@@ -76,6 +93,7 @@ export const registerGoalProgress = async (req, res) => {
       progressInfo
     });
   } catch (error) {
-    res.status(500).json({ error: 'Error al registrar progreso' });
+    const status = isMySQLDisabledError(error) ? 503 : 500;
+    res.status(status).json({ error: isMySQLDisabledError(error) ? error.message : 'Error al registrar progreso' });
   }
 };

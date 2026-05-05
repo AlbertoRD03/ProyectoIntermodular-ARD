@@ -1,13 +1,23 @@
-import User from '../models/mysql/User.js';
 import Session from '../models/mongodb/Session.js';
+import { isMySQLEnabled } from '../utils/mysqlEnabled.js';
 
 export const getUserProfile = async (userId) => {
+  if (!isMySQLEnabled()) {
+    throw new Error('MySQL desactivado (ENABLE_MYSQL=true para activarlo).');
+  }
+
+  const { default: User } = await import('../models/mysql/User.js');
   return User.findByPk(userId, {
     attributes: { exclude: ['password'] }
   });
 };
 
 export const updateUserProfile = async (userId, updateData) => {
+  if (!isMySQLEnabled()) {
+    throw new Error('MySQL desactivado (ENABLE_MYSQL=true para activarlo).');
+  }
+
+  const { default: User } = await import('../models/mysql/User.js');
   const [updatedRows] = await User.update(updateData, {
     where: { id: userId }
   });
@@ -20,6 +30,11 @@ export const updateUserProfile = async (userId, updateData) => {
 };
 
 export const deleteUserFull = async (userId) => {
+  if (!isMySQLEnabled()) {
+    throw new Error('MySQL desactivado (ENABLE_MYSQL=true para activarlo).');
+  }
+
+  const { default: User } = await import('../models/mysql/User.js');
   const user = await User.findByPk(userId);
   if (!user) return null;
 

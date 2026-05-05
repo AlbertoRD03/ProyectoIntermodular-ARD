@@ -1,8 +1,13 @@
-import User from '../models/mysql/User.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { isMySQLEnabled } from '../utils/mysqlEnabled.js';
 
 export const register = async (userData) => {
+  if (!isMySQLEnabled()) {
+    throw new Error('MySQL desactivado (ENABLE_MYSQL=true para activarlo).');
+  }
+
+  const { default: User } = await import('../models/mysql/User.js');
   const hashedPassword = await bcrypt.hash(userData.password, 10);
 
   return await User.create({
@@ -12,6 +17,11 @@ export const register = async (userData) => {
 };
 
 export const login = async (email, password) => {
+  if (!isMySQLEnabled()) {
+    throw new Error('MySQL desactivado (ENABLE_MYSQL=true para activarlo).');
+  }
+
+  const { default: User } = await import('../models/mysql/User.js');
   const user = await User.findOne({ where: { email } });
   if (!user) throw new Error('Usuario no encontrado');
 

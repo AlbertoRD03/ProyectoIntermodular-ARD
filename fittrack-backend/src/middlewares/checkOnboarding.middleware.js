@@ -1,7 +1,12 @@
-import User from '../models/mysql/User.js';
+import { isMySQLEnabled } from '../utils/mysqlEnabled.js';
 
 const checkOnboarding = async (req, res, next) => {
   try {
+    if (!isMySQLEnabled()) {
+      return res.status(503).json({ error: 'MySQL desactivado' });
+    }
+
+    const { default: User } = await import('../models/mysql/User.js');
     const userId = Number(req.user?.id);
     if (!Number.isFinite(userId)) {
       return res.status(400).json({ error: 'Usuario inválido' });

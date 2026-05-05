@@ -1,7 +1,15 @@
-import { Op } from 'sequelize';
-import Exercise from '../models/mysql/Exercise.js';
+import { isMySQLEnabled } from '../utils/mysqlEnabled.js';
 
 export const getExercises = async (filters = {}) => {
+  if (!isMySQLEnabled()) {
+    throw new Error('MySQL desactivado (ENABLE_MYSQL=true para activarlo).');
+  }
+
+  const [{ Op }, { default: Exercise }] = await Promise.all([
+    import('sequelize'),
+    import('../models/mysql/Exercise.js')
+  ]);
+
   const where = {};
 
   if (filters.grupo) {
