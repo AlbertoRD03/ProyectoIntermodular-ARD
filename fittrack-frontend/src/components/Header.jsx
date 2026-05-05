@@ -1,0 +1,130 @@
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  CalendarDays,
+  Home,
+  LayoutGrid,
+  MessageSquareText,
+  Trophy,
+  UserRound,
+  ChevronDown,
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+function cx(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
+
+function NavItem({ active, icon: Icon, label, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cx(
+        'group inline-flex items-center gap-1 sm:gap-1.5 md:gap-2 rounded-lg px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-2 text-[10px] sm:text-[12px] md:text-[13px] font-medium transition',
+        active ? 'text-[#ff7849]' : 'text-white/65 hover:text-white/90'
+      )}
+      aria-current={active ? 'page' : undefined}
+    >
+      <Icon className={cx('h-4 w-4 flex-shrink-0', active ? 'text-[#ff7849]' : 'text-white/55 group-hover:text-white/80')} />
+      <span className="hidden sm:inline">{label}</span>
+    </button>
+  );
+}
+
+function NavDropdown({ icon: Icon, label, isOpen, onToggle, onSelect }) {
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        onToggle(false);
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen, onToggle]);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => onToggle(!isOpen)}
+        className={cx(
+          'group inline-flex items-center gap-1 sm:gap-1.5 md:gap-2 rounded-lg px-2 sm:px-2.5 md:px-3 py-1.5 sm:py-2 text-[10px] sm:text-[12px] md:text-[13px] font-medium transition',
+          isOpen ? 'text-[#ff7849]' : 'text-white/65 hover:text-white/90'
+        )}
+      >
+        <Icon className={cx('h-4 w-4 flex-shrink-0', isOpen ? 'text-[#ff7849]' : 'text-white/55 group-hover:text-white/80')} />
+        <span className="hidden sm:inline">{label}</span>
+        <ChevronDown className={cx('h-3 w-3 transition-transform', isOpen ? 'rotate-180' : '')} />
+      </button>
+      {isOpen && (
+        <div className="absolute top-full mt-1 right-0 bg-[#2a2a2a] border border-white/10 rounded-lg shadow-lg z-50">
+          <button
+            type="button"
+            onClick={() => onSelect('/calendario')}
+            className="block w-full px-4 py-2 text-left text-[12px] text-white/80 hover:bg-white/10 rounded-lg first:rounded-t-lg last:rounded-b-lg transition"
+          >
+            Calendario
+          </button>
+          <button
+            type="button"
+            onClick={() => onSelect('/entrenamientos')}
+            className="block w-full px-4 py-2 text-left text-[12px] text-white/80 hover:bg-white/10 rounded-lg first:rounded-t-lg last:rounded-b-lg transition"
+          >
+            Entrenamientos
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function Header() {
+  const navigate = useNavigate();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const handleDropdownSelect = (path) => {
+    navigate(path);
+    setIsDropdownOpen(false);
+  };
+
+  return (
+    <div className="h-[56px] sm:h-[64px] border-b border-white/10 sticky top-0 z-50 bg-[#1e1e1e]">
+      <div className="flex h-full w-full items-center justify-between px-3 sm:px-4 md:px-6 lg:px-8">
+        <div
+          className="text-[18px] sm:text-[22px] font-bold tracking-wide text-[#ff7849]"
+          style={{ fontFamily: 'Arimo, Poppins, system-ui' }}
+        >
+          FitTrack
+        </div>
+
+        <nav className="hidden items-center gap-1 sm:gap-2 md:flex">
+          <NavItem icon={Home} label="Inicio" onClick={() => navigate('/dashboard')} />
+          <NavDropdown
+            icon={CalendarDays}
+            label="Calendario"
+            isOpen={isDropdownOpen}
+            onToggle={setIsDropdownOpen}
+            onSelect={handleDropdownSelect}
+          />
+          <NavItem icon={LayoutGrid} label="FitGram" onClick={() => navigate('/fitgram')} />
+          <NavItem icon={Trophy} label="Logros" onClick={() => {}} />
+          <NavItem icon={MessageSquareText} label="Chat IA" onClick={() => {}} />
+        </nav>
+
+        <button
+          type="button"
+          onClick={() => {}}
+          className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 sm:px-4 py-1.5 sm:py-2 text-[12px] sm:text-[14px] font-medium text-white/90 transition hover:bg-white/15"
+        >
+          <UserRound className="h-4 w-4" />
+          <span className="hidden sm:inline">Perfil</span>
+        </button>
+      </div>
+    </div>
+  );
+}

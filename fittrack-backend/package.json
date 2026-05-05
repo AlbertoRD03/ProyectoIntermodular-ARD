@@ -1,0 +1,48 @@
+{
+  "name": "fittrack-backend",
+  "version": "1.0.0",
+  "description": "Backend para la plataforma FitTrack - Arquitectura Híbrida",
+  "main": "src/app.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "sonar": "node scripts/sonar.js"
+  },
+  "keywords": [
+    "fitness",
+    "fittrack",
+    "node",
+    "express",
+    "ia",
+    "rag"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "db": "^6.0.3",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongo": "^0.1.0",
+    "mongodb": "^7.0.0",
+    "mongoose": "^8.22.0",
+    "mysql2": "^3.16.2",
+    "sequelize": "^6.37.7",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.0",
+    "dotenv-cli": "^7.4.2",
+    "eslint": "^8.57.0",
+    "nodemon": "^3.1.0",
+    "supertest": "^6.3.4",
+    "sonarqube-scanner": "^3.5.0",
+    "vitest": "^2.1.0"
+  }
+}
