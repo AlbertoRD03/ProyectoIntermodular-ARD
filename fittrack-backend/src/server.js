@@ -1,18 +1,25 @@
 import dotenv from 'dotenv';
 import app from './app.js';
-import { sequelize, connectMySQL } from './config/mysql.js';
 import connectMongoDB from './config/mongodb.js';
-import './models/mysql/index.js';
 
 dotenv.config();
 
 const startServer = async () => {
   try {
-    await connectMySQL();
-    await connectMongoDB();
+    const enableMySQL = String(process.env.ENABLE_MYSQL || '').toLowerCase() === 'true';
 
-    await sequelize.sync({ force: false });
-    console.log('Tablas de MySQL sincronizadas');
+    if (enableMySQL) {
+      const { sequelize, connectMySQL } = await import('./config/mysql.js');
+      await import('./models/mysql/index.js');
+
+      await connectMySQL();
+      await sequelize.sync({ force: false });
+      console.log('Tablas de MySQL sincronizadas');
+    } else {
+      console.log('MySQL desactivado (setea ENABLE_MYSQL=true para activarlo).');
+    }
+
+    await connectMongoDB();
 
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {
