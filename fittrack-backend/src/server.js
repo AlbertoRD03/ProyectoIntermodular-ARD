@@ -21,6 +21,8 @@ const startServer = async () => {
 
     await connectMongoDB();
 
+    console.log(`DEBUG: NODE_ENV=${process.env.NODE_ENV || 'undefined'} PORT=${process.env.PORT || 'undefined'}`);
+
     const PORT = process.env.PORT || (process.env.NODE_ENV === 'production' ? undefined : 3000);
     if (!PORT) {
       throw new Error(
@@ -28,7 +30,7 @@ const startServer = async () => {
       );
     }
 
-    app.listen(PORT, () => {
+    app.listen(Number(PORT), () => {
       console.log(`🚀 FitTrack Server listo en puerto ${PORT}`);
     });
   } catch (error) {
