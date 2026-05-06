@@ -1,6 +1,6 @@
 {
-  "installCommand": "cd fittrack-frontend && npm ci",
-  "buildCommand": "cd fittrack-frontend && npm run build",
-  "outputDirectory": "fittrack-frontend/build",
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
