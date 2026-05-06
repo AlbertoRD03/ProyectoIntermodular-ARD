@@ -13,10 +13,6 @@ Añade las siguientes variables:
   ```
 
 ### Opcionales
-- **`PORT`**: Puerto del servidor (por defecto: 3000)
-  ```
-  3000
-  ```
 - **`NODE_ENV`**: Entorno de ejecución
   ```
   production
@@ -49,6 +45,13 @@ En **Start Command** (ya debería estar configurado):
 npm start
 ```
 
+## Importante: NO configurar `PORT` en Render
+
+Render **inyecta** la variable `PORT` automáticamente en cada deploy y tu app debe escuchar en `process.env.PORT`.
+
+- No añadas `PORT` manualmente en **Environment** (si la defines tú, puedes romper el routing de Render).
+- Si ya la tienes definida, elimínala y vuelve a desplegar.
+
 ## Paso 3: Conectar MongoDB
 
 Si aún no tienes MongoDB:
@@ -64,7 +67,7 @@ Si aún no tienes MongoDB:
 Una vez deployed, deberías ver en los logs:
 ```
 ✅ MongoDB: Conectado en el host: cluster0.xxxxx.mongodb.net
-🚀 FitTrack Server listo en puerto 3000
+🚀 FitTrack Server listo en puerto <puerto_asignado_por_Render>
 ```
 
 ## Troubleshooting

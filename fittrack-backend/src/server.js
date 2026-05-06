@@ -21,17 +21,29 @@ const startServer = async () => {
 
     await connectMongoDB();
 
-    console.log(`DEBUG: NODE_ENV=${process.env.NODE_ENV || 'undefined'} PORT=${process.env.PORT || 'undefined'}`);
+    const rawPort = process.env.PORT;
+    console.log(
+      `DEBUG: NODE_ENV=${process.env.NODE_ENV || 'undefined'} PORT=${rawPort || 'undefined'}`
+    );
 
-    const PORT = process.env.PORT || (process.env.NODE_ENV === 'production' ? undefined : 3000);
-    if (!PORT) {
+    const port =
+      rawPort && rawPort.trim() !== ''
+        ? Number.parseInt(rawPort, 10)
+        : process.env.NODE_ENV === 'production'
+          ? undefined
+          : 3000;
+
+    if (port === undefined) {
+      throw new Error('🚨 PORT no definido. Render requiere que la app escuche en process.env.PORT.');
+    }
+    if (!Number.isInteger(port) || port < 0 || port > 65535) {
       throw new Error(
-        '🚨 PORT no definido. Render requiere que la app escuche en process.env.PORT.'
+        `🚨 PORT inválido (${JSON.stringify(rawPort)}). En Render no definas PORT manualmente; deja que Render inyecte PORT automáticamente.`
       );
     }
 
-    app.listen(Number(PORT), () => {
-      console.log(`🚀 FitTrack Server listo en puerto ${PORT}`);
+    app.listen(port, () => {
+      console.log(`🚀 FitTrack Server listo en puerto ${port}`);
     });
   } catch (error) {
     console.error('Error crítico al arrancar el servidor:', error);
