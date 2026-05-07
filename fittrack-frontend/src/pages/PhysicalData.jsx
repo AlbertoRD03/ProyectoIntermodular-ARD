@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Lightbulb } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const API_BASE = process.env.REACT_APP_API_BASE || 'https://albertoramirez-pi-back.onrender.com/api';
+import { API_BASE } from '../config/apiBase';
 
 export default function PhysicalData() {
   const navigate = useNavigate();
