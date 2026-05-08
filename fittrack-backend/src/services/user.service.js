@@ -2,47 +2,85 @@ import Session from '../models/mongodb/Session.js';
 import { isMySQLEnabled } from '../utils/mysqlEnabled.js';
 
 export const getUserProfile = async (userId) => {
-  if (!isMySQLEnabled()) {
-    throw new Error('MySQL desactivado (ENABLE_MYSQL=true para activarlo).');
+  if (isMySQLEnabled()) {
+    const { default: User } = await import('../models/mysql/User.js');
+    return User.findByPk(userId, {
+      attributes: { exclude: ['password'] },
+    });
   }
 
-  const { default: User } = await import('../models/mysql/User.js');
-  return User.findByPk(userId, {
-    attributes: { exclude: ['password'] }
-  });
+  const { default: User } = await import('../models/mongodb/User.js');
+  const user = await User.findById(String(userId));
+  return user ? user.toJSON() : null;
 };
 
 export const updateUserProfile = async (userId, updateData) => {
-  if (!isMySQLEnabled()) {
-    throw new Error('MySQL desactivado (ENABLE_MYSQL=true para activarlo).');
+  if (isMySQLEnabled()) {
+    const { default: User } = await import('../models/mysql/User.js');
+    const [updatedRows] = await User.update(updateData, {
+      where: { id: userId },
+    });
+
+    if (!updatedRows) return null;
+
+    return User.findByPk(userId, {
+      attributes: { exclude: ['password'] },
+    });
   }
 
-  const { default: User } = await import('../models/mysql/User.js');
-  const [updatedRows] = await User.update(updateData, {
-    where: { id: userId }
-  });
+  const { default: User } = await import('../models/mongodb/User.js');
+  const allowed = {};
+  if (typeof updateData?.nombre === 'string') allowed.nombre = updateData.nombre.trim();
+  if (typeof updateData?.apodo === 'string') allowed.apodo = updateData.apodo.trim();
+  if (typeof updateData?.telefono === 'string') allowed.telefono = updateData.telefono.trim();
+  if (typeof updateData?.email === 'string') allowed.email = updateData.email.trim().toLowerCase();
 
-  if (!updatedRows) return null;
-
-  return User.findByPk(userId, {
-    attributes: { exclude: ['password'] }
-  });
+  const user = await User.findByIdAndUpdate(String(userId), { $set: allowed }, { new: true });
+  return user ? user.toJSON() : null;
 };
 
 export const deleteUserFull = async (userId) => {
-  if (!isMySQLEnabled()) {
-    throw new Error('MySQL desactivado (ENABLE_MYSQL=true para activarlo).');
+  if (isMySQLEnabled()) {
+    const { default: User } = await import('../models/mysql/User.js');
+    const user = await User.findByPk(userId);
+    if (!user) return null;
+
+    const deletedUser = await User.destroy({ where: { id: userId } });
+    const deletedSessions = await Session.deleteMany({ usuario_id: userId });
+
+    return {
+      deletedUser,
+      deletedSessions: deletedSessions?.deletedCount ?? 0,
+    };
   }
 
-  const { default: User } = await import('../models/mysql/User.js');
-  const user = await User.findByPk(userId);
-  if (!user) return null;
+  const { default: User } = await import('../models/mongodb/User.js');
+  const deletedUser = await User.findByIdAndDelete(String(userId));
+  if (!deletedUser) return null;
 
-  const deletedUser = await User.destroy({ where: { id: userId } });
+  // Session model currently stores usuario_id as Number in schema; keep best-effort delete.
   const deletedSessions = await Session.deleteMany({ usuario_id: userId });
 
   return {
-    deletedUser,
-    deletedSessions: deletedSessions?.deletedCount ?? 0
+    deletedUser: 1,
+    deletedSessions: deletedSessions?.deletedCount ?? 0,
   };
+};
+
+export const completeOnboardingMongo = async (userId, onboardingData) => {
+  const { default: User } = await import('../models/mongodb/User.js');
+  const patch = {
+    physicalProfile: {
+      edad: onboardingData?.edad ?? undefined,
+      genero: onboardingData?.genero ?? undefined,
+      altura_cm: onboardingData?.altura_cm ?? undefined,
+      peso_kg: onboardingData?.peso_kg ?? undefined,
+      nivel_actividad: onboardingData?.nivel_actividad ?? undefined,
+      objetivo_principal: onboardingData?.objetivo_principal ?? undefined,
+    },
+    onboardingCompleted: true,
+  };
+
+  const user = await User.findByIdAndUpdate(String(userId), { $set: patch }, { new: true });
+  return user ? user.toJSON() : null;
 };

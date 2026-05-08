@@ -1,3 +1,5 @@
 export const API_BASE =
   process.env.REACT_APP_API_BASE || 'https://proyectointermodular-ard-1.onrender.com/api';
 
+console.log('API_BASE:', API_BASE);
+

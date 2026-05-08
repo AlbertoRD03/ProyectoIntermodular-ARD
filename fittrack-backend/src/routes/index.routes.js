@@ -49,6 +49,12 @@ const registerRoutes = (app) => {
   app.get('/', (req, res) => {
     res.send('Servidor de FitTrack operativo 🚀');
   });
+
+  // Middleware de error para errores no capturados
+  app.use((err, req, res, next) => {
+    console.error('Error no capturado:', err);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  });
 };
 
 export default registerRoutes;
