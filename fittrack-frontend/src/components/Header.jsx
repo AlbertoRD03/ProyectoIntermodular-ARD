@@ -8,7 +8,8 @@ import {
   UserRound,
   ChevronDown,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useI18n } from '../i18n/I18nProvider';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -31,7 +32,7 @@ function NavItem({ active, icon: Icon, label, onClick }) {
   );
 }
 
-function NavDropdown({ icon: Icon, label, isOpen, onToggle, onSelect }) {
+function NavDropdown({ icon: Icon, label, isOpen, onToggle, onSelect, itemCalendarLabel, itemWorkoutsLabel }) {
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -68,14 +69,14 @@ function NavDropdown({ icon: Icon, label, isOpen, onToggle, onSelect }) {
             onClick={() => onSelect('/calendario')}
             className="block w-full px-4 py-2 text-left text-[12px] text-white/80 hover:bg-white/10 rounded-lg first:rounded-t-lg last:rounded-b-lg transition"
           >
-            Calendario
+            {itemCalendarLabel}
           </button>
           <button
             type="button"
             onClick={() => onSelect('/entrenamientos')}
             className="block w-full px-4 py-2 text-left text-[12px] text-white/80 hover:bg-white/10 rounded-lg first:rounded-t-lg last:rounded-b-lg transition"
           >
-            Entrenamientos
+            {itemWorkoutsLabel}
           </button>
         </div>
       )}
@@ -85,12 +86,17 @@ function NavDropdown({ icon: Icon, label, isOpen, onToggle, onSelect }) {
 
 export default function Header() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { t } = useI18n();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const handleDropdownSelect = (path) => {
     navigate(path);
     setIsDropdownOpen(false);
   };
+
+  const pathname = location?.pathname || '';
+  const isActive = (path) => pathname === path || pathname.startsWith(`${path}/`);
 
   return (
     <div className="h-[56px] sm:h-[64px] border-b border-white/10 sticky top-0 z-50 bg-[#1e1e1e]">
@@ -103,26 +109,28 @@ export default function Header() {
         </div>
 
         <nav className="hidden items-center gap-1 sm:gap-2 md:flex">
-          <NavItem icon={Home} label="Inicio" onClick={() => navigate('/dashboard')} />
+          <NavItem active={isActive('/dashboard')} icon={Home} label={t('nav_home')} onClick={() => navigate('/dashboard')} />
           <NavDropdown
             icon={CalendarDays}
-            label="Calendario"
+            label={t('nav_calendar')}
             isOpen={isDropdownOpen}
             onToggle={setIsDropdownOpen}
             onSelect={handleDropdownSelect}
+            itemCalendarLabel={t('nav_calendar_calendar')}
+            itemWorkoutsLabel={t('nav_calendar_workouts')}
           />
-          <NavItem icon={LayoutGrid} label="FitGram" onClick={() => navigate('/fitgram')} />
-          <NavItem icon={Trophy} label="Logros" onClick={() => {}} />
-          <NavItem icon={MessageSquareText} label="Chat IA" onClick={() => {}} />
+          <NavItem active={isActive('/fitgram')} icon={LayoutGrid} label={t('nav_fitgram')} onClick={() => navigate('/fitgram')} />
+          <NavItem active={isActive('/logros')} icon={Trophy} label={t('nav_achievements')} onClick={() => navigate('/logros')} />
+          <NavItem active={isActive('/fitia')} icon={MessageSquareText} label={t('nav_ai_chat')} onClick={() => navigate('/fitia')} />
         </nav>
 
         <button
           type="button"
-          onClick={() => {}}
+          onClick={() => navigate('/perfil')}
           className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 sm:px-4 py-1.5 sm:py-2 text-[12px] sm:text-[14px] font-medium text-white/90 transition hover:bg-white/15"
         >
           <UserRound className="h-4 w-4" />
-          <span className="hidden sm:inline">Perfil</span>
+          <span className="hidden sm:inline">{t('nav_profile')}</span>
         </button>
       </div>
     </div>

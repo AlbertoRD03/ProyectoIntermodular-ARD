@@ -3,6 +3,8 @@ import { Eye, EyeOff, LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { API_BASE } from '../config/apiBase';
+import { useI18n } from '../i18n/I18nProvider';
+import LanguageSelect from '../components/LanguageSelect';
 
 function GoogleMark({ className }) {
   return (
@@ -34,6 +36,7 @@ function GoogleMark({ className }) {
 
 export default function Register() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [nombre, setNombre] = useState('');
   const [apodo, setApodo] = useState('');
   const [telefono, setTelefono] = useState('');
@@ -74,15 +77,15 @@ export default function Register() {
     setSuccess('');
 
     if (!nombre.trim() || !email.trim() || !password || !password2) {
-      setError('Completa todos los campos obligatorios.');
+      setError(t('Completa todos los campos obligatorios.'));
       return;
     }
     if (password !== password2) {
-      setError('Las contraseñas no coinciden.');
+      setError(t('Las contraseñas no coinciden.'));
       return;
     }
     if (!acceptTerms) {
-      setError('Debes aceptar los términos y condiciones.');
+      setError(t('Debes aceptar los términos y condiciones.'));
       return;
     }
 
@@ -104,15 +107,15 @@ export default function Register() {
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setError(data?.error || data?.message || 'No se pudo crear la cuenta.');
+        setError(data?.error || data?.message || t('No se pudo crear la cuenta.'));
         return;
       }
 
-      setSuccess('Cuenta creada. Ahora puedes iniciar sesión.');
+      setSuccess(t('Cuenta creada. Ahora puedes iniciar sesión.'));
       setTimeout(() => navigate('/login'), 700);
     } catch (err) {
       console.error(err);
-      setError('Error de conexión. Inténtalo de nuevo.');
+      setError(t('Error de conexión. Inténtalo de nuevo.'));
     } finally {
       setLoading(false);
     }
@@ -130,14 +133,17 @@ export default function Register() {
             FitTrack
           </div>
 
-          <button
-            type="button"
-            onClick={() => navigate('/login')}
-            className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-[14px] font-medium text-white/90 transition hover:bg-white/15"
-          >
-            <LogIn className="h-4 w-4" />
-            Log In
-          </button>
+          <div className="flex items-center gap-3">
+            <LanguageSelect />
+            <button
+              type="button"
+              onClick={() => navigate('/login')}
+              className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-[14px] font-medium text-white/90 transition hover:bg-white/15"
+            >
+              <LogIn className="h-4 w-4" />
+              {t('Iniciar sesión')}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -161,10 +167,10 @@ export default function Register() {
                 className="text-[clamp(28px,2.6vw,38px)] font-bold tracking-[0.06em] leading-[1.08]"
                 style={{ fontFamily: 'Arimo, Poppins, system-ui' }}
               >
-                CREAR CUENTA
+                {t('Crear cuenta').toUpperCase()}
               </h1>
               <p className="mt-2 text-[14px] text-white/55">
-                Únete a FitTrack y comienza tu transformación
+                {t('Únete a FitTrack y comienza tu transformación')}
               </p>
             </header>
 
@@ -172,21 +178,21 @@ export default function Register() {
               <input
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
-                placeholder="Nombre Completo"
+                placeholder={t('Nombre completo')}
                 className="h-12 w-full rounded-md border border-white/15 bg-transparent px-5 text-[15px] text-[#f5f5f5] placeholder:text-white/30 outline-none transition focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15"
               />
 
               <input
                 value={apodo}
                 onChange={(e) => setApodo(e.target.value)}
-                placeholder="Apodo"
+                placeholder={t('Apodo')}
                 className="h-12 w-full rounded-md border border-white/15 bg-transparent px-5 text-[15px] text-[#f5f5f5] placeholder:text-white/30 outline-none transition focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15"
               />
 
               <input
                 value={telefono}
                 onChange={(e) => setTelefono(e.target.value)}
-                placeholder="Telefono"
+                placeholder={t('Teléfono')}
                 inputMode="tel"
                 className="h-12 w-full rounded-md border border-white/15 bg-transparent px-5 text-[15px] text-[#f5f5f5] placeholder:text-white/30 outline-none transition focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15"
               />
@@ -194,7 +200,7 @@ export default function Register() {
               <input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email"
+                placeholder={t('Email')}
                 type="email"
                 autoComplete="email"
                 className="h-12 w-full rounded-md border border-white/15 bg-transparent px-5 text-[15px] text-[#f5f5f5] placeholder:text-white/30 outline-none transition focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15"
@@ -204,7 +210,7 @@ export default function Register() {
                 <input
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Contraseña"
+                  placeholder={t('Contraseña')}
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   className="h-12 w-full rounded-md border border-white/15 bg-transparent px-5 pr-14 text-[15px] text-[#f5f5f5] placeholder:text-white/30 outline-none transition focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15"
@@ -213,7 +219,7 @@ export default function Register() {
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-2 text-white/35 hover:text-white/70 focus:outline-none focus:ring-2 focus:ring-[#ff7849]/30"
-                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  aria-label={showPassword ? t('Ocultar contraseña') : t('Mostrar contraseña')}
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -223,7 +229,7 @@ export default function Register() {
                 <input
                   value={password2}
                   onChange={(e) => setPassword2(e.target.value)}
-                  placeholder="Repetir Contraseña"
+                  placeholder={t('Repetir contraseña')}
                   type={showPassword2 ? 'text' : 'password'}
                   autoComplete="new-password"
                   className="h-12 w-full rounded-md border border-white/15 bg-transparent px-5 pr-14 text-[15px] text-[#f5f5f5] placeholder:text-white/30 outline-none transition focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15"
@@ -232,7 +238,7 @@ export default function Register() {
                   type="button"
                   onClick={() => setShowPassword2((v) => !v)}
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-2 text-white/35 hover:text-white/70 focus:outline-none focus:ring-2 focus:ring-[#ff7849]/30"
-                  aria-label={showPassword2 ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  aria-label={showPassword2 ? t('Ocultar contraseña') : t('Mostrar contraseña')}
                 >
                   {showPassword2 ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -240,7 +246,7 @@ export default function Register() {
 
               {password2 && password && password !== password2 ? (
                 <div className="-mt-2 text-left text-[12px] text-[#ff7849]/90">
-                  Las contraseñas no coinciden.
+                  {t('Las contraseñas no coinciden.')}
                 </div>
               ) : null}
 
@@ -252,21 +258,21 @@ export default function Register() {
                   className="mt-0.5 h-4 w-4 rounded border-white/20 bg-transparent accent-[#ff7849]"
                 />
                 <span>
-                  Acepto los{' '}
+                  {t('Acepto los')}{' '}
                   <button
                     type="button"
                     className="text-[#ff7849] hover:underline"
-                    onClick={() => alert('Enlaza aquí tus términos y condiciones.')}
+                    onClick={() => navigate('/terms')}
                   >
-                    términos y condiciones
+                    {t('términos y condiciones')}
                   </button>{' '}
-                  y la{' '}
+                  {t('y la')}{' '}
                   <button
                     type="button"
                     className="text-[#ff7849] hover:underline"
-                    onClick={() => alert('Enlaza aquí tu política de privacidad.')}
+                    onClick={() => navigate('/privacy')}
                   >
-                    política de privacidad
+                    {t('política de privacidad')}
                   </button>
                 </span>
               </label>
@@ -289,7 +295,7 @@ export default function Register() {
                 className="flex h-12 w-full items-center justify-center gap-3 rounded-md border border-white/15 bg-transparent text-[14px] font-medium text-[#f5f5f5] transition hover:border-white/25"
               >
                 <GoogleMark className="h-5 w-5" />
-                Continuar con Google
+                {t('Continuar con Google')}
               </button>
 
               <button
@@ -297,7 +303,7 @@ export default function Register() {
                 disabled={!canSubmit}
                 className="mt-2 h-12 w-full rounded-md bg-[#ff7849] text-[14px] font-semibold text-white shadow-[0_14px_34px_-14px_rgba(255,120,73,0.9)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? 'Creando...' : 'Crear Cuenta'}
+                {loading ? t('Creando...') : t('Crear cuenta')}
               </button>
             </form>
           </div>

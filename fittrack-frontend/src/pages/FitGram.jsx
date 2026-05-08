@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import { useI18n, tr } from '../i18n/I18nProvider';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -74,31 +75,33 @@ function Avatar({ label }) {
 }
 
 function PlaceholderImage({ label }) {
+  const { lang } = useI18n();
   return (
     <div className="h-[170px] sm:h-[190px] md:h-[210px] w-full bg-black/10 border-y border-white/10 flex items-center justify-center">
       <div className="h-24 w-24 border border-white/15 bg-white/[0.02] flex items-center justify-center text-white/35 text-[11px] uppercase tracking-widest">
-        {label || 'IMG'}
+        {label || tr(lang, 'IMG', 'IMG')}
       </div>
     </div>
   );
 }
 
 function CommentComposer({ value, onChange, onSend }) {
+  const { lang } = useI18n();
   return (
     <div className="px-4 py-3 border-t border-white/10 bg-white/[0.02]">
       <div className="flex items-center gap-2">
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Escribe un comentario..."
+          placeholder={tr(lang, 'Escribe un comentario...', 'Write a comment...')}
           className="flex-1 rounded-lg border border-white/15 bg-white/[0.03] px-3 py-2 text-[12px] text-white/85 placeholder:text-white/30 outline-none focus:border-white/30 focus:bg-white/[0.06]"
         />
         <button
           type="button"
           onClick={onSend}
           className="h-9 w-9 rounded-lg border border-white/15 bg-white/[0.03] hover:bg-white/[0.08] transition flex items-center justify-center"
-          aria-label="Enviar comentario"
-          title="Enviar"
+          aria-label={tr(lang, 'Enviar comentario', 'Send comment')}
+          title={tr(lang, 'Enviar', 'Send')}
         >
           <SendHorizontal className="h-4 w-4 text-white/70" />
         </button>
@@ -108,6 +111,7 @@ function CommentComposer({ value, onChange, onSend }) {
 }
 
 function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments, onAddComment, onCopyWorkout }) {
+  const { lang } = useI18n();
   const isWorkout = post.type === 'workout';
 
   return (
@@ -122,7 +126,7 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
         </div>
       </div>
 
-      <PlaceholderImage label="IMG" />
+      <PlaceholderImage label={tr(lang, 'IMG', 'IMG')} />
 
       <div className="px-4 py-3 border-b border-white/10">
         <div className="text-[12px] text-white/80">
@@ -141,24 +145,26 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
 
       {isWorkout ? (
         <div className="grid grid-cols-3 divide-x divide-white/10 border-b border-white/10">
-          <Stat label="Ejer" value={post.stats.exercises} />
-          <Stat label="Dur" value={post.stats.duration} />
-          <Stat label="Cal" value={post.stats.calories} />
+          <Stat label={tr(lang, 'Ejer', 'Ex')} value={post.stats.exercises} />
+          <Stat label={tr(lang, 'Dur', 'Dur')} value={post.stats.duration} />
+          <Stat label={tr(lang, 'Cal', 'Cal')} value={post.stats.calories} />
         </div>
       ) : null}
 
       {isWorkout ? (
         <div className="px-4 py-3 border-b border-white/10 bg-white/[0.02] flex items-center justify-between gap-3">
-          <div className="text-[10px] uppercase tracking-widest text-white/45">Entreno del día</div>
+          <div className="text-[10px] uppercase tracking-widest text-white/45">
+            {tr(lang, 'Entreno del día', "Today's workout")}
+          </div>
           <button
             type="button"
             onClick={() => onCopyWorkout(post)}
             className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/[0.03] px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.08] hover:text-white/90 transition"
-            aria-label="Copiar entreno"
-            title="Copiar entreno"
+            aria-label={tr(lang, 'Copiar entreno', 'Copy workout')}
+            title={tr(lang, 'Copiar entreno', 'Copy workout')}
           >
             {state.copied ? <Check className="h-4 w-4 text-[#ff7849]" /> : <ClipboardCopy className="h-4 w-4" />}
-            {state.copied ? 'Copiado' : 'Copiar entreno'}
+            {state.copied ? tr(lang, 'Copiado', 'Copied') : tr(lang, 'Copiar entreno', 'Copy workout')}
           </button>
         </div>
       ) : null}
@@ -169,14 +175,14 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
           value={state.likes}
           active={state.liked}
           onClick={() => onToggleLike(post.id)}
-          ariaLabel={state.liked ? 'Quitar me gusta' : 'Dar me gusta'}
+          ariaLabel={state.liked ? tr(lang, 'Quitar me gusta', 'Unlike') : tr(lang, 'Dar me gusta', 'Like')}
         />
         <IconMetric
           icon={MessageCircle}
           value={state.comments}
           active={state.showComments}
           onClick={() => onToggleComments(post.id)}
-          ariaLabel="Comentar"
+          ariaLabel={tr(lang, 'Comentar', 'Comment')}
         />
         <button
           type="button"
@@ -185,11 +191,13 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
             'flex w-full items-center justify-center gap-2 py-3 transition',
             state.saved ? 'text-[#ff7849]' : 'text-white/70 hover:text-white/90'
           )}
-          aria-label={state.saved ? 'Quitar guardado' : 'Guardar'}
-          title={state.saved ? 'Quitar guardado' : 'Guardar'}
+          aria-label={state.saved ? tr(lang, 'Quitar guardado', 'Unsave') : tr(lang, 'Guardar', 'Save')}
+          title={state.saved ? tr(lang, 'Quitar guardado', 'Unsave') : tr(lang, 'Guardar', 'Save')}
         >
           <Bookmark className={cx('h-4 w-4', state.saved ? 'text-[#ff7849]' : 'text-white/55')} />
-          <span className="text-[12px] font-semibold">{state.saved ? 'Guardado' : 'Guardar'}</span>
+          <span className="text-[12px] font-semibold">
+            {state.saved ? tr(lang, 'Guardado', 'Saved') : tr(lang, 'Guardar', 'Save')}
+          </span>
         </button>
       </div>
 
@@ -218,6 +226,7 @@ function EmptyStateCard({ children, className }) {
 }
 
 function PopularUserCard({ user, onFollow }) {
+  const { lang } = useI18n();
   return (
     <div className="rounded-xl border border-white/15 bg-white/[0.02] p-5 sm:p-6 text-center">
       <div className="mx-auto h-14 w-14 rounded-xl border border-white/15 bg-white/[0.03] flex items-center justify-center text-[18px] font-bold text-white/80">
@@ -230,7 +239,7 @@ function PopularUserCard({ user, onFollow }) {
         onClick={onFollow}
         className="mt-4 w-full rounded-lg border border-white/20 bg-white/[0.02] px-4 py-2.5 text-[11px] font-semibold text-white/75 hover:text-white/90 hover:border-white/35 hover:bg-white/[0.05] transition"
       >
-        + SEGUIR
+        + {tr(lang, 'SEGUIR', 'FOLLOW')}
       </button>
     </div>
   );
@@ -239,6 +248,7 @@ function PopularUserCard({ user, onFollow }) {
 export default function FitGram({ forceEmpty = false }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { lang } = useI18n();
   const [query, setQuery] = useState('');
 
   const seedPosts = useMemo(
@@ -248,7 +258,7 @@ export default function FitGram({ forceEmpty = false }) {
         type: 'workout',
         avatarLabel: 'J',
         username: 'JUAN_FITNESS',
-        timeAgo: 'HACE 2H',
+        timeAgo: tr(lang, 'HACE 2H', '2H AGO'),
         caption: '¡Día de pierna completado! 💪',
         tags: ['PIERNA', 'FUERZA'],
         stats: { exercises: 8, duration: '65m', calories: 420 },
@@ -259,7 +269,7 @@ export default function FitGram({ forceEmpty = false }) {
         type: 'workout',
         avatarLabel: 'A',
         username: 'ANA_STRONG',
-        timeAgo: 'HACE 5H',
+        timeAgo: tr(lang, 'HACE 5H', '5H AGO'),
         caption: 'Nueva rutina HIIT 🏃',
         tags: ['CARDIO', 'HIIT'],
         stats: { exercises: 6, duration: '30m', calories: 420 },
@@ -270,7 +280,7 @@ export default function FitGram({ forceEmpty = false }) {
         type: 'info',
         avatarLabel: 'C',
         username: 'COACH_MIGUEL',
-        timeAgo: 'HACE 1D',
+        timeAgo: tr(lang, 'HACE 1D', '1D AGO'),
         caption: 'Nueva rutina de pecho y tríceps: consistente y con progresión.',
         tags: ['PECHO', 'TRICEPS'],
         metrics: { likes: 124, comments: 34 },
@@ -280,7 +290,7 @@ export default function FitGram({ forceEmpty = false }) {
         type: 'workout',
         avatarLabel: 'M',
         username: 'MARIA_GYM',
-        timeAgo: 'HACE 1D',
+        timeAgo: tr(lang, 'HACE 1D', '1D AGO'),
         caption: 'PR en sentadillas! 🎉',
         tags: ['PIERNA', 'PR'],
         stats: { exercises: 5, duration: '45m', calories: 360 },
@@ -291,7 +301,7 @@ export default function FitGram({ forceEmpty = false }) {
         type: 'workout',
         avatarLabel: 'C',
         username: 'CARLOS_FIT',
-        timeAgo: 'HACE 2D',
+        timeAgo: tr(lang, 'HACE 2D', '2D AGO'),
         caption: 'Espalda y bíceps ✅',
         tags: ['ESPALDA'],
         stats: { exercises: 7, duration: '55m', calories: 410 },
@@ -302,14 +312,14 @@ export default function FitGram({ forceEmpty = false }) {
         type: 'workout',
         avatarLabel: 'L',
         username: 'LAURA_SPORT',
-        timeAgo: 'HACE 2D',
+        timeAgo: tr(lang, 'HACE 2D', '2D AGO'),
         caption: 'Yoga flow matutino 🧘',
         tags: ['YOGA'],
         stats: { exercises: 10, duration: '25m', calories: 180 },
         metrics: { likes: 51, comments: 6 },
       },
     ],
-    []
+    [lang]
   );
 
   const initialPosts = useMemo(() => {
@@ -380,11 +390,11 @@ export default function FitGram({ forceEmpty = false }) {
 
   const popularUsers = useMemo(
     () => [
-      { id: 'pu_coach', avatarLabel: 'C', username: 'COACH_MIGUEL', followers: '1.2K SEGUIDORES' },
-      { id: 'pu_ana', avatarLabel: 'A', username: 'ANA_STRONG', followers: '890 SEGUIDORES' },
-      { id: 'pu_juan', avatarLabel: 'J', username: 'JUAN_FITNESS', followers: '654 SEGUIDORES' },
+      { id: 'pu_coach', avatarLabel: 'C', username: 'COACH_MIGUEL', followers: tr(lang, '1.2K SEGUIDORES', '1.2K FOLLOWERS') },
+      { id: 'pu_ana', avatarLabel: 'A', username: 'ANA_STRONG', followers: tr(lang, '890 SEGUIDORES', '890 FOLLOWERS') },
+      { id: 'pu_juan', avatarLabel: 'J', username: 'JUAN_FITNESS', followers: tr(lang, '654 SEGUIDORES', '654 FOLLOWERS') },
     ],
-    []
+    [lang]
   );
 
   const updatePostState = (postId, updater) => {
@@ -422,13 +432,14 @@ export default function FitGram({ forceEmpty = false }) {
   const handleCopyWorkout = async (post) => {
     if (post.type !== 'workout') return;
 
+    const isEn = lang === 'en';
     const workoutText = [
       `@${post.username}`,
       post.caption ? `\n${post.caption}` : '',
-      `\nEjercicios: ${post.stats.exercises}`,
-      `Duración: ${post.stats.duration}`,
-      `Calorías: ${post.stats.calories}`,
-      post.tags?.length ? `\nTags: ${post.tags.map((t) => `#${t}`).join(' ')}` : '',
+      `\n${isEn ? 'Exercises' : 'Ejercicios'}: ${post.stats.exercises}`,
+      `\n${isEn ? 'Duration' : 'Duración'}: ${post.stats.duration}`,
+      `\n${isEn ? 'Calories' : 'Calorías'}: ${post.stats.calories}`,
+      post.tags?.length ? `\n${isEn ? 'Tags' : 'Tags'}: ${post.tags.map((t) => `#${t}`).join(' ')}` : '',
     ]
       .filter(Boolean)
       .join('');
@@ -470,7 +481,7 @@ export default function FitGram({ forceEmpty = false }) {
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="BUSCAR USUARIOS..."
+                  placeholder={tr(lang, 'BUSCAR USUARIOS...', 'SEARCH USERS...')}
                   className="w-full rounded-lg border border-white/15 bg-white/[0.03] pl-11 pr-4 py-3 text-[12px] sm:text-[13px] text-white/85 placeholder:text-white/30 outline-none focus:border-white/30 focus:bg-white/[0.06]"
                 />
               </div>
@@ -479,8 +490,8 @@ export default function FitGram({ forceEmpty = false }) {
                 type="button"
                 onClick={() => navigate('/fitgram/create')}
                 className="h-[46px] w-[46px] rounded-lg border border-white/15 bg-white/[0.03] hover:bg-white/[0.08] transition flex items-center justify-center"
-                aria-label="Crear publicación"
-                title="Crear publicación"
+                aria-label={tr(lang, 'Crear publicación', 'Create post')}
+                title={tr(lang, 'Crear publicación', 'Create post')}
               >
                 <Plus className="h-5 w-5 text-white/70" />
               </button>
@@ -496,37 +507,40 @@ export default function FitGram({ forceEmpty = false }) {
                   <ImageIcon className="h-10 w-10 text-white/70" />
                 </div>
                 <h2 className="mt-6 text-[22px] sm:text-[26px] font-bold tracking-wide text-white/90 uppercase">
-                  NO HAY PUBLICACIONES
+                  {tr(lang, 'NO HAY PUBLICACIONES', 'NO POSTS')}
                 </h2>
                 <p className="mt-2 text-[12px] sm:text-[13px] text-white/45 leading-relaxed">
-                  Todavía no sigues a ningún usuario. Utiliza el buscador para encontrar usuarios y empezar a seguir sus
-                  entrenamientos y publicaciones.
+                  {tr(
+                    lang,
+                    'Todavía no sigues a ningún usuario. Utiliza el buscador para encontrar usuarios y empezar a seguir sus entrenamientos y publicaciones.',
+                    "You're not following anyone yet. Use search to find users and start following their workouts and posts."
+                  )}
                 </p>
 
                 <div className="mt-7 space-y-4">
                   <EmptyStateCard className="p-5 sm:p-6 text-left">
                     <div className="text-center text-[11px] font-semibold uppercase tracking-widest text-white/55">
-                      SUGERENCIAS PARA EMPEZAR
+                      {tr(lang, 'SUGERENCIAS PARA EMPEZAR', 'GET STARTED')}
                     </div>
                     <ol className="mt-4 space-y-3 text-[12px] sm:text-[13px] text-white/75">
                       <li className="flex gap-3">
                         <span className="min-w-6 text-white/70 font-bold">1.</span>
-                        <span>Usa el buscador para encontrar usuarios por nombre o @usuario</span>
+                        <span>{tr(lang, 'Usa el buscador para encontrar usuarios por nombre o @usuario', 'Use search to find users by name or @handle')}</span>
                       </li>
                       <li className="flex gap-3">
                         <span className="min-w-6 text-white/70 font-bold">2.</span>
-                        <span>Sigue a otros usuarios para ver sus entrenamientos en tu feed</span>
+                        <span>{tr(lang, 'Sigue a otros usuarios para ver sus entrenamientos en tu feed', 'Follow users to see their workouts in your feed')}</span>
                       </li>
                       <li className="flex gap-3">
                         <span className="min-w-6 text-white/70 font-bold">3.</span>
-                        <span>Comparte tus propios entrenamientos usando el botón “+”</span>
+                        <span>{tr(lang, 'Comparte tus propios entrenamientos usando el botón “+”', 'Share your workouts using the “+” button')}</span>
                       </li>
                     </ol>
                   </EmptyStateCard>
 
                   <EmptyStateCard className="p-5 sm:p-6">
                     <div className="text-center text-[11px] font-semibold uppercase tracking-widest text-white/55">
-                      USUARIOS POPULARES
+                      {tr(lang, 'USUARIOS POPULARES', 'POPULAR USERS')}
                     </div>
                     <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {popularUsers.map((user) => (
@@ -558,10 +572,10 @@ export default function FitGram({ forceEmpty = false }) {
                 <div className="rounded-xl border border-white/10 bg-white/[0.04] p-10 text-center text-white/55">
                   <div className="inline-flex items-center gap-2 text-[13px] font-semibold text-white/70">
                     <ImageIcon className="h-4 w-4 text-white/50" />
-                    No se encontraron usuarios
+                    {tr(lang, 'No se encontraron usuarios', 'No users found')}
                   </div>
                   <div className="text-[12px] text-white/40 mt-2">
-                    Prueba con otro nombre (ej. ANA, CARLOS...).
+                    {tr(lang, 'Prueba con otro nombre (ej. ANA, CARLOS...).', 'Try another name (e.g. ANA, CARLOS...).')}
                   </div>
                 </div>
               ) : null}

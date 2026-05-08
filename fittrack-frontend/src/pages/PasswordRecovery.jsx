@@ -3,9 +3,12 @@ import { LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { API_BASE } from '../config/apiBase';
+import { useI18n } from '../i18n/I18nProvider';
+import LanguageSelect from '../components/LanguageSelect';
 
 export default function PasswordRecovery() {
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,14 +46,14 @@ export default function PasswordRecovery() {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data?.error || data?.message || 'No se pudo completar la operación.');
+        setError(data?.error || data?.message || t('No se pudo completar la operación.'));
         return;
       }
 
-      setSuccess('Si el email existe, te enviaremos un enlace de recuperación.');
+      setSuccess(t('Si el email existe, te enviaremos un enlace de recuperación.'));
     } catch (err) {
       console.error(err);
-      setError('Error de conexión. Inténtalo de nuevo.');
+      setError(t('Error de conexión. Inténtalo de nuevo.'));
     } finally {
       setLoading(false);
     }
@@ -68,14 +71,17 @@ export default function PasswordRecovery() {
             FitTrack
           </div>
 
-          <button
-            type="button"
-            onClick={() => navigate('/login')}
-            className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-[14px] font-medium text-white/90 transition hover:bg-white/15"
-          >
-            <LogIn className="h-4 w-4" />
-            Log In
-          </button>
+          <div className="flex items-center gap-3">
+            <LanguageSelect />
+            <button
+              type="button"
+              onClick={() => navigate('/login')}
+              className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-[14px] font-medium text-white/90 transition hover:bg-white/15"
+            >
+              <LogIn className="h-4 w-4" />
+              {t('Iniciar sesión')}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -99,10 +105,10 @@ export default function PasswordRecovery() {
                 className="text-[clamp(26px,2.4vw,34px)] font-bold tracking-[0.08em] leading-[1.08]"
                 style={{ fontFamily: 'Arimo, Poppins, system-ui' }}
               >
-                RECUPERAR CONTRASEÑA
+                {t('Recuperar contraseña').toUpperCase()}
               </h1>
               <p className="mx-auto mt-3 max-w-[34ch] text-[14px] text-white/55">
-                Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña
+                {t('Ingresa tu email y te enviaremos un enlace para restablecer tu contraseña')}
               </p>
             </header>
 
@@ -110,7 +116,7 @@ export default function PasswordRecovery() {
               <input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email"
+                placeholder={t('Email')}
                 type="email"
                 autoComplete="email"
                 className="h-12 w-full rounded-md border border-white/15 bg-transparent px-5 text-[15px] text-[#f5f5f5] placeholder:text-white/30 outline-none transition focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15"
@@ -133,7 +139,7 @@ export default function PasswordRecovery() {
                 disabled={!canSubmit}
                 className="mt-2 h-12 w-full rounded-md bg-[#ff7849] text-[14px] font-semibold text-white shadow-[0_14px_34px_-14px_rgba(255,120,73,0.9)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? 'Enviando...' : 'Enviar Enlace de Recuperación'}
+                {loading ? t('Enviando...') : t('Enviar enlace de recuperación')}
               </button>
 
               <button
@@ -141,7 +147,7 @@ export default function PasswordRecovery() {
                 onClick={() => navigate('/login')}
                 className="mx-auto block pt-2 text-[13px] text-white/50 hover:text-white/70"
               >
-                Volver al inicio de sesión
+                {t('Volver al inicio de sesión')}
               </button>
             </form>
           </div>

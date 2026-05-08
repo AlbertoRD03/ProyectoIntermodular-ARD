@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Bookmark, Check, ChevronDown, ClipboardCopy, Search, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
+import { useI18n, tr } from '../i18n/I18nProvider';
+import { getDateKey, upsertSession } from '../services/sessionStore';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -100,6 +102,7 @@ function ResultRow({ label, onAdd }) {
 }
 
 function SetRow({ index, reps, weight, option, onChange, onRemove }) {
+  const { lang } = useI18n();
   return (
     <div className="grid grid-cols-[44px_1fr_1fr_1fr_44px] gap-3 items-center">
       <div className="h-10 w-10 rounded-lg border border-white/20 bg-white/[0.02] flex items-center justify-center text-[12px] font-semibold text-white/80">
@@ -109,7 +112,7 @@ function SetRow({ index, reps, weight, option, onChange, onRemove }) {
       <Input
         value={reps}
         onChange={(e) => onChange({ reps: e.target.value })}
-        placeholder="REPETICIONES"
+        placeholder={tr(lang, 'REPETICIONES', 'REPS')}
         className="py-2.5"
         inputMode="numeric"
       />
@@ -117,7 +120,7 @@ function SetRow({ index, reps, weight, option, onChange, onRemove }) {
       <Input
         value={weight}
         onChange={(e) => onChange({ weight: e.target.value })}
-        placeholder="PESO (KG)"
+        placeholder={tr(lang, 'PESO (KG)', 'WEIGHT (KG)')}
         className="py-2.5"
         inputMode="decimal"
       />
@@ -128,11 +131,11 @@ function SetRow({ index, reps, weight, option, onChange, onRemove }) {
           onChange={(e) => onChange({ option: e.target.value })}
           className="appearance-none w-full rounded-lg border border-white/15 bg-white/[0.03] px-4 py-2.5 pr-10 text-[12px] text-white/70 outline-none focus:border-white/30 focus:bg-white/[0.06]"
         >
-          <option value="OPCIONES">OPCIONES</option>
-          <option value="NORMAL">NORMAL</option>
-          <option value="FALLO">FALLO</option>
-          <option value="DROPSET">DROPSET</option>
-          <option value="PAUSA">PAUSA</option>
+          <option value="OPCIONES">{tr(lang, 'OPCIONES', 'OPTIONS')}</option>
+          <option value="NORMAL">{tr(lang, 'NORMAL', 'NORMAL')}</option>
+          <option value="FALLO">{tr(lang, 'FALLO', 'FAILURE')}</option>
+          <option value="DROPSET">{tr(lang, 'DROPSET', 'DROPSET')}</option>
+          <option value="PAUSA">{tr(lang, 'PAUSA', 'PAUSE')}</option>
         </select>
         <ChevronDown className="h-4 w-4 text-white/40 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
       </div>
@@ -141,8 +144,8 @@ function SetRow({ index, reps, weight, option, onChange, onRemove }) {
         type="button"
         onClick={onRemove}
         className="h-10 w-10 rounded-lg border border-white/20 bg-white/[0.02] text-white/70 hover:bg-white/[0.06] hover:text-white/90 transition flex items-center justify-center"
-        aria-label="Eliminar serie"
-        title="Eliminar serie"
+        aria-label={tr(lang, 'Eliminar serie', 'Remove set')}
+        title={tr(lang, 'Eliminar serie', 'Remove set')}
       >
         <X className="h-4 w-4" />
       </button>
@@ -151,6 +154,7 @@ function SetRow({ index, reps, weight, option, onChange, onRemove }) {
 }
 
 function AddedExerciseCard({ exercise, onRemoveExercise, onUpdateSet, onAddSet, onRemoveSet }) {
+  const { lang } = useI18n();
   return (
     <Card className="p-5 sm:p-6 md:p-7">
       <div className="flex items-center justify-between gap-3">
@@ -158,7 +162,7 @@ function AddedExerciseCard({ exercise, onRemoveExercise, onUpdateSet, onAddSet, 
           {exercise.name}
         </div>
         <OutlineButton onClick={onRemoveExercise} className="px-4 py-2 text-[11px]">
-          ELIMINAR
+          {tr(lang, 'ELIMINAR', 'REMOVE')}
         </OutlineButton>
       </div>
 
@@ -184,7 +188,7 @@ function AddedExerciseCard({ exercise, onRemoveExercise, onUpdateSet, onAddSet, 
           onClick={onAddSet}
           className="w-full rounded-lg border border-white/15 bg-white/[0.02] hover:bg-white/[0.06] transition py-3 text-[12px] font-semibold text-white/80"
         >
-          + AÑADIR
+          + {tr(lang, 'AÑADIR', 'ADD')}
         </button>
       </div>
     </Card>
@@ -205,6 +209,7 @@ function SavedWorkoutStat({ label, value }) {
 }
 
 function SavedWorkoutCard({ workout, copiedState, onCopyReplace, onCopyAppend }) {
+  const { lang } = useI18n();
   return (
     <Card className="p-4 sm:p-5 border-white/15">
       <div className="flex items-start justify-between gap-3">
@@ -213,7 +218,8 @@ function SavedWorkoutCard({ workout, copiedState, onCopyReplace, onCopyAppend })
             {workout.title}
           </div>
           <div className="text-[10px] uppercase tracking-widest text-white/40 mt-1">
-            Guardado de <span className="text-white/65 font-semibold">@{workout.sourceUser}</span>
+            {tr(lang, 'Guardado de', 'Saved from')}{' '}
+            <span className="text-white/65 font-semibold">@{workout.sourceUser}</span>
           </div>
         </div>
 
@@ -223,32 +229,33 @@ function SavedWorkoutCard({ workout, copiedState, onCopyReplace, onCopyAppend })
       </div>
 
       <div className="grid grid-cols-3 divide-x divide-white/10 border-y border-white/10 mt-4">
-        <SavedWorkoutStat label="Ejer" value={workout.stats.exercises} />
-        <SavedWorkoutStat label="Dur" value={workout.stats.duration} />
-        <SavedWorkoutStat label="Cal" value={workout.stats.calories} />
+        <SavedWorkoutStat label={tr(lang, 'Ejer', 'Ex')} value={workout.stats.exercises} />
+        <SavedWorkoutStat label={tr(lang, 'Dur', 'Dur')} value={workout.stats.duration} />
+        <SavedWorkoutStat label={tr(lang, 'Cal', 'Cal')} value={workout.stats.calories} />
       </div>
 
       <div className="mt-4 flex items-center gap-2">
         <OutlineButton onClick={onCopyAppend} className="flex-1 py-2.5 text-[11px]">
-          Añadir
+          {tr(lang, 'Añadir', 'Append')}
         </OutlineButton>
         <PrimaryButton onClick={onCopyReplace} className="flex-1 py-2.5 text-[11px]">
           {copiedState ? (
             <span className="inline-flex items-center gap-2">
               <Check className="h-4 w-4" />
-              Copiado
+              {tr(lang, 'Copiado', 'Copied')}
             </span>
           ) : (
             <span className="inline-flex items-center gap-2">
               <ClipboardCopy className="h-4 w-4" />
-              Copiar
+              {tr(lang, 'Copiar', 'Copy')}
             </span>
           )}
         </PrimaryButton>
       </div>
 
       <div className="text-[10px] text-white/40 mt-3">
-        <span className="font-semibold text-white/55">{workout.exercises.length}</span> ejercicios en la plantilla
+        <span className="font-semibold text-white/55">{workout.exercises.length}</span>{' '}
+        {tr(lang, 'ejercicios en la plantilla', 'exercises in template')}
       </div>
     </Card>
   );
@@ -256,21 +263,35 @@ function SavedWorkoutCard({ workout, copiedState, onCopyReplace, onCopyAppend })
 
 export default function CreateSession() {
   const navigate = useNavigate();
+  const { lang } = useI18n();
+  const [params] = useSearchParams();
   const [muscleGroup, setMuscleGroup] = useState('PECHO');
   const [workoutType, setWorkoutType] = useState('FUERZA');
   const [search, setSearch] = useState('');
   const [savedQuery, setSavedQuery] = useState('');
   const [copiedWorkoutId, setCopiedWorkoutId] = useState(null);
   const [isSavedPanelOpen, setIsSavedPanelOpen] = useState(false);
+
+  const dateKey = useMemo(() => {
+    const raw = params.get('date');
+    if (!raw) return getDateKey(new Date());
+    // Expect YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return getDateKey(new Date());
+    const d = new Date(`${raw}T12:00:00`);
+    if (Number.isNaN(d.getTime())) return getDateKey(new Date());
+    return getDateKey(d);
+  }, [params]);
+
   const workoutDateLabel = useMemo(() => {
-    const now = new Date();
-    return now.toLocaleDateString('es-ES', {
+    const base = new Date(`${dateKey}T12:00:00`);
+    const locale = lang === 'en' ? 'en-US' : 'es-ES';
+    return base.toLocaleDateString(locale, {
       weekday: 'long',
       day: '2-digit',
       month: 'long',
       year: 'numeric',
     });
-  }, []);
+  }, [dateKey, lang]);
 
   const allExercises = useMemo(
     () => [
@@ -464,6 +485,36 @@ export default function CreateSession() {
   };
 
   const handleSave = () => {
+    const id = makeId('session');
+    const createdAt = Date.now();
+    const totalSets = added.reduce((acc, ex) => acc + (Array.isArray(ex.sets) ? ex.sets.length : 0), 0);
+    const session = {
+      id,
+      dateKey,
+      createdAt,
+      title: `${muscleGroup} · ${workoutType}`,
+      date: workoutDateLabel,
+      duration: '60 MIN',
+      muscleGroup,
+      workoutType,
+      exercisesCount: added.length,
+      series: totalSets,
+      volume: totalSets ? `${totalSets * 40} KG` : '0 KG',
+      exercises: added.map((ex) => ({
+        name: ex.name,
+        sets: Array.isArray(ex.sets)
+          ? ex.sets.map((s, idx) => ({
+              number: idx + 1,
+              reps: s.reps === '' ? 0 : Number.isFinite(Number(s.reps)) ? Number(s.reps) : 0,
+              weight: s.weight ?? '',
+              option: s.option ?? 'OPCIONES',
+            }))
+          : [],
+      })),
+    };
+
+    upsertSession(session);
+
     // UI only (mock). Hook this to backend later.
     navigate('/entrenamientos', {
       state: {
@@ -485,7 +536,7 @@ export default function CreateSession() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-[24px] sm:text-[28px] md:text-[32px] font-semibold tracking-wide text-white/95 uppercase">
-                CREAR NUEVA SESIÓN
+                {tr(lang, 'CREAR NUEVA SESIÓN', 'CREATE NEW SESSION')}
               </h1>
               <div className="text-[11px] sm:text-[12px] md:text-[13px] font-medium text-white/45 mt-1">
                 {workoutDateLabel}
@@ -496,33 +547,33 @@ export default function CreateSession() {
               type="button"
               onClick={() => setIsSavedPanelOpen(true)}
               className="hidden md:inline-flex h-[64px] w-[360px] max-w-[38vw] rounded-lg border border-white/20 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/35 transition items-center justify-center gap-2 text-[12px] font-semibold text-white/80"
-              aria-label="Abrir entrenos guardados"
-              title="Entrenos guardados"
+              aria-label={tr(lang, 'Abrir entrenos guardados', 'Open saved workouts')}
+              title={tr(lang, 'Entrenos guardados', 'Saved workouts')}
             >
               <Bookmark className="h-4 w-4 text-white/60" />
-              ENTRENOS GUARDADOS
+              {tr(lang, 'ENTRENOS GUARDADOS', 'SAVED WORKOUTS')}
             </button>
           </div>
 
           <Card className="p-5 sm:p-6 md:p-7 border-white/15">
             <div className="text-[13px] sm:text-[14px] font-bold uppercase tracking-widest text-white/85">
-              CONFIGURACIÓN
+              {tr(lang, 'CONFIGURACIÓN', 'SETTINGS')}
             </div>
 
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
               <div>
-                <FieldLabel>ZONA A ENTRENAR</FieldLabel>
+                <FieldLabel>{tr(lang, 'ZONA A ENTRENAR', 'MUSCLE GROUP')}</FieldLabel>
                 <Select value={muscleGroup} onChange={setMuscleGroup} options={['PECHO', 'ESPALDA', 'PIERNA', 'HOMBROS', 'BRAZOS']} />
               </div>
               <div>
-                <FieldLabel>TIPO DE ENTRENO</FieldLabel>
+                <FieldLabel>{tr(lang, 'TIPO DE ENTRENO', 'WORKOUT TYPE')}</FieldLabel>
                 <Select value={workoutType} onChange={setWorkoutType} options={['FUERZA', 'CARDIO', 'HIIT', 'MOVILIDAD']} />
               </div>
             </div>
 
-            <div className="mt-6">
+              <div className="mt-6">
               <div className="text-[13px] sm:text-[14px] font-bold uppercase tracking-wide text-white/85">
-                AÑADIR EJERCICIO
+                {tr(lang, 'AÑADIR EJERCICIO', 'ADD EXERCISE')}
               </div>
 
               <div className="mt-4 grid grid-cols-1 lg:grid-cols-[1fr_140px] gap-3">
@@ -531,16 +582,18 @@ export default function CreateSession() {
                   <Input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="BUSCAR EJERCICIO (EJ: PRESS BANCA, FONDOS...)"
+                    placeholder={tr(lang, 'BUSCAR EJERCICIO (EJ: PRESS BANCA, FONDOS...)', 'SEARCH EXERCISE (E.G. BENCH PRESS, DIPS...)')}
                     className="pl-11"
                   />
                 </div>
-                <OutlineButton className="py-3">BUSCAR</OutlineButton>
+                <OutlineButton className="py-3">{tr(lang, 'BUSCAR', 'SEARCH')}</OutlineButton>
               </div>
 
               <div className="h-px w-full bg-white/10 my-5" />
 
-              <div className="text-[10px] sm:text-[11px] uppercase tracking-widest text-white/45 mb-3">RESULTADOS</div>
+              <div className="text-[10px] sm:text-[11px] uppercase tracking-widest text-white/45 mb-3">
+                {tr(lang, 'RESULTADOS', 'RESULTS')}
+              </div>
               <div className="space-y-3">
                 {results.map((name) => (
                   <ResultRow key={name} label={name} onAdd={() => addExercise(name)} />
@@ -550,7 +603,7 @@ export default function CreateSession() {
           </Card>
 
           <div className="text-[13px] sm:text-[14px] font-bold uppercase tracking-widest text-white/85">
-            EJERCICIOS AÑADIDOS
+            {tr(lang, 'EJERCICIOS AÑADIDOS', 'ADDED EXERCISES')}
           </div>
 
           <div className="space-y-5 sm:space-y-6">
@@ -568,10 +621,10 @@ export default function CreateSession() {
 
           <div className="pt-2 flex items-center justify-center gap-4">
             <OutlineButton onClick={() => navigate(-1)} className="min-w-[160px]">
-              CANCELAR
+              {tr(lang, 'CANCELAR', 'CANCEL')}
             </OutlineButton>
             <PrimaryButton onClick={handleSave} className="min-w-[180px]">
-              GUARDAR SESIÓN
+              {tr(lang, 'GUARDAR SESIÓN', 'SAVE SESSION')}
             </PrimaryButton>
           </div>
         </div>
@@ -583,20 +636,20 @@ export default function CreateSession() {
             type="button"
             className="absolute inset-0 bg-black/60"
             onClick={() => setIsSavedPanelOpen(false)}
-            aria-label="Cerrar"
+            aria-label={tr(lang, 'Cerrar', 'Close')}
           />
 
           <div className="absolute right-0 top-0 h-full w-full sm:w-[520px] bg-[#1e1e1e] border-l border-white/10 shadow-2xl">
             <div className="h-[56px] sm:h-[64px] border-b border-white/10 flex items-center justify-between px-4 sm:px-5">
               <div className="text-[12px] sm:text-[13px] font-bold uppercase tracking-widest text-white/85">
-                Entrenos guardados
+                {tr(lang, 'Entrenos guardados', 'Saved workouts')}
               </div>
               <button
                 type="button"
                 onClick={() => setIsSavedPanelOpen(false)}
                 className="h-10 w-10 rounded-lg border border-white/15 bg-white/[0.03] hover:bg-white/[0.08] transition flex items-center justify-center text-white/70"
-                aria-label="Cerrar panel"
-                title="Cerrar"
+                aria-label={tr(lang, 'Cerrar panel', 'Close panel')}
+                title={tr(lang, 'Cerrar', 'Close')}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -608,7 +661,7 @@ export default function CreateSession() {
                 <Input
                   value={savedQuery}
                   onChange={(e) => setSavedQuery(e.target.value)}
-                  placeholder="Buscar (pecho, pierna, hiit...)"
+                  placeholder={tr(lang, 'Buscar (pecho, pierna, hiit...)', 'Search (chest, legs, hiit...)')}
                   className="pl-11 py-2.5"
                 />
               </div>

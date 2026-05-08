@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ArrowLeft, Check, Clock, Pencil, Plus, Share2, Settings, Trash2, X } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import Header from '../components/Header';
+import { useI18n, tr } from '../i18n/I18nProvider';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -21,6 +22,7 @@ function Card({ children, className }) {
 }
 
 function ExerciseSet({ number, reps, weight }) {
+  const { lang } = useI18n();
   return (
     <div className="flex items-center gap-3 sm:gap-4">
       <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg border border-white/20 bg-white/[0.04] text-[11px] sm:text-[12px] font-bold text-white/70">
@@ -32,8 +34,10 @@ function ExerciseSet({ number, reps, weight }) {
           <span className="text-[12px] sm:text-[13px] font-semibold text-white/85">{reps}</span>
         </div>
         <div className="flex flex-col">
-          <span className="text-[9px] sm:text-[10px] text-white/45 uppercase tracking-wide">Peso</span>
-          <span className="text-[12px] sm:text-[13px] font-semibold text-white/85">{weight} KG</span>
+          <span className="text-[9px] sm:text-[10px] text-white/45 uppercase tracking-wide">{tr(lang, 'Peso', 'Weight')}</span>
+          <span className="text-[12px] sm:text-[13px] font-semibold text-white/85">
+            {String(weight).toUpperCase()} {typeof weight === 'number' || /^\d/.test(String(weight)) ? 'KG' : ''}
+          </span>
         </div>
       </div>
     </div>
@@ -41,6 +45,7 @@ function ExerciseSet({ number, reps, weight }) {
 }
 
 function ExerciseSection({ name, sets }) {
+  const { lang } = useI18n();
   const [isExpanded, setIsExpanded] = useState(true);
 
   return (
@@ -52,7 +57,9 @@ function ExerciseSection({ name, sets }) {
         <h3 className="text-[13px] sm:text-[14px] md:text-[15px] font-bold text-white/95 uppercase tracking-wide">
           {name}
         </h3>
-        <span className="text-[11px] sm:text-[12px] font-semibold text-[#ff7849]">{sets.length} SERIES</span>
+        <span className="text-[11px] sm:text-[12px] font-semibold text-[#ff7849]">
+          {sets.length} {tr(lang, 'SERIES', 'SETS')}
+        </span>
       </button>
 
       {isExpanded && (
@@ -106,6 +113,7 @@ function EditButton({ children, className, ...props }) {
 }
 
 function ExerciseEditor({ draft, onChangeDraft, onCancel, onSave }) {
+  const { lang } = useI18n();
   const setName = (value) => onChangeDraft((prev) => ({ ...prev, name: value }));
 
   const setSetValue = (idx, key, value) => {
@@ -132,8 +140,10 @@ function ExerciseEditor({ draft, onChangeDraft, onCancel, onSave }) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <p className="text-[10px] sm:text-[11px] text-white/45 uppercase tracking-wide">Nombre del ejercicio</p>
-        <EditInput value={draft.name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Press banca plano" />
+        <p className="text-[10px] sm:text-[11px] text-white/45 uppercase tracking-wide">
+          {tr(lang, 'Nombre del ejercicio', 'Exercise name')}
+        </p>
+        <EditInput value={draft.name} onChange={(e) => setName(e.target.value)} placeholder={tr(lang, 'Ej. Press banca plano', 'e.g. Bench press')} />
       </div>
 
       <div className="space-y-2">
@@ -141,14 +151,14 @@ function ExerciseEditor({ draft, onChangeDraft, onCancel, onSave }) {
           <p className="text-[10px] sm:text-[11px] text-white/45 uppercase tracking-wide">Series</p>
           <EditButton type="button" onClick={addSet}>
             <Plus className="h-4 w-4" />
-            Añadir serie
+            {tr(lang, 'Añadir serie', 'Add set')}
           </EditButton>
         </div>
 
         <div className="space-y-2">
           {draft.sets.length === 0 ? (
             <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.02] p-4 text-[12px] text-white/50">
-              No hay series. Añade al menos una.
+              {tr(lang, 'No hay series. Añade al menos una.', 'No sets yet. Add at least one.')}
             </div>
           ) : (
             draft.sets.map((set, idx) => (
@@ -170,15 +180,15 @@ function ExerciseEditor({ draft, onChangeDraft, onCancel, onSave }) {
                   <EditInput
                     value={String(set.weight ?? '')}
                     onChange={(e) => setSetValue(idx, 'weight', e.target.value)}
-                    placeholder="Peso (KG o texto)"
+                    placeholder={tr(lang, 'Peso (KG o texto)', 'Weight (kg or text)')}
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => removeSet(idx)}
                   className="p-2 rounded-lg border border-white/10 bg-white/[0.03] text-white/55 hover:bg-white/[0.08] hover:text-white/80 transition"
-                  aria-label="Eliminar serie"
-                  title="Eliminar serie"
+                  aria-label={tr(lang, 'Eliminar serie', 'Remove set')}
+                  title={tr(lang, 'Eliminar serie', 'Remove set')}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -191,11 +201,11 @@ function ExerciseEditor({ draft, onChangeDraft, onCancel, onSave }) {
       <div className="flex items-center justify-end gap-2 pt-1">
         <EditButton type="button" onClick={onCancel} className="text-white/60">
           <X className="h-4 w-4" />
-          Cancelar
+          {tr(lang, 'Cancelar', 'Cancel')}
         </EditButton>
         <EditButton type="button" onClick={onSave} className="border-white/20 bg-white/[0.06] text-white/90">
           <Check className="h-4 w-4" />
-          Guardar
+          {tr(lang, 'Guardar', 'Save')}
         </EditButton>
       </div>
     </div>
@@ -206,6 +216,7 @@ export default function SessionDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const { lang } = useI18n();
 
   const sessionData = useMemo(
     () => ({
@@ -367,7 +378,7 @@ export default function SessionDetail() {
             className="inline-flex items-center gap-2 text-[12px] sm:text-[13px] font-medium text-white/60 hover:text-white/90 transition"
           >
             <ArrowLeft className="h-4 w-4" />
-            VOLVER AL HISTORIAL
+            {tr(lang, 'VOLVER AL HISTORIAL', 'BACK TO HISTORY')}
           </button>
 
           {/* Session Header Card */}
@@ -385,7 +396,9 @@ export default function SessionDetail() {
                 <div className="flex items-center gap-2 sm:gap-3 rounded-lg bg-white/[0.06] px-3 sm:px-4 py-2 sm:py-2.5 border border-white/10">
                   <Clock className="h-4 w-4 text-[#ff7849] flex-shrink-0" />
                   <div className="text-right">
-                    <p className="text-[9px] sm:text-[10px] text-white/45 uppercase tracking-wide">Duración</p>
+                    <p className="text-[9px] sm:text-[10px] text-white/45 uppercase tracking-wide">
+                      {tr(lang, 'Duración', 'Duration')}
+                    </p>
                     <p className="text-[14px] sm:text-[16px] font-bold text-white/95">{activeSession.duration} MIN</p>
                   </div>
                 </div>
@@ -394,7 +407,7 @@ export default function SessionDetail() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="rounded-lg bg-white/[0.04] p-3 sm:p-4">
                   <p className="text-[10px] sm:text-[11px] text-white/45 uppercase tracking-wide mb-2">
-                    Zona entrenada
+                    {tr(lang, 'Zona entrenada', 'Muscle group')}
                   </p>
                   <p className="text-[13px] sm:text-[14px] font-bold text-white/85">
                     {activeSession.muscleGroup}
@@ -402,7 +415,7 @@ export default function SessionDetail() {
                 </div>
                 <div className="rounded-lg bg-white/[0.04] p-3 sm:p-4">
                   <p className="text-[10px] sm:text-[11px] text-white/45 uppercase tracking-wide mb-2">
-                    Volumen total
+                    {tr(lang, 'Volumen total', 'Total volume')}
                   </p>
                   <p className="text-[13px] sm:text-[14px] font-bold text-white/85">
                     {formattedTotalVolume}
@@ -410,10 +423,10 @@ export default function SessionDetail() {
                 </div>
                 <div className="rounded-lg bg-white/[0.04] p-3 sm:p-4">
                   <p className="text-[10px] sm:text-[11px] text-white/45 uppercase tracking-wide mb-2">
-                    Series totales
+                    {tr(lang, 'Series totales', 'Total sets')}
                   </p>
                   <p className="text-[13px] sm:text-[14px] font-bold text-white/85">
-                    {activeSession.totalSeries} SERIES
+                    {activeSession.totalSeries} {tr(lang, 'SERIES', 'SETS')}
                   </p>
                 </div>
               </div>
@@ -439,7 +452,7 @@ export default function SessionDetail() {
           <div className="space-y-5 sm:space-y-6">
             <div>
               <h2 className="text-[14px] sm:text-[15px] md:text-[16px] font-bold uppercase tracking-wide text-white/75 mb-4">
-                DETALLE DE EJERCICIOS
+                {tr(lang, 'DETALLE DE EJERCICIOS', 'EXERCISE DETAILS')}
               </h2>
               <div className="space-y-4 sm:space-y-5">
                 <div className={exercisesGridClassName}>
@@ -447,12 +460,12 @@ export default function SessionDetail() {
                     <Card key={idx} className="p-4 sm:p-5">
                       <div className="flex items-center justify-between gap-3 mb-3">
                         <p className="text-[10px] sm:text-[11px] text-white/45 uppercase tracking-wide">
-                          {editingExerciseIndex === idx ? 'Editando' : 'Ejercicio'}
+                          {editingExerciseIndex === idx ? tr(lang, 'Editando', 'Editing') : tr(lang, 'Ejercicio', 'Exercise')}
                         </p>
                         {editingExerciseIndex === idx ? null : (
                           <EditButton type="button" onClick={() => startEditingExercise(idx)}>
                             <Pencil className="h-4 w-4" />
-                            Editar
+                            {tr(lang, 'Editar', 'Edit')}
                           </EditButton>
                         )}
                       </div>

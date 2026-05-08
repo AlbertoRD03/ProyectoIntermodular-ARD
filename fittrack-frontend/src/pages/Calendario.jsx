@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import { useI18n } from '../i18n/I18nProvider';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -24,6 +25,7 @@ function StatCard({ label, value }) {
 }
 
 function WorkoutBadge({ type, onClick }) {
+  const { t } = useI18n();
   const colorMap = {
     pecho: 'bg-[#ff7849]/20 text-[#ff7849]',
     espalda: 'bg-blue-500/20 text-blue-400',
@@ -41,17 +43,18 @@ function WorkoutBadge({ type, onClick }) {
         'inline-flex items-center justify-center px-2.5 py-1 rounded text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-white/20',
         colorMap[type.toLowerCase()] || 'bg-white/10 text-white/60'
       )}
-      aria-label={`Abrir entrenamiento: ${type}`}
-      title="Abrir detalle"
+      aria-label={`${t('Abrir entrenamiento')}: ${t(type)}`}
+      title={t('Abrir detalle')}
     >
-      {type}
+      {t(type)}
     </button>
   );
 }
 
 export default function Calendario() {
   const navigate = useNavigate();
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 0, 1)); // Enero 2025 como en el mockup
+  const { lang, t } = useI18n();
+  const [currentDate, setCurrentDate] = useState(() => new Date()); // mes actual
 
   // Datos de entrenamientos por día
   const workoutsByDay = useMemo(() => {
@@ -95,7 +98,8 @@ export default function Calendario() {
   const firstDay = getFirstDayOfMonth(currentDate);
   const adjustedFirstDay = firstDay === 0 ? 6 : firstDay - 1; // Ajustar para que lunes sea 0
 
-  const monthName = currentDate.toLocaleDateString('es-ES', { month: 'long' }).toUpperCase();
+  const locale = lang === 'en' ? 'en-US' : 'es-ES';
+  const monthName = currentDate.toLocaleDateString(locale, { month: 'long' }).toUpperCase();
   const year = currentDate.getFullYear();
   const monthIndex = currentDate.getMonth();
 
@@ -104,7 +108,7 @@ export default function Calendario() {
     const typeKey = normalizedType.toLowerCase();
 
     const dateObj = new Date(year, monthIndex, day);
-    const dateLabel = dateObj.toLocaleDateString('es-ES', {
+    const dateLabel = dateObj.toLocaleDateString(locale, {
       weekday: 'long',
       day: '2-digit',
       month: 'short',
@@ -122,7 +126,7 @@ export default function Calendario() {
 
     const workout = {
       id: `${year}-${monthIndex + 1}-${day}-${typeKey}`,
-      title: `Entrenamiento de ${normalizedType}`,
+      title: `${t('Entrenamiento de')} ${t(normalizedType)}`,
       duration: durationByType[typeKey] || '45 MIN',
       date: dateLabel,
       series: typeKey === 'cardio' ? 10 : 24,
@@ -159,7 +163,7 @@ export default function Calendario() {
         <div className="max-w-6xl mx-auto space-y-5 sm:space-y-6 md:space-y-7">
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-5">
-            <StatCard label="Días entrenados en total" value={totalWorkouts} />
+            <StatCard label={t('Días entrenados en total')} value={totalWorkouts} />
             <div className="flex items-center justify-center">
               <button
                 onClick={previousMonth}
@@ -182,14 +186,14 @@ export default function Calendario() {
                 <ChevronRight className="h-5 w-5" />
               </button>
             </div>
-            <StatCard label="Días entrenados este mes" value={monthWorkouts} />
+            <StatCard label={t('Días entrenados este mes')} value={monthWorkouts} />
           </div>
 
           {/* Calendar */}
           <div className="rounded-lg border border-white/10 bg-white/[0.04] overflow-hidden">
             {/* Days of week header */}
             <div className="grid grid-cols-7 border-b border-white/10 bg-white/[0.03]">
-              {['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM'].map((day) => (
+              {(lang === 'en' ? ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] : ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM']).map((day) => (
                 <div
                   key={day}
                   className="p-3 sm:p-4 text-center text-[11px] sm:text-[12px] md:text-[13px] font-bold uppercase tracking-wider text-white/50 border-r border-white/10 last:border-r-0"

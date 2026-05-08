@@ -3,6 +3,8 @@ import { Eye, EyeOff, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { API_BASE } from '../config/apiBase';
+import { useI18n } from '../i18n/I18nProvider';
+import LanguageSelect from '../components/LanguageSelect';
 
 function GoogleMark({ className }) {
   // Simple Google "G" mark; kept inline to avoid extra deps/assets.
@@ -35,6 +37,7 @@ function GoogleMark({ className }) {
 
 export default function Login() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -66,7 +69,7 @@ export default function Login() {
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setError(data?.message || 'No se pudo iniciar sesión.');
+        setError(data?.message || t('No se pudo iniciar sesión.'));
         setLoading(false);
         return;
       }
@@ -86,7 +89,7 @@ export default function Login() {
 
       navigate('/dashboard');
     } catch (err) {
-      setError('Error de conexión. Inténtalo de nuevo.');
+      setError(t('Error de conexión. Inténtalo de nuevo.'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -110,14 +113,17 @@ export default function Login() {
             FitTrack
           </div>
 
-          <button
-            type="button"
-            onClick={() => navigate('/register')}
-            className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-[14px] font-medium text-white/90 transition hover:bg-white/15"
-          >
-            <UserPlus className="h-4 w-4" />
-            Registro
-          </button>
+          <div className="flex items-center gap-3">
+            <LanguageSelect />
+            <button
+              type="button"
+              onClick={() => navigate('/register')}
+              className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-[14px] font-medium text-white/90 transition hover:bg-white/15"
+            >
+              <UserPlus className="h-4 w-4" />
+              {t('Registro')}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -140,17 +146,17 @@ export default function Login() {
                 className="text-[clamp(36px,4.1vw,64px)] font-bold tracking-[0.055em] leading-[1.03]"
                 style={{ fontFamily: 'Arimo, Poppins, system-ui' }}
               >
-                BIENVENIDO A <span className="text-[#ff7849]">FITTRACK</span>
+                {t('Bienvenido a')} <span className="text-[#ff7849]">FITTRACK</span>
               </h1>
               <p className="mt-4 text-[clamp(15px,1.2vw,18px)] text-white/60">
-                Inicia sesión para continuar
+                {t('Inicia sesión para continuar')}
               </p>
             </header>
 
             <form onSubmit={handleLogin} className="mx-auto mt-12 w-full max-w-[640px] space-y-5 lg:max-w-none">
               <input
                 type="email"
-                placeholder="Email"
+                placeholder={t('Email')}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
@@ -160,7 +166,7 @@ export default function Login() {
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Contraseña"
+                  placeholder={t('Contraseña')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
@@ -170,7 +176,7 @@ export default function Login() {
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-2 text-white/40 hover:text-white/70 focus:outline-none focus:ring-2 focus:ring-[#ff7849]/30"
-                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  aria-label={showPassword ? t('Ocultar contraseña') : t('Mostrar contraseña')}
                 >
                   {showPassword ? (
                     <EyeOff className="h-6 w-6" />
@@ -191,7 +197,7 @@ export default function Login() {
                 disabled={loading || !canSubmit}
                 className="mt-3 h-14 w-full rounded-md bg-[#ff7849] text-[15px] font-semibold tracking-[0.24em] text-white shadow-[0_16px_38px_-14px_rgba(255,120,73,0.92)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? 'CARGANDO...' : 'LOG IN'}
+                {loading ? t('Cargando...') : t('Iniciar sesión')}
               </button>
 
               <button
@@ -200,17 +206,17 @@ export default function Login() {
                 className="flex h-14 w-full items-center justify-center gap-3 rounded-md border border-white/15 bg-transparent text-[15px] font-medium text-[#f5f5f5] transition hover:border-white/25"
               >
                 <GoogleMark className="h-5 w-5" />
-                Continue with Google
+                {t('Continuar con Google')}
               </button>
 
               <div className="pt-2 text-center text-[14px] text-white/55">
-                ¿No tienes cuenta?{' '}
+                {t('¿No tienes cuenta?')}{' '}
                 <button
                   type="button"
                   onClick={() => navigate('/register')}
                   className="font-semibold text-[#ff7849] underline-offset-4 hover:underline"
                 >
-                  Regístrate
+                  {t('Regístrate')}
                 </button>
               </div>
 
@@ -219,7 +225,7 @@ export default function Login() {
                 onClick={() => navigate('/password-recovery')}
                 className="mx-auto block pt-1 text-center text-[13px] text-white/45 hover:text-white/70"
               >
-                He olvidado mi contraseña
+                {t('He olvidado mi contraseña')}
               </button>
             </form>
           </div>

@@ -3,9 +3,12 @@ import { Lightbulb } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { API_BASE } from '../config/apiBase';
+import { useI18n } from '../i18n/I18nProvider';
+import LanguageSelect from '../components/LanguageSelect';
 
 export default function PhysicalData() {
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const [edad, setEdad] = useState('');
   const [genero, setGenero] = useState('');
@@ -41,7 +44,7 @@ export default function PhysicalData() {
     setSuccess('');
 
     if (!canSubmit) {
-      setError('Completa todos los campos con valores válidos.');
+      setError(t('Completa todos los campos con valores válidos.'));
       return;
     }
 
@@ -69,16 +72,16 @@ export default function PhysicalData() {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data?.error || data?.message || 'No se pudieron guardar los datos.');
+        setError(data?.error || data?.message || t('No se pudieron guardar los datos.'));
         return;
       }
 
-      setSuccess('Datos guardados correctamente.');
+      setSuccess(t('Datos guardados correctamente.'));
       // Next step could be dashboard or next onboarding step.
       setTimeout(() => navigate('/dashboard'), 800);
     } catch (err) {
       console.error(err);
-      setError('Error de conexión. Inténtalo de nuevo.');
+      setError(t('Error de conexión. Inténtalo de nuevo.'));
     } finally {
       setLoading(false);
     }
@@ -86,8 +89,22 @@ export default function PhysicalData() {
 
   return (
     <div className="min-h-screen bg-[#1e1e1e] text-[#f5f5f5]">
+      {/* Top bar */}
+      <div className="h-[64px] border-b border-white/10">
+        <div className="mx-auto flex h-full w-full max-w-[1400px] items-center justify-between px-6">
+          <div
+            className="text-[22px] font-bold tracking-wide text-[#ff7849]"
+            style={{ fontFamily: 'Arimo, Poppins, system-ui' }}
+          >
+            FitTrack
+          </div>
+
+          <LanguageSelect />
+        </div>
+      </div>
+
       {/* Body */}
-      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[30%_40%_30%]">
+      <div className="grid min-h-[calc(100vh-64px)] grid-cols-1 lg:grid-cols-[30%_40%_30%]">
         {/* Left image */}
         <div className="relative hidden lg:block">
           <img
@@ -106,59 +123,59 @@ export default function PhysicalData() {
                 className="text-[clamp(28px,2.6vw,40px)] font-bold tracking-[0.08em] leading-[1.08]"
                 style={{ fontFamily: 'Arimo, Poppins, system-ui' }}
               >
-                DATOS FÍSICOS
+                {t('Datos físicos').toUpperCase()}
               </h1>
               <p className="mx-auto mt-2 max-w-[52ch] text-[14px] text-white/55">
-                Completa tu perfil para obtener recomendaciones personalizadas
+                {t('Completa tu perfil para obtener recomendaciones personalizadas')}
               </p>
             </header>
 
             <form onSubmit={handleSave} className="mx-auto mt-10 w-full max-w-[760px] space-y-5">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <label className="text-[12px] text-white/55">Edad</label>
+                  <label className="text-[12px] text-white/55">{t('Edad')}</label>
                   <input
                     value={edad}
                     onChange={(e) => setEdad(e.target.value)}
-                    placeholder="Ej: 25"
+                    placeholder={t('Ej: 25')}
                     inputMode="numeric"
                     className="h-12 w-full rounded-md border border-white/15 bg-transparent px-5 text-[15px] text-[#f5f5f5] placeholder:text-white/30 outline-none transition focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[12px] text-white/55">Género</label>
+                  <label className="text-[12px] text-white/55">{t('Género')}</label>
                   <select
                     value={genero}
                     onChange={(e) => setGenero(e.target.value)}
                     className="h-12 w-full appearance-none rounded-md border border-white/15 bg-[#1e1e1e] px-5 text-[15px] text-[#f5f5f5] outline-none transition focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15"
                   >
                     <option value="" disabled>
-                      Selecciona tu género
+                      {t('Selecciona tu género')}
                     </option>
-                    <option value="Masculino">Masculino</option>
-                    <option value="Femenino">Femenino</option>
-                    <option value="Otro">Otro</option>
+                    <option value="Masculino">{t('Masculino')}</option>
+                    <option value="Femenino">{t('Femenino')}</option>
+                    <option value="Otro">{t('Otro')}</option>
                   </select>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[12px] text-white/55">Altura (cm)</label>
+                  <label className="text-[12px] text-white/55">{t('Altura (cm)')}</label>
                   <input
                     value={alturaCm}
                     onChange={(e) => setAlturaCm(e.target.value)}
-                    placeholder="175"
+                    placeholder={t('175')}
                     inputMode="numeric"
                     className="h-12 w-full rounded-md border border-white/15 bg-transparent px-5 text-[15px] text-[#f5f5f5] placeholder:text-white/30 outline-none transition focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[12px] text-white/55">Peso (kg)</label>
+                  <label className="text-[12px] text-white/55">{t('Peso (kg)')}</label>
                   <input
                     value={pesoKg}
                     onChange={(e) => setPesoKg(e.target.value)}
-                    placeholder="Ej: 70"
+                    placeholder={t('Ej: 70')}
                     inputMode="decimal"
                     className="h-12 w-full rounded-md border border-white/15 bg-transparent px-5 text-[15px] text-[#f5f5f5] placeholder:text-white/30 outline-none transition focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15"
                   />
@@ -166,35 +183,35 @@ export default function PhysicalData() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[12px] text-white/55">Nivel de Actividad Física</label>
+                <label className="text-[12px] text-white/55">{t('Nivel de actividad física')}</label>
                 <select
                   value={nivelActividad}
                   onChange={(e) => setNivelActividad(e.target.value)}
                   className="h-12 w-full appearance-none rounded-md border border-white/15 bg-[#1e1e1e] px-5 text-[15px] text-[#f5f5f5] outline-none transition focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15"
                 >
                   <option value="" disabled>
-                    Selecciona tu Nivel
+                    {t('Selecciona tu nivel')}
                   </option>
-                  <option value="Principiante">Principiante</option>
-                  <option value="Intermedio">Intermedio</option>
-                  <option value="Avanzado">Avanzado</option>
+                  <option value="Principiante">{t('Principiante')}</option>
+                  <option value="Intermedio">{t('Intermedio')}</option>
+                  <option value="Avanzado">{t('Avanzado')}</option>
                 </select>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[12px] text-white/55">Objetivo Principal</label>
+                <label className="text-[12px] text-white/55">{t('Objetivo principal')}</label>
                 <select
                   value={objetivo}
                   onChange={(e) => setObjetivo(e.target.value)}
                   className="h-12 w-full appearance-none rounded-md border border-white/15 bg-[#1e1e1e] px-5 text-[15px] text-[#f5f5f5] outline-none transition focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15"
                 >
                   <option value="" disabled>
-                    Selecciona tu Objetivo
+                    {t('Selecciona tu objetivo')}
                   </option>
-                  <option value="Perder peso">Perder peso</option>
-                  <option value="Ganar músculo">Ganar músculo</option>
-                  <option value="Mejorar resistencia">Mejorar resistencia</option>
-                  <option value="Mantenerme saludable">Mantenerme saludable</option>
+                  <option value="Perder peso">{t('Perder peso')}</option>
+                  <option value="Ganar músculo">{t('Ganar músculo')}</option>
+                  <option value="Mejorar resistencia">{t('Mejorar resistencia')}</option>
+                  <option value="Mantenerme saludable">{t('Mantenerme saludable')}</option>
                 </select>
               </div>
 
@@ -202,9 +219,8 @@ export default function PhysicalData() {
                 <div className="flex items-start gap-3">
                   <Lightbulb className="mt-0.5 h-4 w-4 text-[#ff7849]" />
                   <div>
-                    <span className="font-semibold text-white/80">Tip:</span>{' '}
-                    Estos datos nos ayudarán a calcular tu IMC, gasto calórico y crear rutinas
-                    adaptadas a tu condición física actual.
+                    <span className="font-semibold text-white/80">{t('Tip:')}</span>{' '}
+                    {t('Estos datos nos ayudarán a calcular tu IMC, gasto calórico y crear rutinas adaptadas a tu condición física actual.')}
                   </div>
                 </div>
               </div>
@@ -226,7 +242,7 @@ export default function PhysicalData() {
                 disabled={!canSubmit}
                 className="mt-2 h-12 w-full rounded-md bg-[#ff7849] text-[14px] font-semibold text-white shadow-[0_14px_34px_-14px_rgba(255,120,73,0.9)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? 'Guardando...' : 'Guardar Datos'}
+                {loading ? t('Guardando...') : t('Guardar datos')}
               </button>
             </form>
           </div>

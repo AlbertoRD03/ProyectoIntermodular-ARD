@@ -3,10 +3,13 @@ import { Eye, EyeOff, LogIn } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { API_BASE } from '../config/apiBase';
+import { useI18n } from '../i18n/I18nProvider';
+import LanguageSelect from '../components/LanguageSelect';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const { t } = useI18n();
   const token = params.get('token') || '';
 
   const [password, setPassword] = useState('');
@@ -33,15 +36,15 @@ export default function ResetPassword() {
     setSuccess('');
 
     if (!token) {
-      setError('El enlace no es válido o ha expirado.');
+      setError(t('El enlace no es válido o ha expirado.'));
       return;
     }
     if (!password || !password2) {
-      setError('Completa ambos campos.');
+      setError(t('Completa ambos campos.'));
       return;
     }
     if (password !== password2) {
-      setError('Las contraseñas no coinciden.');
+      setError(t('Las contraseñas no coinciden.'));
       return;
     }
 
@@ -56,15 +59,15 @@ export default function ResetPassword() {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data?.error || data?.message || 'No se pudo actualizar la contraseña.');
+        setError(data?.error || data?.message || t('No se pudo actualizar la contraseña.'));
         return;
       }
 
-      setSuccess('Contraseña actualizada. Ya puedes iniciar sesión.');
+      setSuccess(t('Contraseña actualizada. Ya puedes iniciar sesión.'));
       setTimeout(() => navigate('/login'), 900);
     } catch (err) {
       console.error(err);
-      setError('Error de conexión. Inténtalo de nuevo.');
+      setError(t('Error de conexión. Inténtalo de nuevo.'));
     } finally {
       setLoading(false);
     }
@@ -82,14 +85,17 @@ export default function ResetPassword() {
             FitTrack
           </div>
 
-          <button
-            type="button"
-            onClick={() => navigate('/login')}
-            className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-[14px] font-medium text-white/90 transition hover:bg-white/15"
-          >
-            <LogIn className="h-4 w-4" />
-            Log In
-          </button>
+          <div className="flex items-center gap-3">
+            <LanguageSelect />
+            <button
+              type="button"
+              onClick={() => navigate('/login')}
+              className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2 text-[14px] font-medium text-white/90 transition hover:bg-white/15"
+            >
+              <LogIn className="h-4 w-4" />
+              {t('Iniciar sesión')}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -113,10 +119,10 @@ export default function ResetPassword() {
                 className="text-[clamp(26px,2.4vw,34px)] font-bold tracking-[0.08em] leading-[1.08]"
                 style={{ fontFamily: 'Arimo, Poppins, system-ui' }}
               >
-                RESTABLECER CONTRASEÑA
+                {t('Restablecer contraseña').toUpperCase()}
               </h1>
               <p className="mx-auto mt-3 max-w-[36ch] text-[14px] text-white/55">
-                Crea una nueva contraseña para tu cuenta
+                {t('Crea una nueva contraseña para tu cuenta')}
               </p>
             </header>
 
@@ -125,7 +131,7 @@ export default function ResetPassword() {
                 <input
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Nueva contraseña"
+                  placeholder={t('Nueva contraseña')}
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   className="h-12 w-full rounded-md border border-white/15 bg-transparent px-5 pr-14 text-[15px] text-[#f5f5f5] placeholder:text-white/30 outline-none transition focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15"
@@ -134,7 +140,7 @@ export default function ResetPassword() {
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-2 text-white/35 hover:text-white/70 focus:outline-none focus:ring-2 focus:ring-[#ff7849]/30"
-                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  aria-label={showPassword ? t('Ocultar contraseña') : t('Mostrar contraseña')}
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -144,7 +150,7 @@ export default function ResetPassword() {
                 <input
                   value={password2}
                   onChange={(e) => setPassword2(e.target.value)}
-                  placeholder="Repetir contraseña"
+                  placeholder={t('Repetir contraseña')}
                   type={showPassword2 ? 'text' : 'password'}
                   autoComplete="new-password"
                   className="h-12 w-full rounded-md border border-white/15 bg-transparent px-5 pr-14 text-[15px] text-[#f5f5f5] placeholder:text-white/30 outline-none transition focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15"
@@ -153,7 +159,7 @@ export default function ResetPassword() {
                   type="button"
                   onClick={() => setShowPassword2((v) => !v)}
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-2 text-white/35 hover:text-white/70 focus:outline-none focus:ring-2 focus:ring-[#ff7849]/30"
-                  aria-label={showPassword2 ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  aria-label={showPassword2 ? t('Ocultar contraseña') : t('Mostrar contraseña')}
                 >
                   {showPassword2 ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -161,13 +167,13 @@ export default function ResetPassword() {
 
               {password2 && password && password !== password2 ? (
                 <div className="-mt-2 text-left text-[12px] text-[#ff7849]/90">
-                  Las contraseñas no coinciden.
+                  {t('Las contraseñas no coinciden.')}
                 </div>
               ) : null}
 
               {!token ? (
                 <div className="rounded-md border border-[#ff7849]/25 bg-[#ff7849]/10 px-4 py-3 text-sm text-[#f5f5f5]">
-                  Falta el token del enlace. Usa el link del correo (ej. `/reset-password?token=...`).
+                  {t('Falta el token del enlace. Usa el link del correo (ej. `/reset-password?token=...`).')}
                 </div>
               ) : null}
 
@@ -188,7 +194,7 @@ export default function ResetPassword() {
                 disabled={!canSubmit}
                 className="mt-2 h-12 w-full rounded-md bg-[#ff7849] text-[14px] font-semibold text-white shadow-[0_14px_34px_-14px_rgba(255,120,73,0.9)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? 'Guardando...' : 'Aceptar'}
+                {loading ? t('Guardando...') : t('Aceptar')}
               </button>
 
               <button
@@ -196,7 +202,7 @@ export default function ResetPassword() {
                 onClick={() => navigate('/login')}
                 className="mx-auto block pt-2 text-[13px] text-white/50 hover:text-white/70"
               >
-                Volver al inicio de sesión
+                {t('Volver al inicio de sesión')}
               </button>
             </form>
           </div>

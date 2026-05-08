@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import { useI18n, tr } from '../i18n/I18nProvider';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -25,6 +26,7 @@ function Card({ children, className }) {
 }
 
 function WorkoutCard({ title, duration, date, exercisesCount, series, volume, onClick }) {
+  const { lang } = useI18n();
   return (
     <Card
       className="p-4 sm:p-5 md:p-6 hover:border-white/20 transition cursor-pointer focus-within:border-white/25"
@@ -33,7 +35,7 @@ function WorkoutCard({ title, duration, date, exercisesCount, series, volume, on
         type="button"
         onClick={onClick}
         className="w-full text-left focus:outline-none"
-        aria-label={`Abrir sesión: ${title}`}
+        aria-label={`${tr(lang, 'Abrir sesión', 'Open session')}: ${title}`}
       >
       <div className="flex items-start justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
         <div>
@@ -47,17 +49,23 @@ function WorkoutCard({ title, duration, date, exercisesCount, series, volume, on
         </span>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
         <div className="flex flex-col">
-          <span className="text-[9px] sm:text-[10px] text-white/45 uppercase tracking-wide">Ejercicios</span>
+          <span className="text-[9px] sm:text-[10px] text-white/45 uppercase tracking-wide">
+            {tr(lang, 'Ejercicios', 'Exercises')}
+          </span>
           <span className="text-[12px] sm:text-[13px] md:text-[14px] font-semibold text-white/85 mt-1">{exercisesCount}</span>
         </div>
         <div className="flex flex-col">
-          <span className="text-[9px] sm:text-[10px] text-white/45 uppercase tracking-wide">Series</span>
+          <span className="text-[9px] sm:text-[10px] text-white/45 uppercase tracking-wide">
+            {tr(lang, 'Series', 'Sets')}
+          </span>
           <span className="text-[12px] sm:text-[13px] md:text-[14px] font-semibold text-white/85 mt-1">{series}</span>
         </div>
         <div className="flex flex-col">
-          <span className="text-[9px] sm:text-[10px] text-white/45 uppercase tracking-wide">Volumen</span>
+          <span className="text-[9px] sm:text-[10px] text-white/45 uppercase tracking-wide">
+            {tr(lang, 'Volumen', 'Volume')}
+          </span>
           <span className="text-[12px] sm:text-[13px] md:text-[14px] font-semibold text-white/85 mt-1">{volume}</span>
         </div>
       </div>
@@ -84,6 +92,7 @@ function FilterCheckbox({ label, checked, onChange }) {
 
 export default function Entrenamientos() {
   const navigate = useNavigate();
+  const { lang } = useI18n();
   const [filters, setFilters] = useState({
     hoy: false,
     estaSemana: true,
@@ -109,9 +118,9 @@ export default function Entrenamientos() {
     return [
       {
         id: 1,
-        title: 'Entrenamiento de Pecho',
+        title: tr(lang, 'Entrenamiento de Pecho', 'Chest workout'),
         duration: '45 MIN',
-        date: 'Lunes, 20 Ene 2025',
+        date: tr(lang, 'Lunes, 20 Ene 2025', 'Monday, Jan 20, 2025'),
         dateObj: oneWeekAgo,
         exercisesCount: 8,
         series: 24,
@@ -121,9 +130,9 @@ export default function Entrenamientos() {
       },
       {
         id: 2,
-        title: 'Cardio Intenso',
+        title: tr(lang, 'Cardio Intenso', 'Intense cardio'),
         duration: '30 MIN',
-        date: 'Martes, 21 Ene 2025',
+        date: tr(lang, 'Martes, 21 Ene 2025', 'Tuesday, Jan 21, 2025'),
         dateObj: oneWeekAgo,
         exercisesCount: 5,
         series: 10,
@@ -133,9 +142,9 @@ export default function Entrenamientos() {
       },
       {
         id: 3,
-        title: 'Pierna Completa',
+        title: tr(lang, 'Pierna Completa', 'Leg day'),
         duration: '60 MIN',
-        date: 'Jueves, 23 Ene 2025',
+        date: tr(lang, 'Jueves, 23 Ene 2025', 'Thursday, Jan 23, 2025'),
         dateObj: oneWeekAgo,
         exercisesCount: 10,
         series: 32,
@@ -145,9 +154,9 @@ export default function Entrenamientos() {
       },
       {
         id: 4,
-        title: 'Espalda y Bíceps',
+        title: tr(lang, 'Espalda y Bíceps', 'Back & biceps'),
         duration: '50 MIN',
-        date: 'Viernes, 24 Ene 2025',
+        date: tr(lang, 'Viernes, 24 Ene 2025', 'Friday, Jan 24, 2025'),
         dateObj: oneWeekAgo,
         exercisesCount: 9,
         series: 28,
@@ -157,9 +166,9 @@ export default function Entrenamientos() {
       },
       {
         id: 5,
-        title: 'Hombros y Tríceps',
+        title: tr(lang, 'Hombros y Tríceps', 'Shoulders & triceps'),
         duration: '40 MIN',
-        date: 'Sábado, 25 Ene 2025',
+        date: tr(lang, 'Sábado, 25 Ene 2025', 'Saturday, Jan 25, 2025'),
         dateObj: oneWeekAgo,
         exercisesCount: 7,
         series: 22,
@@ -169,9 +178,9 @@ export default function Entrenamientos() {
       },
       {
         id: 6,
-        title: 'Yoga y Movilidad',
+        title: tr(lang, 'Yoga y Movilidad', 'Yoga & mobility'),
         duration: '35 MIN',
-        date: 'Domingo, 26 Ene 2025',
+        date: tr(lang, 'Domingo, 26 Ene 2025', 'Sunday, Jan 26, 2025'),
         dateObj: oneWeekAgo,
         exercisesCount: 12,
         series: 15,
@@ -181,9 +190,9 @@ export default function Entrenamientos() {
       },
       {
         id: 7,
-        title: 'HIIT Completo',
+        title: tr(lang, 'HIIT Completo', 'Full HIIT'),
         duration: '25 MIN',
-        date: 'Lunes, 27 Ene 2025',
+        date: tr(lang, 'Lunes, 27 Ene 2025', 'Monday, Jan 27, 2025'),
         dateObj: twoWeeksAgo,
         exercisesCount: 8,
         series: 20,
@@ -193,9 +202,9 @@ export default function Entrenamientos() {
       },
       {
         id: 8,
-        title: 'Pecho y Espalda',
+        title: tr(lang, 'Pecho y Espalda', 'Chest & back'),
         duration: '55 MIN',
-        date: 'Martes, 28 Ene 2025',
+        date: tr(lang, 'Martes, 28 Ene 2025', 'Tuesday, Jan 28, 2025'),
         dateObj: twoWeeksAgo,
         exercisesCount: 11,
         series: 30,
@@ -204,7 +213,7 @@ export default function Entrenamientos() {
         muscleGroup: ['pecho', 'espalda'],
       },
     ];
-  }, []);
+  }, [lang]);
 
   // Función para filtrar entrenamientos
   const filteredWorkouts = useMemo(() => {
@@ -299,30 +308,30 @@ export default function Entrenamientos() {
             {/* Fecha Filter */}
             <div className="space-y-3">
               <h3 className="text-[12px] sm:text-[13px] font-bold uppercase tracking-widest text-white/90 border-b border-white/10 pb-2.5">
-                Filtros
+                {tr(lang, 'Filtros', 'Filters')}
               </h3>
               <div className="space-y-2.5">
                 <h4 className="text-[11px] sm:text-[12px] font-semibold uppercase tracking-wide text-white/60">
-                  Fecha
+                  {tr(lang, 'Fecha', 'Date')}
                 </h4>
                 <div className="space-y-2">
                   <FilterCheckbox
-                    label="Hoy"
+                    label={tr(lang, 'Hoy', 'Today')}
                     checked={filters.hoy}
                     onChange={() => handleFilterChange('hoy')}
                   />
                   <FilterCheckbox
-                    label="Esta semana"
+                    label={tr(lang, 'Esta semana', 'This week')}
                     checked={filters.estaSemana}
                     onChange={() => handleFilterChange('estaSemana')}
                   />
                   <FilterCheckbox
-                    label="Este mes"
+                    label={tr(lang, 'Este mes', 'This month')}
                     checked={filters.esteMes}
                     onChange={() => handleFilterChange('esteMes')}
                   />
                   <FilterCheckbox
-                    label="Personalizado"
+                    label={tr(lang, 'Personalizado', 'Custom')}
                     checked={filters.personalizado}
                     onChange={() => handleFilterChange('personalizado')}
                   />
@@ -334,21 +343,21 @@ export default function Entrenamientos() {
             <div className="space-y-3 border-t border-white/10 pt-5">
               <div className="space-y-2.5">
                 <h4 className="text-[11px] sm:text-[12px] font-semibold uppercase tracking-wide text-white/60">
-                  Tipo
+                  {tr(lang, 'Tipo', 'Type')}
                 </h4>
                 <div className="space-y-2">
                   <FilterCheckbox
-                    label="Fuerza"
+                    label={tr(lang, 'Fuerza', 'Strength')}
                     checked={filters.fuerza}
                     onChange={() => handleFilterChange('fuerza')}
                   />
                   <FilterCheckbox
-                    label="Cardio"
+                    label={tr(lang, 'Cardio', 'Cardio')}
                     checked={filters.cardio}
                     onChange={() => handleFilterChange('cardio')}
                   />
                   <FilterCheckbox
-                    label="Flexibilidad"
+                    label={tr(lang, 'Flexibilidad', 'Mobility')}
                     checked={filters.flexibilidad}
                     onChange={() => handleFilterChange('flexibilidad')}
                   />
@@ -365,31 +374,31 @@ export default function Entrenamientos() {
             <div className="space-y-3 border-t border-white/10 pt-5">
               <div className="space-y-2.5">
                 <h4 className="text-[11px] sm:text-[12px] font-semibold uppercase tracking-wide text-white/60">
-                  Grupo Muscular
+                  {tr(lang, 'Grupo muscular', 'Muscle group')}
                 </h4>
                 <div className="space-y-2">
                   <FilterCheckbox
-                    label="Pecho"
+                    label={tr(lang, 'Pecho', 'Chest')}
                     checked={filters.pecho}
                     onChange={() => handleFilterChange('pecho')}
                   />
                   <FilterCheckbox
-                    label="Espalda"
+                    label={tr(lang, 'Espalda', 'Back')}
                     checked={filters.espalda}
                     onChange={() => handleFilterChange('espalda')}
                   />
                   <FilterCheckbox
-                    label="Piernas"
+                    label={tr(lang, 'Piernas', 'Legs')}
                     checked={filters.piernas}
                     onChange={() => handleFilterChange('piernas')}
                   />
                   <FilterCheckbox
-                    label="Brazos"
+                    label={tr(lang, 'Brazos', 'Arms')}
                     checked={filters.brazos}
                     onChange={() => handleFilterChange('brazos')}
                   />
                   <FilterCheckbox
-                    label="Hombros"
+                    label={tr(lang, 'Hombros', 'Shoulders')}
                     checked={filters.hombros}
                     onChange={() => handleFilterChange('hombros')}
                   />
@@ -402,7 +411,7 @@ export default function Entrenamientos() {
               onClick={handleClearFilters}
               className="w-full py-2.5 sm:py-3 px-3 sm:px-4 rounded-lg border border-white/20 text-[12px] sm:text-[13px] font-semibold text-white/70 hover:text-white/90 hover:border-white/40 transition mt-5 sm:mt-6"
             >
-              Limpiar Filtros
+              {tr(lang, 'Limpiar filtros', 'Clear filters')}
             </button>
           </div>
         </aside>
@@ -413,11 +422,11 @@ export default function Entrenamientos() {
           <div className="flex items-baseline justify-between gap-4">
             <div>
               <h1 className="text-[20px] sm:text-[24px] md:text-[28px] font-bold tracking-wide text-white/95">
-                Historial de Entrenamientos
+                {tr(lang, 'Historial de entrenamientos', 'Workout history')}
               </h1>
             </div>
             <div className="text-[11px] sm:text-[12px] md:text-[13px] font-medium text-white/50 whitespace-nowrap">
-              {filteredWorkouts.length} ENTRENAMIENTOS
+              {filteredWorkouts.length} {tr(lang, 'ENTRENAMIENTOS', 'WORKOUTS')}
             </div>
           </div>
 
@@ -440,8 +449,8 @@ export default function Entrenamientos() {
           ) : (
             <div className="flex flex-col items-center justify-center py-12 sm:py-16 md:py-20 rounded-xl border border-white/10 bg-white/[0.04]">
               <div className="text-center">
-                <p className="text-[14px] sm:text-[16px] text-white/60 mb-2">No se encontraron entrenamientos</p>
-                <p className="text-[12px] sm:text-[13px] text-white/40">Intenta ajustar los filtros</p>
+                <p className="text-[14px] sm:text-[16px] text-white/60 mb-2">{tr(lang, 'No se encontraron entrenamientos', 'No workouts found')}</p>
+                <p className="text-[12px] sm:text-[13px] text-white/40">{tr(lang, 'Intenta ajustar los filtros', 'Try adjusting the filters')}</p>
               </div>
             </div>
           )}

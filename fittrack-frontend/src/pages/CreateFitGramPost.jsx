@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ArrowLeft, Check, ClipboardCopy, Image as ImageIcon, Plus, Save, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import { useI18n, tr } from '../i18n/I18nProvider';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -105,6 +106,7 @@ function SavedWorkoutStat({ label, value }) {
 }
 
 function SavedWorkoutPickerCard({ workout, selected, onSelect }) {
+  const { lang } = useI18n();
   return (
     <button
       type="button"
@@ -115,8 +117,8 @@ function SavedWorkoutPickerCard({ workout, selected, onSelect }) {
           ? 'border-white/25 bg-white/[0.06]'
           : 'border-white/15 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/25'
       )}
-      aria-label={`Seleccionar entreno: ${workout.title}`}
-      title="Seleccionar"
+      aria-label={`${tr(lang, 'Seleccionar entreno', 'Select workout')}: ${workout.title}`}
+      title={tr(lang, 'Seleccionar', 'Select')}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -136,9 +138,9 @@ function SavedWorkoutPickerCard({ workout, selected, onSelect }) {
       </div>
 
       <div className="grid grid-cols-3 divide-x divide-white/10 border-y border-white/10 mt-4">
-        <SavedWorkoutStat label="Ejer" value={workout.stats.exercises} />
-        <SavedWorkoutStat label="Dur" value={workout.stats.duration} />
-        <SavedWorkoutStat label="Cal" value={workout.stats.calories} />
+        <SavedWorkoutStat label={tr(lang, 'Ejer', 'Ex')} value={workout.stats.exercises} />
+        <SavedWorkoutStat label={tr(lang, 'Dur', 'Dur')} value={workout.stats.duration} />
+        <SavedWorkoutStat label={tr(lang, 'Cal', 'Cal')} value={workout.stats.calories} />
       </div>
 
       {workout.tags?.length ? (
@@ -158,6 +160,7 @@ function SavedWorkoutPickerCard({ workout, selected, onSelect }) {
 }
 
 function TagEditor({ value, onChange }) {
+  const { lang } = useI18n();
   const addTag = (tag) => {
     const normalized = tag.trim().replace(/^#/, '');
     if (!normalized) return;
@@ -175,7 +178,7 @@ function TagEditor({ value, onChange }) {
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Ej: pecho, fuerza, hiit..."
+          placeholder={tr(lang, 'Ej: pecho, fuerza, hiit...', 'e.g. chest, strength, hiit...')}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
@@ -190,8 +193,8 @@ function TagEditor({ value, onChange }) {
             addTag(draft);
             setDraft('');
           }}
-          aria-label="Añadir tag"
-          title="Añadir tag"
+          aria-label={tr(lang, 'Añadir tag', 'Add tag')}
+          title={tr(lang, 'Añadir tag', 'Add tag')}
         >
           <Plus className="h-4 w-4" />
         </OutlineButton>
@@ -209,8 +212,8 @@ function TagEditor({ value, onChange }) {
                 type="button"
                 onClick={() => onChange(value.filter((t) => t !== tag))}
                 className="text-white/45 hover:text-white/80 transition"
-                aria-label={`Eliminar tag ${tag}`}
-                title="Eliminar"
+                aria-label={`${tr(lang, 'Eliminar tag', 'Remove tag')} ${tag}`}
+                title={tr(lang, 'Eliminar', 'Remove')}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -224,6 +227,7 @@ function TagEditor({ value, onChange }) {
 
 export default function CreateFitGramPost() {
   const navigate = useNavigate();
+  const { lang } = useI18n();
   const [postType, setPostType] = useState('workout'); // workout | info
   const [caption, setCaption] = useState('');
   const [tags, setTags] = useState([]);
@@ -237,27 +241,27 @@ export default function CreateFitGramPost() {
     () => [
       {
         id: 'w_2026_05_01',
-        title: 'Pecho + tríceps',
-        dateLabel: 'viernes, 01 may 2026',
+        title: tr(lang, 'Pecho + tríceps', 'Chest + triceps'),
+        dateLabel: tr(lang, 'viernes, 01 may 2026', 'Friday, May 01, 2026'),
         stats: { exercises: 7, duration: '55m', calories: 410 },
         tags: ['PECHO', 'TRICEPS', 'FUERZA'],
       },
       {
         id: 'w_2026_05_03',
-        title: 'HIIT rápido',
-        dateLabel: 'domingo, 03 may 2026',
+        title: tr(lang, 'HIIT rápido', 'Quick HIIT'),
+        dateLabel: tr(lang, 'domingo, 03 may 2026', 'Sunday, May 03, 2026'),
         stats: { exercises: 6, duration: '30m', calories: 420 },
         tags: ['CARDIO', 'HIIT'],
       },
       {
         id: 'w_2026_05_04',
-        title: 'Pierna completo',
-        dateLabel: 'lunes, 04 may 2026',
+        title: tr(lang, 'Pierna completo', 'Full legs'),
+        dateLabel: tr(lang, 'lunes, 04 may 2026', 'Monday, May 04, 2026'),
         stats: { exercises: 8, duration: '65m', calories: 520 },
         tags: ['PIERNA', 'FUERZA'],
       },
     ],
-    []
+    [lang]
   );
 
   const filteredSavedWorkouts = useMemo(() => {
@@ -300,14 +304,14 @@ export default function CreateFitGramPost() {
       type: postType,
       avatarLabel: currentUsername.slice(0, 1).toUpperCase(),
       username: currentUsername,
-      timeAgo: 'AHORA',
+      timeAgo: tr(lang, 'AHORA', 'NOW'),
       caption: caption.trim(),
       tags,
       imagePreviewUrl,
       metrics: { likes: 0, comments: 0 },
       ...(postType === 'workout'
         ? {
-            title: selectedWorkout?.title || 'Entreno del día',
+            title: selectedWorkout?.title || tr(lang, 'Entreno del día', "Today's workout"),
             stats: selectedWorkout?.stats,
             workoutId: selectedWorkout?.id,
             workoutDate: selectedWorkout?.dateLabel,
@@ -331,12 +335,12 @@ export default function CreateFitGramPost() {
               className="inline-flex items-center gap-2 text-[12px] sm:text-[13px] font-medium text-white/60 hover:text-white/90 transition"
             >
               <ArrowLeft className="h-4 w-4" />
-              VOLVER
+              {tr(lang, 'VOLVER', 'BACK')}
             </button>
 
             <div className="flex items-center gap-2">
               <OutlineButton onClick={() => navigate('/fitgram')} className="px-4 py-2.5 text-[11px]">
-                Cancelar
+                {tr(lang, 'Cancelar', 'Cancel')}
               </OutlineButton>
               <PrimaryButton
                 onClick={handlePublish}
@@ -344,7 +348,7 @@ export default function CreateFitGramPost() {
                 disabled={!canPublish}
               >
                 <Save className="h-4 w-4" />
-                Publicar
+                {tr(lang, 'Publicar', 'Publish')}
               </PrimaryButton>
             </div>
           </div>
@@ -352,10 +356,10 @@ export default function CreateFitGramPost() {
           <div className="flex items-end justify-between gap-4">
             <div>
               <h1 className="text-[22px] sm:text-[26px] md:text-[30px] font-bold tracking-wide text-white/95 uppercase">
-                Crear publicación
+                {tr(lang, 'Crear publicación', 'Create post')}
               </h1>
               <div className="text-[11px] sm:text-[12px] text-white/45 mt-1">
-                Foto obligatoria · Estilo FitTrack
+                {tr(lang, 'Foto obligatoria · Estilo FitTrack', 'Required photo · FitTrack style')}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -365,7 +369,7 @@ export default function CreateFitGramPost() {
                   setPostType('workout');
                 }}
               >
-                Entreno
+                {tr(lang, 'Entreno', 'Workout')}
               </Pill>
               <Pill
                 active={postType === 'info'}
@@ -373,7 +377,7 @@ export default function CreateFitGramPost() {
                   setPostType('info');
                 }}
               >
-                Informativa
+                {tr(lang, 'Informativa', 'Info')}
               </Pill>
             </div>
           </div>
@@ -381,11 +385,13 @@ export default function CreateFitGramPost() {
           <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-4 sm:gap-5 md:gap-6 items-start">
             <Card className="border-white/15">
               <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between">
-                <div className="text-[12px] font-bold uppercase tracking-widest text-white/80">Imagen</div>
+                <div className="text-[12px] font-bold uppercase tracking-widest text-white/80">
+                  {tr(lang, 'Imagen', 'Image')}
+                </div>
                 {imageFile ? (
                   <div className="inline-flex items-center gap-2 text-[11px] font-semibold text-white/70">
                     <Check className="h-4 w-4 text-[#ff7849]" />
-                    Lista
+                    {tr(lang, 'Lista', 'Ready')}
                   </div>
                 ) : null}
               </div>
@@ -405,62 +411,64 @@ export default function CreateFitGramPost() {
                       imagePreviewUrl ? 'p-0' : 'p-6'
                     )}
                   >
-                    {imagePreviewUrl ? (
-                      <img
-                        src={imagePreviewUrl}
-                        alt="Previsualización"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
+              {imagePreviewUrl ? (
+                <img
+                  src={imagePreviewUrl}
+                  alt={tr(lang, 'Previsualización', 'Preview')}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
                       <div className="text-center space-y-3">
                         <div className="mx-auto h-16 w-16 rounded-xl border border-white/15 bg-white/[0.03] flex items-center justify-center">
                           <ImageIcon className="h-6 w-6 text-white/70" />
                         </div>
-                        <div className="text-[12px] font-semibold text-white/80">Sube una foto</div>
-                        <div className="text-[11px] text-white/45">PNG/JPG · Obligatoria</div>
-                      </div>
-                    )}
-                  </div>
-                </label>
-              </div>
-            </Card>
+                  <div className="text-[12px] font-semibold text-white/80">{tr(lang, 'Sube una foto', 'Upload a photo')}</div>
+                  <div className="text-[11px] text-white/45">{tr(lang, 'PNG/JPG · Obligatoria', 'PNG/JPG · Required')}</div>
+                </div>
+              )}
+            </div>
+          </label>
+        </div>
+      </Card>
 
-            <div className="space-y-4 sm:space-y-5">
-              <Card className="p-4 sm:p-5 md:p-6 border-white/15">
-                <div className="text-[12px] font-bold uppercase tracking-widest text-white/80">Contenido</div>
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <FieldLabel>Descripción</FieldLabel>
-                    <Textarea
-                      value={caption}
-                      onChange={(e) => setCaption(e.target.value)}
-                      placeholder={
-                        postType === 'workout'
-                          ? 'Cuenta cómo ha ido el entreno, sensaciones, PRs...'
-                          : 'Comparte tu publicación con la comunidad...'
-                      }
-                    />
-                  </div>
+      <div className="space-y-4 sm:space-y-5">
+        <Card className="p-4 sm:p-5 md:p-6 border-white/15">
+          <div className="text-[12px] font-bold uppercase tracking-widest text-white/80">
+            {tr(lang, 'Contenido', 'Content')}
+          </div>
+          <div className="mt-4 space-y-4">
+            <div>
+              <FieldLabel>{tr(lang, 'Descripción', 'Description')}</FieldLabel>
+              <Textarea
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                placeholder={
+                  postType === 'workout'
+                    ? tr(lang, 'Cuenta cómo ha ido el entreno, sensaciones, PRs...', 'Tell how the workout went, feelings, PRs...')
+                    : tr(lang, 'Comparte tu publicación con la comunidad...', 'Share your post with the community...')
+                }
+              />
+            </div>
 
                   <TagEditor value={tags} onChange={setTags} />
                 </div>
               </Card>
 
-              {postType === 'workout' ? (
-                <Card className="p-4 sm:p-5 md:p-6 border-white/15">
-                  <div className="text-[12px] font-bold uppercase tracking-widest text-white/80">
-                    Seleccionar entreno realizado
-                  </div>
+      {postType === 'workout' ? (
+        <Card className="p-4 sm:p-5 md:p-6 border-white/15">
+          <div className="text-[12px] font-bold uppercase tracking-widest text-white/80">
+            {tr(lang, 'Seleccionar entreno realizado', 'Select completed workout')}
+          </div>
                   <div className="mt-4">
                     <div className="relative">
                       <Search className="h-4 w-4 text-white/35 absolute left-4 top-1/2 -translate-y-1/2" />
-                      <Input
-                        value={savedWorkoutQuery}
-                        onChange={(e) => setSavedWorkoutQuery(e.target.value)}
-                        placeholder="Busca un entreno por nombre o tag..."
-                        className="pl-11"
-                      />
-                    </div>
+              <Input
+                value={savedWorkoutQuery}
+                onChange={(e) => setSavedWorkoutQuery(e.target.value)}
+                placeholder={tr(lang, 'Busca un entreno por nombre o tag...', 'Search a workout by name or tag...')}
+                className="pl-11"
+              />
+            </div>
 
                     <div className="mt-4 space-y-3">
                       {filteredSavedWorkouts.map((workout) => (
@@ -478,23 +486,23 @@ export default function CreateFitGramPost() {
                       ))}
 
                       {filteredSavedWorkouts.length === 0 ? (
-                        <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.02] p-4 text-[12px] text-white/55">
-                          No tienes entrenos guardados que coincidan.
-                        </div>
-                      ) : null}
+                    <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.02] p-4 text-[12px] text-white/55">
+                      {tr(lang, 'No tienes entrenos guardados que coincidan.', "You don't have matching saved workouts.")}
                     </div>
-                  </div>
-                  <div className="text-[11px] text-white/45 mt-3">
-                    Solo podrás publicar entrenos que ya hayas realizado (vendrán de tu historial).
-                  </div>
-                </Card>
-              ) : null}
-
-              <div className="text-[11px] text-white/45">
-                Al publicar se añadirá al feed (mock). Cuando conectemos el backend, esto se guardará en BD.
+                  ) : null}
+                </div>
               </div>
-            </div>
+              <div className="text-[11px] text-white/45 mt-3">
+                {tr(lang, 'Solo podrás publicar entrenos que ya hayas realizado (vendrán de tu historial).', 'You can only publish workouts you have already completed (from your history).')}
+              </div>
+            </Card>
+          ) : null}
+
+          <div className="text-[11px] text-white/45">
+            {tr(lang, 'Al publicar se añadirá al feed (mock). Cuando conectemos el backend, esto se guardará en BD.', 'Publishing will add it to the feed (mock). When we connect the backend, it will be persisted.')}
           </div>
+        </div>
+      </div>
         </div>
       </div>
     </div>
