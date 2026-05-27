@@ -11,6 +11,11 @@ import catalogRoutes from './catalog.routes.js';
 import swaggerSpec from '../config/swagger.js';
 
 const registerRoutes = (app) => {
+  const envAllowedOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_ORIGINS || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   const allowedOrigins = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
@@ -18,13 +23,24 @@ const registerRoutes = (app) => {
     'http://127.0.0.1:3001',
     'http://localhost:5173',
     'http://127.0.0.1:5173',
-    // Add your deployed frontend(s) here if needed.
+    'https://proyectointermodularard.vercel.app',
+    ...envAllowedOrigins,
+  ];
+
+  const allowedOriginRegexes = [
+    /^https:\/\/proyectointermodularard[a-z0-9-]*\.vercel\.app$/i,
   ];
 
   const corsOptions = {
     origin: (origin, cb) => {
       // Allow non-browser requests (no Origin) and allow-listed browser origins.
-      if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        allowedOriginRegexes.some((re) => re.test(origin))
+      ) {
+        return cb(null, true);
+      }
       return cb(new Error(`CORS: Origin not allowed: ${origin}`));
     },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -59,6 +75,9 @@ const registerRoutes = (app) => {
   // Middleware de error para errores no capturados
   app.use((err, req, res, _next) => {
     console.error('Error no capturado:', err);
+    if (err?.message?.startsWith('CORS:')) {
+      return res.status(403).json({ message: err.message });
+    }
     res.status(500).json({ message: 'Error interno del servidor' });
   });
 };
