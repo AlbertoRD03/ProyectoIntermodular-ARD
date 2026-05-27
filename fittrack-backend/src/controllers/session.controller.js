@@ -9,8 +9,8 @@ import { checkAndUnlockAchievements } from '../services/gamificacion.service.js'
 
 export const registrarSesion = async (req, res) => {
   try {
-    const userId = Number(req.user?.id);
-    if (!Number.isFinite(userId)) {
+    const userId = String(req.user?.id || '').trim();
+    if (!userId) {
       return res.status(400).json({ error: 'Usuario inválido' });
     }
 
@@ -35,7 +35,10 @@ export const registrarSesion = async (req, res) => {
       duracion_minutos
     });
 
-    const nuevosLogros = await checkAndUnlockAchievements(userId);
+    const numericUserId = Number(userId);
+    const nuevosLogros = Number.isFinite(numericUserId)
+      ? await checkAndUnlockAchievements(numericUserId)
+      : [];
 
     return res.status(201).json({
       message: 'Sesión registrada con éxito',
@@ -49,8 +52,8 @@ export const registrarSesion = async (req, res) => {
 
 export const obtenerHistorial = async (req, res) => {
   try {
-    const userId = Number(req.user?.id);
-    if (!Number.isFinite(userId)) {
+    const userId = String(req.user?.id || '').trim();
+    if (!userId) {
       return res.status(400).json({ error: 'Usuario inválido' });
     }
 
@@ -63,8 +66,8 @@ export const obtenerHistorial = async (req, res) => {
 
 export const actualizarSesion = async (req, res) => {
   try {
-    const userId = Number(req.user?.id);
-    if (!Number.isFinite(userId)) {
+    const userId = String(req.user?.id || '').trim();
+    if (!userId) {
       return res.status(400).json({ error: 'Usuario inválido' });
     }
 
@@ -83,8 +86,8 @@ export const actualizarSesion = async (req, res) => {
 
 export const eliminarSesion = async (req, res) => {
   try {
-    const userId = Number(req.user?.id);
-    if (!Number.isFinite(userId)) {
+    const userId = String(req.user?.id || '').trim();
+    if (!userId) {
       return res.status(400).json({ error: 'Usuario inválido' });
     }
 
@@ -103,10 +106,11 @@ export const eliminarSesion = async (req, res) => {
 
 export const obtenerProgresoEjercicio = async (req, res) => {
   try {
-    const userId = Number(req.user?.id);
-    const exerciseId = Number(req.params.exerciseId);
+    const userId = String(req.user?.id || '').trim();
+    const exerciseIdRaw = req.params.exerciseId;
+    const exerciseId = Number(exerciseIdRaw);
 
-    if (!Number.isFinite(userId) || !Number.isFinite(exerciseId)) {
+    if (!userId || !Number.isFinite(exerciseId)) {
       return res.status(400).json({ error: 'Parámetros inválidos' });
     }
 

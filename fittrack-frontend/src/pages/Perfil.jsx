@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import { useI18n } from '../i18n/I18nProvider';
 
@@ -88,11 +88,13 @@ function ActionButton({ variant = 'secondary', children, onClick }) {
 
 export default function Perfil() {
   const [params] = useSearchParams();
+  const navigate = useNavigate();
   const { lang, toggleLang, t } = useI18n();
   const initial = params.get('tab') === 'fisico' ? 'fisico' : 'usuario';
   const [tab, setTab] = useState(initial);
   const [isEditingUser, setIsEditingUser] = useState(false);
   const [isEditingPhysical, setIsEditingPhysical] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const fileInputRef = useRef(null);
 
   const [photoDataUrl, setPhotoDataUrl] = useState(() => {
@@ -179,6 +181,15 @@ export default function Perfil() {
 
   const isEditing = tab === 'usuario' ? isEditingUser : isEditingPhysical;
 
+  useEffect(() => {
+    if (!showLogoutConfirm) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setShowLogoutConfirm(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showLogoutConfirm]);
+
   const handleEditToggle = () => {
     if (tab === 'usuario') setIsEditingUser(true);
     else setIsEditingPhysical(true);
@@ -204,6 +215,17 @@ export default function Perfil() {
       if (result) setPhotoDataUrl(result);
     };
     reader.readAsDataURL(file);
+  };
+
+  const doLogout = () => {
+    try {
+      window.localStorage.removeItem('fittrack_token');
+      window.localStorage.removeItem('authToken');
+      window.localStorage.removeItem('fittrack_user');
+    } catch {
+      // ignore
+    }
+    navigate('/login', { replace: true });
   };
 
   return (
@@ -235,7 +257,12 @@ export default function Perfil() {
                   {t('profile_save').toUpperCase()}
                 </ActionButton>
               ) : (
-                <ActionButton onClick={handleEditToggle}>{t('profile_edit').toUpperCase()}</ActionButton>
+                <div className="flex flex-wrap items-center justify-end gap-3">
+                  <ActionButton onClick={handleEditToggle}>{t('profile_edit').toUpperCase()}</ActionButton>
+                  <ActionButton variant="danger" onClick={() => setShowLogoutConfirm(true)}>
+                    {t('Cerrar sesión').toUpperCase()}
+                  </ActionButton>
+                </div>
               )}
             </div>
 
@@ -572,6 +599,43 @@ export default function Perfil() {
         className="hidden"
         onChange={handlePhotoSelected}
       />
+
+      {showLogoutConfirm ? (
+        <div className="fixed inset-0 z-50 grid place-items-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/70"
+            aria-label={t('Cerrar')}
+            onClick={() => setShowLogoutConfirm(false)}
+          />
+          <div className="relative w-full max-w-[520px] rounded-2xl border border-white/15 bg-[#121212] p-6 shadow-[0_30px_90px_-40px_rgba(0,0,0,0.9)]">
+            <div
+              className="text-[18px] font-bold tracking-wide text-white/95"
+              style={{ fontFamily: 'Arimo, Poppins, system-ui' }}
+            >
+              {t('¿Seguro que quieres cerrar sesión?')}
+            </div>
+            <div className="mt-2 text-[13px] text-white/60">
+              {t('Tendrás que iniciar sesión de nuevo para acceder a tu cuenta.')}
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <ActionButton onClick={() => setShowLogoutConfirm(false)}>
+                {t('Cancelar').toUpperCase()}
+              </ActionButton>
+              <ActionButton
+                variant="danger"
+                onClick={() => {
+                  setShowLogoutConfirm(false);
+                  doLogout();
+                }}
+              >
+                {t('Cerrar sesión').toUpperCase()}
+              </ActionButton>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

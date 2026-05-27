@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Bookmark, Check, ChevronDown, ClipboardCopy, Search, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import { useI18n, tr } from '../i18n/I18nProvider';
 import { getDateKey, upsertSession } from '../services/sessionStore';
+import { createSession } from '../services/sessionsApi';
+import { listWorkoutTypes, listZones, searchCatalogExercises } from '../services/catalogApi';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -48,11 +50,16 @@ function Select({ value, onChange, options }) {
         onChange={(e) => onChange(e.target.value)}
         className="appearance-none w-full rounded-lg border border-white/15 bg-white/[0.03] px-4 py-3 pr-10 text-[12px] sm:text-[13px] text-white/85 outline-none focus:border-white/30 focus:bg-white/[0.06]"
       >
-        {options.map((opt) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
-        ))}
+        {options.map((opt) => {
+          const isString = typeof opt === 'string';
+          const optionValue = isString ? opt : opt.value;
+          const optionLabel = isString ? opt : opt.label;
+          return (
+            <option key={optionValue} value={optionValue}>
+              {optionLabel}
+            </option>
+          );
+        })}
       </select>
       <ChevronDown className="h-4 w-4 text-white/40 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
     </div>
@@ -265,12 +272,20 @@ export default function CreateSession() {
   const navigate = useNavigate();
   const { lang } = useI18n();
   const [params] = useSearchParams();
-  const [muscleGroup, setMuscleGroup] = useState('PECHO');
-  const [workoutType, setWorkoutType] = useState('FUERZA');
+  const [zones, setZones] = useState([]);
+  const [types, setTypes] = useState([]);
+  const [muscleGroup, setMuscleGroup] = useState('full_body');
+  const [workoutType, setWorkoutType] = useState('strength');
+  const [sessionName, setSessionName] = useState('');
   const [search, setSearch] = useState('');
   const [savedQuery, setSavedQuery] = useState('');
   const [copiedWorkoutId, setCopiedWorkoutId] = useState(null);
   const [isSavedPanelOpen, setIsSavedPanelOpen] = useState(false);
+  const [exerciseResults, setExerciseResults] = useState([]);
+  const [exerciseLoading, setExerciseLoading] = useState(false);
+  const [exerciseError, setExerciseError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const dateKey = useMemo(() => {
     const raw = params.get('date');
@@ -293,27 +308,82 @@ export default function CreateSession() {
     });
   }, [dateKey, lang]);
 
-  const allExercises = useMemo(
-    () => [
-      'PRESS BANCA PLANO',
-      'PRESS BANCA INCLINADO',
-      'PRESS BANCA DECLINADO',
-      'APERTURAS CON MANCUERNAS',
-      'PRESS MILITAR',
-      'ELEVACIONES LATERALES',
-      'DOMINADAS',
-      'REMO CON BARRA',
-      'SENTADILLA',
-      'PESO MUERTO',
-    ],
-    []
-  );
+  useEffect(() => {
+    let alive = true;
+    Promise.all([listZones(), listWorkoutTypes()])
+      .then(([z, t]) => {
+        if (!alive) return;
+        setZones(Array.isArray(z?.items) ? z.items : []);
+        setTypes(Array.isArray(t?.items) ? t.items : []);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setZones([]);
+        setTypes([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const zoneLabel = useMemo(() => {
+    const z = zones.find((x) => String(x?.key) === String(muscleGroup));
+    if (!z) return '';
+    return lang === 'en' ? z.label_en : z.label_es;
+  }, [lang, muscleGroup, zones]);
+
+  const typeLabel = useMemo(() => {
+    const t = types.find((x) => String(x?.key) === String(workoutType));
+    if (!t) return '';
+    return lang === 'en' ? t.label_en : t.label_es;
+  }, [lang, types, workoutType]);
+
+  useEffect(() => {
+    if (!sessionName.trim()) {
+      const next = [zoneLabel, typeLabel].filter(Boolean).join(' · ');
+      if (next) setSessionName(next);
+    }
+  }, [sessionName, typeLabel, zoneLabel]);
+
+  useEffect(() => {
+    let alive = true;
+    const q = search.trim();
+    setExerciseError('');
+    setExerciseLoading(true);
+
+    const timer = window.setTimeout(() => {
+      searchCatalogExercises({ search: q, zoneKey: muscleGroup, typeKey: workoutType })
+        .then((data) => {
+          if (!alive) return;
+          setExerciseResults(Array.isArray(data?.items) ? data.items : []);
+        })
+        .catch((e) => {
+          if (!alive) return;
+          setExerciseResults([]);
+          setExerciseError(e?.message || tr(lang, 'Error buscando ejercicios', 'Error searching exercises'));
+        })
+        .finally(() => {
+          if (!alive) return;
+          setExerciseLoading(false);
+        });
+    }, 180);
+
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+  }, [lang, muscleGroup, search, workoutType]);
 
   const results = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return allExercises.slice(0, 3);
-    return allExercises.filter((x) => x.toLowerCase().includes(q)).slice(0, 6);
-  }, [allExercises, search]);
+    if (exerciseLoading) return [];
+    return (Array.isArray(exerciseResults) ? exerciseResults : [])
+      .slice(0, 6)
+      .map((x) => ({
+        id: String(x?._id || x?.id || ''),
+        name: String(x?.nombre || '').toUpperCase(),
+      }))
+      .filter((x) => x.id && x.name);
+  }, [exerciseLoading, exerciseResults]);
 
   const savedWorkouts = useMemo(
     () => [
@@ -322,8 +392,8 @@ export default function CreateSession() {
         title: 'Pierna completo',
         sourceUser: 'JUAN_FITNESS',
         stats: { exercises: 8, duration: '65m', calories: 420 },
-        muscleGroup: 'PIERNA',
-        workoutType: 'FUERZA',
+        muscleGroup: 'legs',
+        workoutType: 'strength',
         exercises: [
           { name: 'SENTADILLA', setsCount: 4 },
           { name: 'PESO MUERTO', setsCount: 3 },
@@ -336,8 +406,8 @@ export default function CreateSession() {
         title: 'HIIT rápido',
         sourceUser: 'ANA_STRONG',
         stats: { exercises: 6, duration: '30m', calories: 420 },
-        muscleGroup: 'CARDIO',
-        workoutType: 'HIIT',
+        muscleGroup: 'full_body',
+        workoutType: 'hiit',
         exercises: [
           { name: 'BURPEES', setsCount: 5 },
           { name: 'SPRINT', setsCount: 5 },
@@ -349,8 +419,8 @@ export default function CreateSession() {
         title: 'Pecho + tríceps',
         sourceUser: 'COACH_MIGUEL',
         stats: { exercises: 7, duration: '55m', calories: 410 },
-        muscleGroup: 'PECHO',
-        workoutType: 'FUERZA',
+        muscleGroup: 'chest',
+        workoutType: 'strength',
         exercises: [
           { name: 'PRESS BANCA PLANO', setsCount: 4 },
           { name: 'PRESS BANCA INCLINADO', setsCount: 4 },
@@ -435,14 +505,18 @@ export default function CreateSession() {
     window.setTimeout(() => setCopiedWorkoutId(null), 1500);
   };
 
-  const addExercise = (name) => {
+  const addExercise = (exercise) => {
+    const catalogId = String(exercise?.id || '');
+    const name = String(exercise?.name || '').trim();
+    if (!catalogId || !name) return;
     setAdded((prev) => {
-      if (prev.some((ex) => ex.name === name)) return prev;
+      if (prev.some((ex) => ex.catalogId === catalogId || ex.name === name)) return prev;
       return [
         ...prev,
         {
           id: makeId('ex'),
           name,
+          catalogId,
           sets: [{ id: makeId('set'), reps: '', weight: '', option: 'OPCIONES' }],
         },
       ];
@@ -484,7 +558,9 @@ export default function CreateSession() {
     );
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setSaveError('');
+    if (saving) return;
     const id = makeId('session');
     const createdAt = Date.now();
     const totalSets = added.reduce((acc, ex) => acc + (Array.isArray(ex.sets) ? ex.sets.length : 0), 0);
@@ -492,7 +568,7 @@ export default function CreateSession() {
       id,
       dateKey,
       createdAt,
-      title: `${muscleGroup} · ${workoutType}`,
+      title: sessionName.trim() ? sessionName.trim() : `${muscleGroup} · ${workoutType}`,
       date: workoutDateLabel,
       duration: '60 MIN',
       muscleGroup,
@@ -513,18 +589,41 @@ export default function CreateSession() {
       })),
     };
 
-    upsertSession(session);
+    setSaving(true);
+    try {
+      const apiPayload = {
+        fecha: `${dateKey}T12:00:00.000Z`,
+        tipo_rutina: sessionName.trim() ? sessionName.trim() : `${muscleGroup} · ${workoutType}`,
+        ejercicios_realizados: added.map((ex, idx) => ({
+          ejercicio_id: ex.catalogId || idx + 1,
+          nombre_ejercicio: ex.name,
+          sets: Array.isArray(ex.sets)
+            ? ex.sets.map((s) => ({
+                reps: s.reps === '' ? 0 : Number.isFinite(Number(s.reps)) ? Number(s.reps) : 0,
+                peso:
+                  s.weight === '' || s.weight === undefined || s.weight === null
+                    ? 0
+                    : Number.isFinite(Number(s.weight))
+                      ? Number(s.weight)
+                      : 0,
+                rpe: null,
+              }))
+            : [],
+        })),
+        notas: '',
+        duracion_minutos: 60,
+      };
 
-    // UI only (mock). Hook this to backend later.
-    navigate('/entrenamientos', {
-      state: {
-        createdSession: {
-          muscleGroup,
-          workoutType,
-          exercises: added,
-        },
-      },
-    });
+      const created = await createSession(apiPayload);
+      // Keep local cache for UI/offline while we migrate the rest.
+      upsertSession(session);
+
+      navigate('/entrenamientos', { state: { createdSession: created?.session } });
+    } catch (e) {
+      setSaveError(e?.message || tr(lang, 'No se pudo guardar la sesión', 'Could not save the session'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -562,12 +661,43 @@ export default function CreateSession() {
 
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
               <div>
+                <FieldLabel>{tr(lang, 'NOMBRE DE LA SESIÓN', 'SESSION NAME')}</FieldLabel>
+                <Input
+                  value={sessionName}
+                  onChange={(e) => setSessionName(e.target.value)}
+                  placeholder={tr(lang, 'Ej: Pecho pesado', 'e.g. Heavy chest')}
+                />
+              </div>
+              <div className="hidden md:block" />
+              <div>
                 <FieldLabel>{tr(lang, 'ZONA A ENTRENAR', 'MUSCLE GROUP')}</FieldLabel>
-                <Select value={muscleGroup} onChange={setMuscleGroup} options={['PECHO', 'ESPALDA', 'PIERNA', 'HOMBROS', 'BRAZOS']} />
+                <Select
+                  value={muscleGroup}
+                  onChange={setMuscleGroup}
+                  options={
+                    zones.length
+                      ? zones.map((z) => ({
+                          value: z.key,
+                          label: (lang === 'en' ? z.label_en : z.label_es).toUpperCase(),
+                        }))
+                      : [{ value: 'full_body', label: tr(lang, 'CUERPO COMPLETO', 'FULL BODY') }]
+                  }
+                />
               </div>
               <div>
                 <FieldLabel>{tr(lang, 'TIPO DE ENTRENO', 'WORKOUT TYPE')}</FieldLabel>
-                <Select value={workoutType} onChange={setWorkoutType} options={['FUERZA', 'CARDIO', 'HIIT', 'MOVILIDAD']} />
+                <Select
+                  value={workoutType}
+                  onChange={setWorkoutType}
+                  options={
+                    types.length
+                      ? types.map((t) => ({
+                          value: t.key,
+                          label: (lang === 'en' ? t.label_en : t.label_es).toUpperCase(),
+                        }))
+                      : [{ value: 'strength', label: tr(lang, 'FUERZA', 'STRENGTH') }]
+                  }
+                />
               </div>
             </div>
 
@@ -595,8 +725,18 @@ export default function CreateSession() {
                 {tr(lang, 'RESULTADOS', 'RESULTS')}
               </div>
               <div className="space-y-3">
-                {results.map((name) => (
-                  <ResultRow key={name} label={name} onAdd={() => addExercise(name)} />
+                {exerciseError ? (
+                  <div className="rounded-lg border border-[#ff7849]/25 bg-[#ff7849]/10 px-4 py-3 text-[12px] text-white/85">
+                    {exerciseError}
+                  </div>
+                ) : null}
+                {exerciseLoading ? (
+                  <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-[12px] text-white/60">
+                    {tr(lang, 'Buscando...', 'Searching...')}
+                  </div>
+                ) : null}
+                {results.map((ex) => (
+                  <ResultRow key={ex.id} label={ex.name} onAdd={() => addExercise(ex)} />
                 ))}
               </div>
             </div>
@@ -619,12 +759,22 @@ export default function CreateSession() {
             ))}
           </div>
 
+          {saveError ? (
+            <div className="rounded-lg border border-[#ff7849]/25 bg-[#ff7849]/10 px-4 py-3 text-[12px] text-white/85">
+              {saveError}
+            </div>
+          ) : null}
+
           <div className="pt-2 flex items-center justify-center gap-4">
             <OutlineButton onClick={() => navigate(-1)} className="min-w-[160px]">
               {tr(lang, 'CANCELAR', 'CANCEL')}
             </OutlineButton>
-            <PrimaryButton onClick={handleSave} className="min-w-[180px]">
-              {tr(lang, 'GUARDAR SESIÓN', 'SAVE SESSION')}
+            <PrimaryButton
+              onClick={handleSave}
+              className={cx('min-w-[180px]', saving ? 'opacity-70 cursor-not-allowed' : '')}
+              disabled={saving}
+            >
+              {saving ? tr(lang, 'GUARDANDO...', 'SAVING...') : tr(lang, 'GUARDAR SESIÓN', 'SAVE SESSION')}
             </PrimaryButton>
           </div>
         </div>

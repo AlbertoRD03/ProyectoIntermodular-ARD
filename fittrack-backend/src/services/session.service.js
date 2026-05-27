@@ -5,26 +5,48 @@ export const createSession = async (data) => {
 };
 
 export const getSessionsByUser = async (userId) => {
-  return Session.find({ usuario_id: userId }).sort({ fecha: -1 });
+  const idStr = String(userId);
+  const idNum = Number(idStr);
+  const match = Number.isFinite(idNum)
+    ? { $or: [{ usuario_id: idStr }, { usuario_id: idNum }] }
+    : { usuario_id: idStr };
+  return Session.find(match).sort({ fecha: -1 });
 };
 
 export const updateSession = async (sessionId, userId, data) => {
+  const idStr = String(userId);
+  const idNum = Number(idStr);
+  const userMatch = Number.isFinite(idNum)
+    ? { $or: [{ usuario_id: idStr }, { usuario_id: idNum }] }
+    : { usuario_id: idStr };
+
   return Session.findOneAndUpdate(
-    { _id: sessionId, usuario_id: userId },
+    { _id: sessionId, ...userMatch },
     data,
     { new: true }
   );
 };
 
 export const deleteSession = async (sessionId, userId) => {
-  return Session.findOneAndDelete({ _id: sessionId, usuario_id: userId });
+  const idStr = String(userId);
+  const idNum = Number(idStr);
+  const userMatch = Number.isFinite(idNum)
+    ? { $or: [{ usuario_id: idStr }, { usuario_id: idNum }] }
+    : { usuario_id: idStr };
+  return Session.findOneAndDelete({ _id: sessionId, ...userMatch });
 };
 
 export const getExerciseHistory = async (userId, exerciseId) => {
+  const idStr = String(userId);
+  const idNum = Number(idStr);
+  const userMatch = Number.isFinite(idNum)
+    ? { $or: [{ usuario_id: idStr }, { usuario_id: idNum }] }
+    : { usuario_id: idStr };
+
   return Session.aggregate([
     {
       $match: {
-        usuario_id: userId,
+        ...userMatch,
         'ejercicios_realizados.ejercicio_id': exerciseId
       }
     },

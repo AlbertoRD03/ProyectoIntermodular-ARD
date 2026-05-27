@@ -1,6 +1,9 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'node:crypto';
 import { isMySQLEnabled } from '../utils/mysqlEnabled.js';
+import PasswordResetToken from '../models/mongodb/PasswordResetToken.js';
+import { sendPasswordResetEmail } from './email.service.js';
 
 export const register = async (userData) => {
   const email = String(userData?.email || '').trim().toLowerCase();
@@ -83,4 +86,102 @@ export const login = async (email, password) => {
   );
 
   return { user: user.toJSON(), token };
+};
+
+const sha256Hex = (input) =>
+  crypto.createHash('sha256').update(String(input)).digest('hex');
+
+const createResetToken = () => crypto.randomBytes(32).toString('hex');
+
+const getResetUrl = (token) => {
+  const base = String(process.env.APP_BASE_URL || '').trim();
+  if (!base) return '';
+  const normalized = base.endsWith('/') ? base.slice(0, -1) : base;
+  return `${normalized}/reset-password?token=${encodeURIComponent(token)}`;
+};
+
+export const requestPasswordReset = async ({ email }) => {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail) return { exists: false };
+
+  const expiresMinutes = Number.parseInt(process.env.PASSWORD_RESET_EXPIRES_MIN || '30', 10);
+  const expiresAt = new Date(Date.now() + Math.max(5, expiresMinutes) * 60 * 1000);
+
+  let user = null;
+  let provider = 'mongodb';
+  let userId = '';
+
+  if (isMySQLEnabled()) {
+    provider = 'mysql';
+    const { default: User } = await import('../models/mysql/User.js');
+    user = await User.findOne({ where: { email: normalizedEmail } });
+    if (user) userId = String(user.id);
+  } else {
+    provider = 'mongodb';
+    const { default: User } = await import('../models/mongodb/User.js');
+    user = await User.findOne({ email: normalizedEmail });
+    if (user) userId = String(user._id);
+  }
+
+  if (!user) return { exists: false };
+
+  const token = createResetToken();
+  const tokenHash = sha256Hex(token);
+
+  // Best-effort cleanup for previous tokens for this user/email.
+  await PasswordResetToken.deleteMany({ provider, userId, email: normalizedEmail });
+  await PasswordResetToken.create({
+    tokenHash,
+    provider,
+    userId,
+    email: normalizedEmail,
+    expiresAt
+  });
+
+  const resetUrl = getResetUrl(token);
+  if (!resetUrl) {
+    console.warn(
+      `[auth] APP_BASE_URL no configurado. No se puede construir el enlace de reset para ${normalizedEmail}.`
+    );
+    return;
+  }
+
+  await sendPasswordResetEmail({ to: normalizedEmail, resetUrl });
+  return { exists: true };
+};
+
+export const resetPassword = async ({ token, password }) => {
+  const rawToken = String(token || '').trim();
+  const newPassword = String(password || '');
+
+  if (!rawToken || !newPassword) throw new Error('Token y contraseña son obligatorios.');
+  if (newPassword.length < 6) throw new Error('La contraseña debe tener al menos 6 caracteres.');
+
+  const tokenHash = sha256Hex(rawToken);
+  const record = await PasswordResetToken.findOne({ tokenHash });
+  if (!record) throw new Error('El enlace no es válido o ha expirado.');
+  if (record.usedAt) throw new Error('El enlace ya fue usado.');
+  if (record.expiresAt && record.expiresAt.getTime() < Date.now()) {
+    throw new Error('El enlace no es válido o ha expirado.');
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  if (record.provider === 'mysql') {
+    const { default: User } = await import('../models/mysql/User.js');
+    const user = await User.findByPk(Number(record.userId));
+    if (!user) throw new Error('El usuario no existe.');
+    user.password = hashedPassword;
+    await user.save();
+  } else {
+    const { default: User } = await import('../models/mongodb/User.js');
+    const user = await User.findById(record.userId);
+    if (!user) throw new Error('El usuario no existe.');
+    user.passwordHash = hashedPassword;
+    await user.save();
+  }
+
+  record.usedAt = new Date();
+  await record.save();
+  await PasswordResetToken.deleteMany({ provider: record.provider, userId: record.userId });
 };

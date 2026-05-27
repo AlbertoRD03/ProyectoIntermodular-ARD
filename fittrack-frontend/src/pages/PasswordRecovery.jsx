@@ -34,7 +34,6 @@ export default function PasswordRecovery() {
 
     setLoading(true);
     try {
-      // Backend endpoint not implemented yet in your repo; wire it later.
       const url = `${API_BASE}/auth/password/forgot`;
       const body = { email: email.trim() };
 

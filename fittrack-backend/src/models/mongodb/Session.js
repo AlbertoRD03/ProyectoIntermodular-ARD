@@ -7,13 +7,16 @@ const setSchema = new mongoose.Schema({
 });
 
 const ejercicioRealizadoSchema = new mongoose.Schema({
-  ejercicio_id: { type: Number, required: true },
+  // En el frontend actual los ejercicios están mockeados y no siempre tienen id numérico.
+  // Aceptamos string o number para poder sincronizar y luego endurecer el esquema.
+  ejercicio_id: { type: mongoose.Schema.Types.Mixed, required: false },
   nombre_ejercicio: { type: String, required: true },
   sets: [setSchema]
 });
 
 const sessionSchema = new mongoose.Schema({
-  usuario_id: { type: Number, required: true, index: true },
+  // Soporta id numérico (MySQL) o string (MongoDB).
+  usuario_id: { type: mongoose.Schema.Types.Mixed, required: true, index: true },
   fecha: { type: Date, default: Date.now },
   tipo_rutina: { type: String, required: true },
   ejercicios_realizados: [ejercicioRealizadoSchema],

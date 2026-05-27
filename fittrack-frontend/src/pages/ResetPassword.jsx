@@ -50,7 +50,6 @@ export default function ResetPassword() {
 
     setLoading(true);
     try {
-      // Endpoint to implement in backend later.
       const res = await fetch(`${API_BASE}/auth/password/reset`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

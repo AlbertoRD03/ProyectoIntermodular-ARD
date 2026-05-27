@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   LayoutGrid,
   Trophy,
@@ -7,6 +7,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { useI18n, tr } from '../i18n/I18nProvider';
+import { listSessionHistory } from '../services/sessionsApi';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -93,6 +94,9 @@ function FilterCheckbox({ label, checked, onChange }) {
 export default function Entrenamientos() {
   const navigate = useNavigate();
   const { lang } = useI18n();
+  const [remoteSessions, setRemoteSessions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [filters, setFilters] = useState({
     hoy: false,
     estaSemana: true,
@@ -109,111 +113,97 @@ export default function Entrenamientos() {
     hombros: false,
   });
 
-  // Datos de prueba con campos para filtrado
-  const allWorkouts = useMemo(() => {
-    const today = new Date();
-    const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setLoadError('');
 
-    return [
-      {
-        id: 1,
-        title: tr(lang, 'Entrenamiento de Pecho', 'Chest workout'),
-        duration: '45 MIN',
-        date: tr(lang, 'Lunes, 20 Ene 2025', 'Monday, Jan 20, 2025'),
-        dateObj: oneWeekAgo,
-        exercisesCount: 8,
-        series: 24,
-        volume: '2480 KG',
-        type: 'fuerza',
-        muscleGroup: ['pecho', 'brazos'],
-      },
-      {
-        id: 2,
-        title: tr(lang, 'Cardio Intenso', 'Intense cardio'),
-        duration: '30 MIN',
-        date: tr(lang, 'Martes, 21 Ene 2025', 'Tuesday, Jan 21, 2025'),
-        dateObj: oneWeekAgo,
-        exercisesCount: 5,
-        series: 10,
-        volume: '350 KCAL',
-        type: 'cardio',
-        muscleGroup: [],
-      },
-      {
-        id: 3,
-        title: tr(lang, 'Pierna Completa', 'Leg day'),
-        duration: '60 MIN',
-        date: tr(lang, 'Jueves, 23 Ene 2025', 'Thursday, Jan 23, 2025'),
-        dateObj: oneWeekAgo,
-        exercisesCount: 10,
-        series: 32,
-        volume: '3268 KG',
-        type: 'fuerza',
-        muscleGroup: ['piernas'],
-      },
-      {
-        id: 4,
-        title: tr(lang, 'Espalda y Bíceps', 'Back & biceps'),
-        duration: '50 MIN',
-        date: tr(lang, 'Viernes, 24 Ene 2025', 'Friday, Jan 24, 2025'),
-        dateObj: oneWeekAgo,
-        exercisesCount: 9,
-        series: 28,
-        volume: '2880 KG',
-        type: 'fuerza',
-        muscleGroup: ['espalda', 'brazos'],
-      },
-      {
-        id: 5,
-        title: tr(lang, 'Hombros y Tríceps', 'Shoulders & triceps'),
-        duration: '40 MIN',
-        date: tr(lang, 'Sábado, 25 Ene 2025', 'Saturday, Jan 25, 2025'),
-        dateObj: oneWeekAgo,
-        exercisesCount: 7,
-        series: 22,
-        volume: '1980 KG',
-        type: 'fuerza',
-        muscleGroup: ['hombros', 'brazos'],
-      },
-      {
-        id: 6,
-        title: tr(lang, 'Yoga y Movilidad', 'Yoga & mobility'),
-        duration: '35 MIN',
-        date: tr(lang, 'Domingo, 26 Ene 2025', 'Sunday, Jan 26, 2025'),
-        dateObj: oneWeekAgo,
-        exercisesCount: 12,
-        series: 15,
-        volume: '+15%',
-        type: 'flexibilidad',
-        muscleGroup: [],
-      },
-      {
-        id: 7,
-        title: tr(lang, 'HIIT Completo', 'Full HIIT'),
-        duration: '25 MIN',
-        date: tr(lang, 'Lunes, 27 Ene 2025', 'Monday, Jan 27, 2025'),
-        dateObj: twoWeeksAgo,
-        exercisesCount: 8,
-        series: 20,
-        volume: '600 KCAL',
-        type: 'hiit',
-        muscleGroup: [],
-      },
-      {
-        id: 8,
-        title: tr(lang, 'Pecho y Espalda', 'Chest & back'),
-        duration: '55 MIN',
-        date: tr(lang, 'Martes, 28 Ene 2025', 'Tuesday, Jan 28, 2025'),
-        dateObj: twoWeeksAgo,
-        exercisesCount: 11,
-        series: 30,
-        volume: '3100 KG',
-        type: 'fuerza',
-        muscleGroup: ['pecho', 'espalda'],
-      },
-    ];
+    listSessionHistory()
+      .then((data) => {
+        if (!alive) return;
+        setRemoteSessions(Array.isArray(data?.items) ? data.items : []);
+      })
+      .catch((e) => {
+        if (!alive) return;
+        setLoadError(e?.message || tr(lang, 'No se pudo cargar el historial', 'Could not load history'));
+        setRemoteSessions([]);
+      })
+      .finally(() => {
+        if (!alive) return;
+        setLoading(false);
+      });
+
+    return () => {
+      alive = false;
+    };
   }, [lang]);
+
+  const parseTipoRutina = (tipo) => {
+    const raw = String(tipo || '').toUpperCase();
+    const parts = raw.split('·').map((p) => p.trim()).filter(Boolean);
+    const muscle = parts[0] || raw;
+    const type = parts[1] || '';
+    return { muscle, type };
+  };
+
+  const mapTypeKey = (type) => {
+    const t = String(type || '').toUpperCase();
+    if (t.includes('HIIT')) return 'hiit';
+    if (t.includes('CARD')) return 'cardio';
+    if (t.includes('MOV') || t.includes('MOB') || t.includes('FLEX')) return 'flexibilidad';
+    if (t.includes('FUER')) return 'fuerza';
+    return '';
+  };
+
+  const mapMuscleKey = (muscle) => {
+    const m = String(muscle || '').toUpperCase();
+    if (m.includes('PECHO')) return ['pecho'];
+    if (m.includes('ESPALDA')) return ['espalda'];
+    if (m.includes('PIERNA') || m.includes('PIERNAS')) return ['piernas'];
+    if (m.includes('BRAZO') || m.includes('BICE') || m.includes('TRICE')) return ['brazos'];
+    if (m.includes('HOMBRO')) return ['hombros'];
+    return [];
+  };
+
+  const computeSetsAndVolume = (ejercicios) => {
+    const list = Array.isArray(ejercicios) ? ejercicios : [];
+    let sets = 0;
+    let volume = 0;
+    for (const ex of list) {
+      const s = Array.isArray(ex?.sets) ? ex.sets : [];
+      sets += s.length;
+      for (const set of s) {
+        const reps = Number(set?.reps) || 0;
+        const peso = Number(set?.peso) || 0;
+        volume += reps * peso;
+      }
+    }
+    return { sets, volume };
+  };
+
+  // Datos reales del backend (Mongo/MySQL) con campos para filtrado
+  const allWorkouts = useMemo(() => {
+    const locale = lang === 'en' ? 'en-US' : 'es-ES';
+    return (Array.isArray(remoteSessions) ? remoteSessions : []).map((s) => {
+      const fecha = s?.fecha ? new Date(s.fecha) : new Date();
+      const { muscle, type } = parseTipoRutina(s?.tipo_rutina);
+      const ejercicios = Array.isArray(s?.ejercicios_realizados) ? s.ejercicios_realizados : [];
+      const { sets, volume } = computeSetsAndVolume(ejercicios);
+
+      return {
+        id: String(s?._id || s?.id || ''),
+        title: String(s?.tipo_rutina || '').toUpperCase() || tr(lang, 'ENTRENAMIENTO', 'WORKOUT'),
+        duration: s?.duracion_minutos ? `${s.duracion_minutos} MIN` : '—',
+        date: fecha.toLocaleDateString(locale, { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' }),
+        dateObj: fecha,
+        exercisesCount: ejercicios.length,
+        series: sets,
+        volume: `${Math.round(volume)} KG`,
+        type: mapTypeKey(type),
+        muscleGroup: mapMuscleKey(muscle),
+      };
+    }).filter((w) => w.id);
+  }, [lang, remoteSessions]);
 
   // Función para filtrar entrenamientos
   const filteredWorkouts = useMemo(() => {
@@ -431,7 +421,19 @@ export default function Entrenamientos() {
           </div>
 
           {/* Workouts Grid */}
-          {filteredWorkouts.length > 0 ? (
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-12 sm:py-16 md:py-20 rounded-xl border border-white/10 bg-white/[0.04]">
+              <div className="text-center">
+                <p className="text-[14px] sm:text-[16px] text-white/60 mb-2">
+                  {tr(lang, 'Cargando entrenamientos...', 'Loading workouts...')}
+                </p>
+              </div>
+            </div>
+          ) : loadError ? (
+            <div className="rounded-xl border border-[#ff7849]/25 bg-[#ff7849]/10 px-5 py-4 text-[13px] text-white/85">
+              {loadError}
+            </div>
+          ) : filteredWorkouts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
               {filteredWorkouts.map((workout) => (
                 <WorkoutCard

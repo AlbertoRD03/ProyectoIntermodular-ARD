@@ -7,12 +7,17 @@ import gamificacionRoutes from './gamificacion.routes.js';
 import sessionRoutes from './session.routes.js';
 import exerciseRoutes from './exercise.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
+import catalogRoutes from './catalog.routes.js';
 import swaggerSpec from '../config/swagger.js';
 
 const registerRoutes = (app) => {
   const allowedOrigins = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3001',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
     // Add your deployed frontend(s) here if needed.
   ];
 
@@ -37,6 +42,7 @@ const registerRoutes = (app) => {
   app.use('/api/gamificacion', gamificacionRoutes);
   app.use('/api/sesiones', sessionRoutes);
   app.use('/api/ejercicios', exerciseRoutes);
+  app.use('/api/catalog', catalogRoutes);
   app.use('/api/dashboard', dashboardRoutes);
   app.use(
     '/api/docs',
@@ -51,7 +57,7 @@ const registerRoutes = (app) => {
   });
 
   // Middleware de error para errores no capturados
-  app.use((err, req, res, next) => {
+  app.use((err, req, res, _next) => {
     console.error('Error no capturado:', err);
     res.status(500).json({ message: 'Error interno del servidor' });
   });
