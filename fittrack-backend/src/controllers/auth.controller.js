@@ -55,7 +55,7 @@ export const login = async (req, res) => {
         status === 400
           ? 'Datos inválidos'
           : status === 401
-            ? 'Credenciales inválidas'
+            ? 'Usuario o contraseña erroneos.'
             : status === 503
               ? 'Servicio no disponible'
               : 'Error interno del servidor',

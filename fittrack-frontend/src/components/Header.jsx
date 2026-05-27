@@ -124,7 +124,7 @@ export default function Header() {
   return (
     <div className="h-[56px] sm:h-[64px] border-b border-white/10 sticky top-0 z-50 bg-[#1e1e1e]">
       <div className="flex h-full w-full items-center justify-between px-3 sm:px-4 md:px-6 lg:px-8">
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <div
             className="text-[18px] sm:text-[22px] font-bold tracking-wide text-[#ff7849]"
             style={{ fontFamily: 'Arimo, Poppins, system-ui' }}
@@ -132,8 +132,9 @@ export default function Header() {
             FitTrack
           </div>
           {userName ? (
-            <div className="hidden sm:block truncate text-[12px] sm:text-[13px] text-white/70">
-              {t('welcome')} {userName}
+            <div className="truncate text-[12px] sm:text-[13px] text-white/70">
+              {t('welcome')}{' '}
+              <span className="font-semibold text-white/85">{userName}</span>
             </div>
           ) : null}
         </div>

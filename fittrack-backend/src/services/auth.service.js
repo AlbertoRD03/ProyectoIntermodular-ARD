@@ -66,13 +66,15 @@ export const login = async (email, password) => {
     throw createHttpError(500, 'Error interno del servidor', { expose: false });
   }
 
+  const invalidCredentialsMessage = 'Usuario o contraseña erroneos.';
+
   if (isMySQLEnabled()) {
     const { default: User } = await import('../models/mysql/User.js');
     const user = await User.findOne({ where: { email: normalizedEmail } });
-    if (!user) throw createHttpError(401, 'Credenciales inválidas');
+    if (!user) throw createHttpError(401, invalidCredentialsMessage);
 
     const isMatch = await bcrypt.compare(rawPassword, user.password);
-    if (!isMatch) throw createHttpError(401, 'Credenciales inválidas');
+    if (!isMatch) throw createHttpError(401, invalidCredentialsMessage);
 
     const token = jwt.sign(
       { id: user.id, email: user.email },
@@ -89,10 +91,10 @@ export const login = async (email, password) => {
 
   const { default: User } = await import('../models/mongodb/User.js');
   const user = await User.findOne({ email: normalizedEmail });
-  if (!user) throw createHttpError(401, 'Credenciales inválidas');
+  if (!user) throw createHttpError(401, invalidCredentialsMessage);
 
   const isMatch = await bcrypt.compare(rawPassword, user.passwordHash);
-  if (!isMatch) throw createHttpError(401, 'Credenciales inválidas');
+  if (!isMatch) throw createHttpError(401, invalidCredentialsMessage);
 
   const token = jwt.sign(
     { id: String(user._id), email: user.email },

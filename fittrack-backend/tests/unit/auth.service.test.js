@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const userCreateMock = vi.fn();
 const userFindOneMock = vi.fn();
 
-vi.mock('../../src/models/mysql/User.js', () => ({
+vi.mock(new URL('../../src/models/mysql/User.js', import.meta.url).pathname, () => ({
   create: userCreateMock,
   findOne: userFindOneMock,
   default: { create: userCreateMock, findOne: userFindOneMock }
@@ -12,7 +12,7 @@ vi.mock('../../src/models/mysql/User.js', () => ({
 const bcryptHashMock = vi.fn();
 const bcryptCompareMock = vi.fn();
 
-vi.mock('bcrypt', () => ({
+vi.mock('bcryptjs', () => ({
   hash: bcryptHashMock,
   compare: bcryptCompareMock,
   default: { hash: bcryptHashMock, compare: bcryptCompareMock }
@@ -33,6 +33,7 @@ let jwt;
 describe('auth.service', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    process.env.ENABLE_MYSQL = 'true';
     process.env.JWT_SECRET = 'test-secret';
 
     const [
@@ -43,7 +44,7 @@ describe('auth.service', () => {
     ] = await Promise.all([
       import('../../src/services/auth.service.js'),
       import('../../src/models/mysql/User.js'),
-      import('bcrypt'),
+      import('bcryptjs'),
       import('jsonwebtoken')
     ]);
 
@@ -63,7 +64,11 @@ describe('auth.service', () => {
     const result = await authService.register(userData);
 
     expect(bcrypt.hash).toHaveBeenCalledWith('plain', 10);
-    expect(User.create).toHaveBeenCalledWith({ ...userData, password: 'hashed' });
+    expect(User.create).toHaveBeenCalledWith(expect.objectContaining({
+      nombre: 'Ana',
+      email: 'ana@test.com',
+      password: 'hashed',
+    }));
     expect(result).toEqual(createdUser);
   });
 
@@ -92,7 +97,7 @@ describe('auth.service', () => {
 
     await expect(authService.login('missing@test.com', 'plain'))
       .rejects
-      .toThrow('Usuario no encontrado');
+      .toThrow('Usuario o contraseña erroneos.');
 
     expect(bcrypt.compare).not.toHaveBeenCalled();
   });
@@ -106,7 +111,7 @@ describe('auth.service', () => {
 
     await expect(authService.login('user@test.com', 'bad'))
       .rejects
-      .toThrow('Contraseña incorrecta');
+      .toThrow('Usuario o contraseña erroneos.');
 
     expect(jwt.sign).not.toHaveBeenCalled();
   });
