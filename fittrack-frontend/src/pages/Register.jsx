@@ -107,6 +107,10 @@ export default function Register() {
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
+        if (response.status >= 500) {
+          setError(t('Ha ocurrido un error. Inténtalo de nuevo más tarde.'));
+          return;
+        }
         setError(data?.error || data?.message || t('No se pudo crear la cuenta.'));
         return;
       }

@@ -7,6 +7,9 @@ dotenv.config();
 const startServer = async () => {
   try {
     const enableMySQL = String(process.env.ENABLE_MYSQL || '').toLowerCase() === 'true';
+    const hasMongoUri = Boolean(String(process.env.MONGO_URI || '').trim());
+    const hasJwtSecret = Boolean(String(process.env.JWT_SECRET || '').trim());
+    const isProd = String(process.env.NODE_ENV || '').toLowerCase() === 'production';
 
     if (enableMySQL) {
       const { sequelize, connectMySQL } = await import('./config/mysql.js');
@@ -17,6 +20,14 @@ const startServer = async () => {
       console.log('Tablas de MySQL sincronizadas');
     } else {
       console.log('MySQL desactivado (setea ENABLE_MYSQL=true para activarlo).');
+    }
+
+    if (isProd && !hasJwtSecret) {
+      throw new Error('JWT_SECRET no configurado: define JWT_SECRET en Render para poder iniciar sesión.');
+    }
+
+    if (!enableMySQL && !hasMongoUri && isProd) {
+      throw new Error('MongoDB no configurado: define MONGO_URI en Render o activa MySQL con ENABLE_MYSQL=true.');
     }
 
     await connectMongoDB();
@@ -47,6 +58,9 @@ const startServer = async () => {
     });
   } catch (error) {
     console.error('Error crítico al arrancar el servidor:', error);
+    if (String(process.env.NODE_ENV || '').toLowerCase() === 'production') {
+      process.exit(1);
+    }
   }
 };
 

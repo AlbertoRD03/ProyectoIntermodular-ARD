@@ -15,7 +15,12 @@ const connectMongoDB = async () => {
   }
 
   try {
-    const conn = await mongoose.connect(mongoUri);
+    // Fail fast instead of buffering operations for ~10s when Mongo isn't reachable.
+    mongoose.set('bufferCommands', false);
+
+    const conn = await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 5000,
+    });
 
     console.log(`✅ MongoDB: Conectado en el host: ${conn.connection.host}`);
 

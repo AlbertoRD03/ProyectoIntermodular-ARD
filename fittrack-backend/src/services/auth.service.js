@@ -2,6 +2,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
 import { isMySQLEnabled } from '../utils/mysqlEnabled.js';
+import { createMongoUnavailableError, isMongoConfigured, isMongoConnected } from '../utils/mongodb.js';
+import { createHttpError } from '../utils/httpError.js';
 import PasswordResetToken from '../models/mongodb/PasswordResetToken.js';
 import { sendPasswordResetEmail } from './email.service.js';
 
@@ -13,7 +15,7 @@ export const register = async (userData) => {
   const telefono = userData?.telefono ? String(userData.telefono).trim() : '';
 
   if (!email || !nombre || !password) {
-    throw new Error('Completa todos los campos obligatorios.');
+    throw createHttpError(400, 'Completa todos los campos obligatorios.');
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -30,10 +32,14 @@ export const register = async (userData) => {
     });
   }
 
+  if (!isMongoConfigured() || !isMongoConnected()) {
+    throw createMongoUnavailableError();
+  }
+
   const { default: User } = await import('../models/mongodb/User.js');
   const existing = await User.findOne({ email }).lean();
   if (existing) {
-    throw new Error('El email ya está registrado.');
+    throw createHttpError(409, 'El email ya está registrado.');
   }
 
   const user = await User.create({
@@ -52,36 +58,45 @@ export const login = async (email, password) => {
   const rawPassword = String(password || '');
 
   if (!normalizedEmail || !rawPassword) {
-    throw new Error('Completa todos los campos obligatorios.');
+    throw createHttpError(400, 'Completa todos los campos obligatorios.');
+  }
+
+  const jwtSecret = String(process.env.JWT_SECRET || '').trim();
+  if (!jwtSecret) {
+    throw createHttpError(500, 'Error interno del servidor', { expose: false });
   }
 
   if (isMySQLEnabled()) {
     const { default: User } = await import('../models/mysql/User.js');
     const user = await User.findOne({ where: { email: normalizedEmail } });
-    if (!user) throw new Error('Usuario no encontrado');
+    if (!user) throw createHttpError(401, 'Credenciales inválidas');
 
     const isMatch = await bcrypt.compare(rawPassword, user.password);
-    if (!isMatch) throw new Error('Contraseña incorrecta');
+    if (!isMatch) throw createHttpError(401, 'Credenciales inválidas');
 
     const token = jwt.sign(
       { id: user.id, email: user.email },
-      process.env.JWT_SECRET,
+      jwtSecret,
       { expiresIn: process.env.JWT_EXPIRE || '24h' }
     );
 
     return { user, token };
   }
 
+  if (!isMongoConfigured() || !isMongoConnected()) {
+    throw createMongoUnavailableError();
+  }
+
   const { default: User } = await import('../models/mongodb/User.js');
   const user = await User.findOne({ email: normalizedEmail });
-  if (!user) throw new Error('Usuario no encontrado');
+  if (!user) throw createHttpError(401, 'Credenciales inválidas');
 
   const isMatch = await bcrypt.compare(rawPassword, user.passwordHash);
-  if (!isMatch) throw new Error('Contraseña incorrecta');
+  if (!isMatch) throw createHttpError(401, 'Credenciales inválidas');
 
   const token = jwt.sign(
     { id: String(user._id), email: user.email },
-    process.env.JWT_SECRET,
+    jwtSecret,
     { expiresIn: process.env.JWT_EXPIRE || '24h' }
   );
 
@@ -118,6 +133,9 @@ export const requestPasswordReset = async ({ email }) => {
     if (user) userId = String(user.id);
   } else {
     provider = 'mongodb';
+    if (!isMongoConfigured() || !isMongoConnected()) {
+      throw createMongoUnavailableError();
+    }
     const { default: User } = await import('../models/mongodb/User.js');
     user = await User.findOne({ email: normalizedEmail });
     if (user) userId = String(user._id);
@@ -174,6 +192,9 @@ export const resetPassword = async ({ token, password }) => {
     user.password = hashedPassword;
     await user.save();
   } else {
+    if (!isMongoConfigured() || !isMongoConnected()) {
+      throw createMongoUnavailableError();
+    }
     const { default: User } = await import('../models/mongodb/User.js');
     const user = await User.findById(record.userId);
     if (!user) throw new Error('El usuario no existe.');

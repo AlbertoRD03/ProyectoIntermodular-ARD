@@ -69,8 +69,11 @@ export default function Login() {
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setError(data?.message || t('No se pudo iniciar sesión.'));
-        setLoading(false);
+        if (response.status >= 500) {
+          setError(t('Ha ocurrido un error. Inténtalo de nuevo más tarde.'));
+          return;
+        }
+        setError(data?.error || data?.message || t('No se pudo iniciar sesión.'));
         return;
       }
 
