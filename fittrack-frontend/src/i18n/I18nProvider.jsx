@@ -4,6 +4,7 @@ const STORAGE_KEY = 'fittrack_lang';
 
 const translations = {
   es: {
+    welcome: 'Bienvenido',
     nav_home: 'Inicio',
     nav_calendar: 'Calendario',
     nav_calendar_calendar: 'Calendario',
@@ -94,6 +95,7 @@ const translations = {
     fitia_integration_body: 'Esta pantalla está lista para conectar con tu backend/IA. Sustituye el servicio de `src/services/fitiaClient.js` por una llamada real.',
   },
   en: {
+    welcome: 'Welcome',
     nav_home: 'Home',
     nav_calendar: 'Calendar',
     nav_calendar_calendar: 'Calendar',

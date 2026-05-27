@@ -89,6 +89,7 @@ export default function Header() {
   const location = useLocation();
   const { t } = useI18n();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [userName, setUserName] = useState('');
 
   const handleDropdownSelect = (path) => {
     navigate(path);
@@ -98,14 +99,43 @@ export default function Header() {
   const pathname = location?.pathname || '';
   const isActive = (path) => pathname === path || pathname.startsWith(`${path}/`);
 
+  useEffect(() => {
+    const readUserName = () => {
+      try {
+        const raw = window.localStorage.getItem('fittrack_user');
+        if (!raw) return setUserName('');
+        const user = JSON.parse(raw);
+        const nameCandidate =
+          user?.nombre ||
+          user?.apodo ||
+          user?.name ||
+          (typeof user?.email === 'string' ? user.email.split('@')[0] : '');
+        setUserName(String(nameCandidate || '').trim());
+      } catch {
+        setUserName('');
+      }
+    };
+
+    readUserName();
+    window.addEventListener('storage', readUserName);
+    return () => window.removeEventListener('storage', readUserName);
+  }, [pathname]);
+
   return (
     <div className="h-[56px] sm:h-[64px] border-b border-white/10 sticky top-0 z-50 bg-[#1e1e1e]">
       <div className="flex h-full w-full items-center justify-between px-3 sm:px-4 md:px-6 lg:px-8">
-        <div
-          className="text-[18px] sm:text-[22px] font-bold tracking-wide text-[#ff7849]"
-          style={{ fontFamily: 'Arimo, Poppins, system-ui' }}
-        >
-          FitTrack
+        <div className="flex min-w-0 items-center gap-3">
+          <div
+            className="text-[18px] sm:text-[22px] font-bold tracking-wide text-[#ff7849]"
+            style={{ fontFamily: 'Arimo, Poppins, system-ui' }}
+          >
+            FitTrack
+          </div>
+          {userName ? (
+            <div className="hidden sm:block truncate text-[12px] sm:text-[13px] text-white/70">
+              {t('welcome')} {userName}
+            </div>
+          ) : null}
         </div>
 
         <nav className="hidden items-center gap-1 sm:gap-2 md:flex">
