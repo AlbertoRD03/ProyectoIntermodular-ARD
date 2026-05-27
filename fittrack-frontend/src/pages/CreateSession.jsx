@@ -274,6 +274,7 @@ export default function CreateSession() {
   const [params] = useSearchParams();
   const [zones, setZones] = useState([]);
   const [types, setTypes] = useState([]);
+  const [activity, setActivity] = useState('gym'); // gym | football | padel | running
   const [muscleGroup, setMuscleGroup] = useState('full_body');
   const [workoutType, setWorkoutType] = useState('strength');
   const [sessionName, setSessionName] = useState('');
@@ -326,17 +327,67 @@ export default function CreateSession() {
     };
   }, []);
 
+  const activityOptions = useMemo(
+    () => [
+      { value: 'gym', label: tr(lang, 'GIMNASIO', 'GYM') },
+      { value: 'football', label: tr(lang, 'FÚTBOL', 'FOOTBALL') },
+      { value: 'padel', label: tr(lang, 'PÁDEL', 'PADEL') },
+      { value: 'running', label: tr(lang, 'RUNNING', 'RUNNING') },
+    ],
+    [lang]
+  );
+
+  const filteredZones = useMemo(() => {
+    const all = Array.isArray(zones) ? zones : [];
+    if (!all.length) return [];
+    const keysByActivity = {
+      gym: null,
+      football: ['legs', 'calves', 'glutes', 'abs'],
+      padel: ['arms', 'shoulders', 'abs', 'legs'],
+      running: ['legs', 'calves', 'glutes'],
+    };
+    const keys = keysByActivity[activity] || null;
+    if (!keys) return all;
+    return all.filter((z) => keys.includes(String(z?.key)));
+  }, [activity, zones]);
+
+  const filteredTypes = useMemo(() => {
+    const all = Array.isArray(types) ? types : [];
+    if (!all.length) return [];
+    const keysByActivity = {
+      gym: null,
+      football: ['cardio', 'hiit', 'mobility'],
+      padel: ['cardio', 'strength', 'mobility'],
+      running: ['cardio', 'hiit', 'mobility'],
+    };
+    const keys = keysByActivity[activity] || null;
+    if (!keys) return all;
+    return all.filter((t) => keys.includes(String(t?.key)));
+  }, [activity, types]);
+
+  useEffect(() => {
+    // Keep selected values valid when activity changes or when catalog loads.
+    if (filteredZones.length && !filteredZones.some((z) => String(z?.key) === String(muscleGroup))) {
+      setMuscleGroup(String(filteredZones[0]?.key || 'full_body'));
+    }
+    if (filteredTypes.length && !filteredTypes.some((t) => String(t?.key) === String(workoutType))) {
+      setWorkoutType(String(filteredTypes[0]?.key || 'strength'));
+    }
+  }, [filteredZones, filteredTypes, muscleGroup, workoutType]);
+
   const zoneLabel = useMemo(() => {
-    const z = zones.find((x) => String(x?.key) === String(muscleGroup));
+    const source = filteredZones.length ? filteredZones : zones;
+    const z = source.find((x) => String(x?.key) === String(muscleGroup));
     if (!z) return '';
     return lang === 'en' ? z.label_en : z.label_es;
-  }, [lang, muscleGroup, zones]);
+  }, [filteredZones, lang, muscleGroup, zones]);
 
   const typeLabel = useMemo(() => {
-    const t = types.find((x) => String(x?.key) === String(workoutType));
+    const source = filteredTypes.length ? filteredTypes : types;
+    const t = source.find((x) => String(x?.key) === String(workoutType));
     if (!t) return '';
     return lang === 'en' ? t.label_en : t.label_es;
-  }, [lang, types, workoutType]);
+  }, [filteredTypes, lang, types, workoutType]);
 
   useEffect(() => {
     if (!sessionName.trim()) {
@@ -668,15 +719,18 @@ export default function CreateSession() {
                   placeholder={tr(lang, 'Ej: Pecho pesado', 'e.g. Heavy chest')}
                 />
               </div>
-              <div className="hidden md:block" />
+              <div>
+                <FieldLabel>{tr(lang, 'ACTIVIDAD', 'ACTIVITY')}</FieldLabel>
+                <Select value={activity} onChange={setActivity} options={activityOptions} />
+              </div>
               <div>
                 <FieldLabel>{tr(lang, 'ZONA A ENTRENAR', 'MUSCLE GROUP')}</FieldLabel>
                 <Select
                   value={muscleGroup}
                   onChange={setMuscleGroup}
                   options={
-                    zones.length
-                      ? zones.map((z) => ({
+                    filteredZones.length
+                      ? filteredZones.map((z) => ({
                           value: z.key,
                           label: (lang === 'en' ? z.label_en : z.label_es).toUpperCase(),
                         }))
@@ -690,8 +744,8 @@ export default function CreateSession() {
                   value={workoutType}
                   onChange={setWorkoutType}
                   options={
-                    types.length
-                      ? types.map((t) => ({
+                    filteredTypes.length
+                      ? filteredTypes.map((t) => ({
                           value: t.key,
                           label: (lang === 'en' ? t.label_en : t.label_es).toUpperCase(),
                         }))
