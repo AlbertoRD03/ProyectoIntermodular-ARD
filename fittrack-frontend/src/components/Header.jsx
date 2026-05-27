@@ -132,13 +132,16 @@ export default function Header() {
           >
             FitTrack
           </div>
-          {userNickname ? (
-            <div className="truncate text-[12px] sm:text-[13px] text-white/70">
+        </div>
+
+        {userNickname ? (
+          <div className="absolute left-0 right-1/2 flex items-center justify-center pl-[88px] sm:pl-[110px] md:pl-[120px] pointer-events-none">
+            <div className="max-w-full truncate text-[12px] sm:text-[13px] text-white/70">
               {t('welcome')}{' '}
               <span className="font-semibold text-white/85">{userNickname}</span>
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
 
         <nav className="hidden items-center gap-1 sm:gap-2 md:flex absolute left-1/2 -translate-x-1/2">
           <NavItem active={isActive('/dashboard')} icon={Home} label={t('nav_home')} onClick={() => navigate('/dashboard')} />
