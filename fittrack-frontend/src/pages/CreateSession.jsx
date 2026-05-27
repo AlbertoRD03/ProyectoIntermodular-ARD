@@ -43,25 +43,80 @@ function Input({ className, ...props }) {
 }
 
 function Select({ value, onChange, options }) {
+  const [open, setOpen] = useState(false);
+  const ref = React.useRef(null);
+
+  const normalized = useMemo(() => {
+    return options.map((opt) => {
+      const isString = typeof opt === 'string';
+      return {
+        value: String(isString ? opt : opt.value),
+        label: String(isString ? opt : opt.label),
+      };
+    });
+  }, [options]);
+
+  const selected = useMemo(() => {
+    const found = normalized.find((o) => o.value === String(value));
+    return found?.label || (normalized[0]?.label ?? '');
+  }, [normalized, value]);
+
+  useEffect(() => {
+    const onDocMouseDown = (event) => {
+      if (!ref.current) return;
+      if (ref.current.contains(event.target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, []);
+
   return (
-    <div className="relative">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="appearance-none w-full rounded-lg border border-white/15 bg-white/[0.03] px-4 py-3 pr-10 text-[12px] sm:text-[13px] text-white/85 outline-none focus:border-white/30 focus:bg-white/[0.06]"
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full rounded-lg border border-white/15 bg-white/[0.03] px-4 py-3 pr-10 text-left text-[12px] sm:text-[13px] text-white/85 outline-none hover:border-white/25 focus:border-white/30 focus:bg-white/[0.06] transition"
+        aria-haspopup="listbox"
+        aria-expanded={open}
       >
-        {options.map((opt) => {
-          const isString = typeof opt === 'string';
-          const optionValue = isString ? opt : opt.value;
-          const optionLabel = isString ? opt : opt.label;
-          return (
-            <option key={optionValue} value={optionValue}>
-              {optionLabel}
-            </option>
-          );
-        })}
-      </select>
-      <ChevronDown className="h-4 w-4 text-white/40 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <span className="block truncate">{selected}</span>
+        <ChevronDown
+          className={cx(
+            'h-4 w-4 text-white/40 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none transition-transform',
+            open ? 'rotate-180' : ''
+          )}
+        />
+      </button>
+
+      {open ? (
+        <div
+          role="listbox"
+          className="absolute z-50 mt-2 w-full rounded-lg border border-white/10 bg-[#2a2a2a] shadow-xl overflow-hidden"
+        >
+          {normalized.map((opt) => {
+            const active = opt.value === String(value);
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                role="option"
+                aria-selected={active}
+                onClick={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                }}
+                className={cx(
+                  'w-full text-left px-4 py-2.5 text-[12px] sm:text-[13px] transition',
+                  active ? 'bg-white/10 text-white/90' : 'text-white/80 hover:bg-[#ff7849]/15 hover:text-white'
+                )}
+              >
+                <span className="block truncate">{opt.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }
