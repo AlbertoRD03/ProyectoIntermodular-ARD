@@ -124,7 +124,7 @@ export default function Header() {
 
   return (
     <div className="h-[56px] sm:h-[64px] border-b border-white/10 sticky top-0 z-50 bg-[#1e1e1e]">
-      <div className="relative flex h-full w-full items-center justify-between px-3 sm:px-4 md:px-6 lg:px-8">
+      <div className="grid h-full w-full items-center gap-2 px-3 sm:px-4 md:px-6 lg:px-8 grid-cols-[auto,1fr,auto] md:grid-cols-[auto,1fr,auto,1fr,auto]">
         <div className="flex min-w-0 items-center gap-3">
           <div
             className="text-[18px] sm:text-[22px] font-bold tracking-wide text-[#ff7849]"
@@ -135,15 +135,15 @@ export default function Header() {
         </div>
 
         {userNickname ? (
-          <div className="absolute left-0 right-1/2 flex items-center justify-center pl-[88px] sm:pl-[110px] md:pl-[120px] pointer-events-none">
-            <div className="max-w-full truncate text-[12px] sm:text-[13px] text-white/70">
+          <div className="min-w-0 justify-self-center pointer-events-none">
+            <div className="max-w-[38vw] md:max-w-[22vw] truncate text-[12px] sm:text-[13px] text-white/70">
               {t('welcome')}{' '}
               <span className="font-semibold text-white/85">{userNickname}</span>
             </div>
           </div>
         ) : null}
 
-        <nav className="hidden items-center gap-1 sm:gap-2 md:flex absolute left-1/2 -translate-x-1/2">
+        <nav className="hidden items-center gap-1 sm:gap-2 md:flex justify-self-center">
           <NavItem active={isActive('/dashboard')} icon={Home} label={t('nav_home')} onClick={() => navigate('/dashboard')} />
           <NavDropdown
             icon={CalendarDays}
@@ -159,10 +159,12 @@ export default function Header() {
           <NavItem active={isActive('/fitia')} icon={MessageSquareText} label={t('nav_ai_chat')} onClick={() => navigate('/fitia')} />
         </nav>
 
+        <div className="hidden md:block" />
+
         <button
           type="button"
           onClick={() => navigate('/perfil')}
-          className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 sm:px-4 py-1.5 sm:py-2 text-[12px] sm:text-[14px] font-medium text-white/90 transition hover:bg-white/15"
+          className="justify-self-end inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 sm:px-4 py-1.5 sm:py-2 text-[12px] sm:text-[14px] font-medium text-white/90 transition hover:bg-white/15"
         >
           <UserRound className="h-4 w-4" />
           <span className="hidden sm:inline">{t('nav_profile')}</span>
