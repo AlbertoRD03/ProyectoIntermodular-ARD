@@ -287,6 +287,7 @@ export default function CreateSession() {
   const [exerciseError, setExerciseError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [catalogError, setCatalogError] = useState('');
 
   const dateKey = useMemo(() => {
     const raw = params.get('date');
@@ -311,21 +312,25 @@ export default function CreateSession() {
 
   useEffect(() => {
     let alive = true;
+    setCatalogError('');
     Promise.all([listZones(), listWorkoutTypes()])
       .then(([z, t]) => {
         if (!alive) return;
         setZones(Array.isArray(z?.items) ? z.items : []);
         setTypes(Array.isArray(t?.items) ? t.items : []);
       })
-      .catch(() => {
+      .catch((e) => {
         if (!alive) return;
         setZones([]);
         setTypes([]);
+        setCatalogError(
+          e?.message || tr(lang, 'No se pudieron cargar zonas y tipos', 'Could not load zones and types')
+        );
       });
     return () => {
       alive = false;
     };
-  }, []);
+  }, [lang]);
 
   const activityOptions = useMemo(
     () => [
@@ -755,7 +760,13 @@ export default function CreateSession() {
               </div>
             </div>
 
-              <div className="mt-6">
+            {catalogError ? (
+              <div className="mt-4 rounded-lg border border-[#ff7849]/25 bg-[#ff7849]/10 px-4 py-3 text-[12px] text-white/85">
+                {catalogError}
+              </div>
+            ) : null}
+
+            <div className="mt-6">
               <div className="text-[13px] sm:text-[14px] font-bold uppercase tracking-wide text-white/85">
                 {tr(lang, 'AÑADIR EJERCICIO', 'ADD EXERCISE')}
               </div>
