@@ -89,7 +89,7 @@ export default function Header() {
   const location = useLocation();
   const { t } = useI18n();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [userName, setUserName] = useState('');
+  const [userNickname, setUserNickname] = useState('');
 
   const handleDropdownSelect = (path) => {
     navigate(path);
@@ -100,46 +100,47 @@ export default function Header() {
   const isActive = (path) => pathname === path || pathname.startsWith(`${path}/`);
 
   useEffect(() => {
-    const readUserName = () => {
+    const readUserNickname = () => {
       try {
         const raw = window.localStorage.getItem('fittrack_user');
-        if (!raw) return setUserName('');
+        if (!raw) return setUserNickname('');
         const user = JSON.parse(raw);
-        const nameCandidate =
-          user?.nombre ||
+        const nicknameCandidate =
           user?.apodo ||
+          user?.nickname ||
+          user?.nombre ||
           user?.name ||
           (typeof user?.email === 'string' ? user.email.split('@')[0] : '');
-        setUserName(String(nameCandidate || '').trim());
+        setUserNickname(String(nicknameCandidate || '').trim());
       } catch {
-        setUserName('');
+        setUserNickname('');
       }
     };
 
-    readUserName();
-    window.addEventListener('storage', readUserName);
-    return () => window.removeEventListener('storage', readUserName);
+    readUserNickname();
+    window.addEventListener('storage', readUserNickname);
+    return () => window.removeEventListener('storage', readUserNickname);
   }, [pathname]);
 
   return (
     <div className="h-[56px] sm:h-[64px] border-b border-white/10 sticky top-0 z-50 bg-[#1e1e1e]">
-      <div className="flex h-full w-full items-center justify-between px-3 sm:px-4 md:px-6 lg:px-8">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="relative flex h-full w-full items-center justify-between px-3 sm:px-4 md:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center gap-3">
           <div
             className="text-[18px] sm:text-[22px] font-bold tracking-wide text-[#ff7849]"
             style={{ fontFamily: 'Arimo, Poppins, system-ui' }}
           >
             FitTrack
           </div>
-          {userName ? (
+          {userNickname ? (
             <div className="truncate text-[12px] sm:text-[13px] text-white/70">
               {t('welcome')}{' '}
-              <span className="font-semibold text-white/85">{userName}</span>
+              <span className="font-semibold text-white/85">{userNickname}</span>
             </div>
           ) : null}
         </div>
 
-        <nav className="hidden items-center gap-1 sm:gap-2 md:flex">
+        <nav className="hidden items-center gap-1 sm:gap-2 md:flex absolute left-1/2 -translate-x-1/2">
           <NavItem active={isActive('/dashboard')} icon={Home} label={t('nav_home')} onClick={() => navigate('/dashboard')} />
           <NavDropdown
             icon={CalendarDays}
