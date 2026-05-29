@@ -127,9 +127,14 @@ const seedIfEmpty = async () => {
     // CARDIO (gym)
     { nombre: 'Cinta de correr', zoneKeys: ['legs'], typeKeys: ['cardio'] },
     { nombre: 'Bicicleta estática', zoneKeys: ['legs'], typeKeys: ['cardio'] },
+    { nombre: 'Bicicleta de aire (Assault Bike)', zoneKeys: ['legs', 'arms'], typeKeys: ['cardio', 'hiit'] },
     { nombre: 'Elíptica', zoneKeys: ['legs'], typeKeys: ['cardio'] },
     { nombre: 'Remo ergómetro', zoneKeys: ['back', 'legs'], typeKeys: ['cardio'] },
     { nombre: 'Escaladora', zoneKeys: ['legs', 'glutes'], typeKeys: ['cardio'] },
+    { nombre: 'Saltar a la comba', zoneKeys: ['calves', 'legs'], typeKeys: ['cardio', 'hiit'] },
+    { nombre: 'Jumping jacks (calentamiento)', zoneKeys: ['full_body'], typeKeys: ['cardio', 'hiit'] },
+    { nombre: 'Movilidad articular (calentamiento)', zoneKeys: ['full_body'], typeKeys: ['mobility'] },
+    { nombre: 'Caminata (calentamiento)', zoneKeys: ['legs'], typeKeys: ['cardio'] },
 
     // HIIT / FULL BODY
     { nombre: 'Burpees', zoneKeys: ['full_body'], typeKeys: ['hiit'] },
