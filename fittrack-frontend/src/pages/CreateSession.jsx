@@ -329,24 +329,9 @@ export default function CreateSession() {
   const [params] = useSearchParams();
   const [zones, setZones] = useState([]);
   const [types, setTypes] = useState([]);
-  const [activity, setActivity] = useState('gym'); // gym | football | padel | running
   const [muscleGroup, setMuscleGroup] = useState('full_body');
   const [workoutType, setWorkoutType] = useState('strength');
   const [sessionName, setSessionName] = useState('');
-  const [durationMinutes, setDurationMinutes] = useState('60');
-  const [sportResult, setSportResult] = useState(''); // e.g. 3-2 / victoria / derrota
-  const [runs, setRuns] = useState(() => [
-    {
-      id: makeId('run'),
-      type: 'easy', // easy | tempo | interval | long | race | walk
-      distanceKm: '',
-      durationMin: '',
-      elevationGainM: '',
-      avgHr: '',
-      surface: 'road', // road | trail | track | treadmill
-      notes: '',
-    },
-  ]);
   const [search, setSearch] = useState('');
   const [savedQuery, setSavedQuery] = useState('');
   const [copiedWorkoutId, setCopiedWorkoutId] = useState(null);
@@ -357,42 +342,6 @@ export default function CreateSession() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [catalogError, setCatalogError] = useState('');
-
-  const isGym = activity === 'gym';
-  const isRunning = activity === 'running';
-  const isSimpleSport = !isGym && !isRunning;
-
-  const addRun = () => {
-    setRuns((prev) => [
-      ...prev,
-      {
-        id: makeId('run'),
-        type: 'easy',
-        distanceKm: '',
-        durationMin: '',
-        elevationGainM: '',
-        avgHr: '',
-        surface: 'road',
-        notes: '',
-      },
-    ]);
-  };
-
-  const removeRun = (id) => setRuns((prev) => prev.filter((r) => r.id !== id));
-
-  const updateRun = (id, patch) =>
-    setRuns((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-
-  const formatPace = (distanceKm, durationMin) => {
-    const d = Number.parseFloat(String(distanceKm || '').replace(',', '.'));
-    const m = Number.parseFloat(String(durationMin || '').replace(',', '.'));
-    if (!Number.isFinite(d) || d <= 0 || !Number.isFinite(m) || m <= 0) return '';
-    const pace = m / d; // min/km
-    const minutes = Math.floor(pace);
-    const seconds = Math.round((pace - minutes) * 60);
-    const ss = String(seconds).padStart(2, '0');
-    return `${minutes}:${ss} /km`;
-  };
 
   const dateKey = useMemo(() => {
     const raw = params.get('date');
@@ -437,77 +386,20 @@ export default function CreateSession() {
     };
   }, [lang]);
 
-  const activityOptions = useMemo(
-    () => [
-      { value: 'gym', label: tr(lang, 'GIMNASIO', 'GYM') },
-      { value: 'football', label: tr(lang, 'FÚTBOL', 'FOOTBALL') },
-      { value: 'padel', label: tr(lang, 'PÁDEL', 'PADEL') },
-      { value: 'tennis', label: tr(lang, 'TENIS', 'TENNIS') },
-      { value: 'basketball', label: tr(lang, 'BALONCESTO', 'BASKETBALL') },
-      { value: 'volleyball', label: tr(lang, 'VOLEIBOL', 'VOLLEYBALL') },
-      { value: 'running', label: tr(lang, 'RUNNING', 'RUNNING') },
-    ],
-    [lang]
-  );
-
-  const runningTypeOptions = useMemo(
-    () => [
-      { value: 'easy', label: tr(lang, 'SUAVE', 'EASY') },
-      { value: 'tempo', label: tr(lang, 'TEMPO', 'TEMPO') },
-      { value: 'interval', label: tr(lang, 'INTERVALOS', 'INTERVALS') },
-      { value: 'long', label: tr(lang, 'TIRADA LARGA', 'LONG RUN') },
-      { value: 'race', label: tr(lang, 'CARRERA', 'RACE') },
-      { value: 'walk', label: tr(lang, 'CAMINATA', 'WALK') },
-    ],
-    [lang]
-  );
-
-  const runningSurfaceOptions = useMemo(
-    () => [
-      { value: 'road', label: tr(lang, 'ASFALTO', 'ROAD') },
-      { value: 'trail', label: tr(lang, 'TRAIL', 'TRAIL') },
-      { value: 'track', label: tr(lang, 'PISTA', 'TRACK') },
-      { value: 'treadmill', label: tr(lang, 'CINTA', 'TREADMILL') },
-    ],
-    [lang]
-  );
-
-  const activityLabel = useMemo(() => {
-    const entry = activityOptions.find((o) => o.value === activity);
-    return entry?.label || activity;
-  }, [activity, activityOptions]);
-
   const filteredZones = useMemo(() => {
     const all = Array.isArray(zones) ? zones : [];
     if (!all.length) return [];
-    const keysByActivity = {
-      gym: null,
-      football: ['legs', 'calves', 'glutes', 'abs'],
-      padel: ['arms', 'shoulders', 'abs', 'legs'],
-      running: ['legs', 'calves', 'glutes'],
-    };
-    const keys = keysByActivity[activity] || null;
-    if (!keys) return all;
-    return all.filter((z) => keys.includes(String(z?.key)));
-  }, [activity, zones]);
+    return all;
+  }, [zones]);
 
   const filteredTypes = useMemo(() => {
     const all = Array.isArray(types) ? types : [];
     if (!all.length) return [];
-    const keysByActivity = {
-      gym: null,
-      football: ['cardio', 'hiit', 'mobility'],
-      padel: ['cardio', 'strength', 'mobility'],
-      running: ['cardio', 'hiit', 'mobility'],
-    };
-    const keys = keysByActivity[activity] || null;
-    if (!keys) return all;
-    return all.filter((t) => keys.includes(String(t?.key)));
-  }, [activity, types]);
+    return all;
+  }, [types]);
 
   useEffect(() => {
     // Keep selected values valid when activity changes or when catalog loads.
-    if (activity !== 'gym') return;
     if (filteredZones.length && !filteredZones.some((z) => String(z?.key) === String(muscleGroup))) {
       setMuscleGroup(String(filteredZones[0]?.key || 'full_body'));
     }
@@ -532,27 +424,16 @@ export default function CreateSession() {
 
   useEffect(() => {
     if (!sessionName.trim()) {
-      const next =
-        activity === 'gym'
-          ? [zoneLabel, typeLabel].filter(Boolean).join(' · ')
-          : activityLabel;
+      const next = [zoneLabel, typeLabel].filter(Boolean).join(' · ');
       if (next) setSessionName(next);
     }
-  }, [activity, activityLabel, sessionName, typeLabel, zoneLabel]);
+  }, [sessionName, typeLabel, zoneLabel]);
 
   useEffect(() => {
     let alive = true;
     const q = search.trim();
     setExerciseError('');
     setExerciseLoading(true);
-
-    if (activity !== 'gym') {
-      setExerciseResults([]);
-      setExerciseLoading(false);
-      return () => {
-        alive = false;
-      };
-    }
 
     const timer = window.setTimeout(() => {
       searchCatalogExercises({ search: q, zoneKey: muscleGroup, typeKey: workoutType })
@@ -575,7 +456,7 @@ export default function CreateSession() {
       alive = false;
       window.clearTimeout(timer);
     };
-  }, [activity, lang, muscleGroup, search, workoutType]);
+  }, [lang, muscleGroup, search, workoutType]);
 
   const results = useMemo(() => {
     if (exerciseLoading) return [];
@@ -767,33 +648,21 @@ export default function CreateSession() {
     const id = makeId('session');
     const createdAt = Date.now();
     const totalSets = added.reduce((acc, ex) => acc + (Array.isArray(ex.sets) ? ex.sets.length : 0), 0);
-    const durationInt = Number.parseInt(String(durationMinutes || '').trim(), 10);
-    const safeDuration = Number.isFinite(durationInt) && durationInt > 0 ? durationInt : 0;
-    const runsTotalMinutes = runs.reduce((acc, r) => {
-      const n = Number.parseInt(String(r?.durationMin || '').trim(), 10);
-      return acc + (Number.isFinite(n) && n > 0 ? n : 0);
-    }, 0);
-    const finalDuration = activity === 'running' ? runsTotalMinutes : safeDuration;
     const session = {
       id,
       dateKey,
       createdAt,
       title: sessionName.trim()
         ? sessionName.trim()
-        : activity === 'gym'
-          ? `${muscleGroup} · ${workoutType}`
-          : activityLabel,
+        : `${muscleGroup} · ${workoutType}`,
       date: workoutDateLabel,
-      duration: finalDuration ? `${finalDuration} MIN` : '0 MIN',
+      duration: '60 MIN',
       muscleGroup,
       workoutType,
-      exercisesCount: activity === 'gym' ? added.length : 0,
+      exercisesCount: added.length,
       series: totalSets,
       volume: totalSets ? `${totalSets * 40} KG` : '0 KG',
-      activity,
-      sportResult,
-      runs,
-      exercises: (activity === 'gym' ? added : []).map((ex) => ({
+      exercises: added.map((ex) => ({
         name: ex.name,
         sets: Array.isArray(ex.sets)
           ? ex.sets.map((s, idx) => ({
@@ -808,21 +677,12 @@ export default function CreateSession() {
 
     setSaving(true);
     try {
-      const sportNotes = activity === 'gym'
-        ? ''
-        : JSON.stringify(
-            activity === 'running'
-              ? { activity, runs }
-              : { activity, result: sportResult }
-          );
       const apiPayload = {
         fecha: `${dateKey}T12:00:00.000Z`,
         tipo_rutina: sessionName.trim()
           ? sessionName.trim()
-          : activity === 'gym'
-            ? `${muscleGroup} · ${workoutType}`
-            : activityLabel,
-        ejercicios_realizados: (activity === 'gym' ? added : []).map((ex, idx) => ({
+          : `${muscleGroup} · ${workoutType}`,
+        ejercicios_realizados: added.map((ex, idx) => ({
           ejercicio_id: ex.catalogId || idx + 1,
           nombre_ejercicio: ex.name,
           sets: Array.isArray(ex.sets)
@@ -838,8 +698,8 @@ export default function CreateSession() {
               }))
             : [],
         })),
-        notas: activity === 'gym' ? '' : sportNotes,
-        duracion_minutos: finalDuration,
+        notas: '',
+        duracion_minutos: 60,
       };
 
       const created = await createSession(apiPayload);
@@ -896,168 +756,37 @@ export default function CreateSession() {
                   placeholder={tr(lang, 'Ej: Pecho pesado', 'e.g. Heavy chest')}
                 />
               </div>
+              <div className="hidden md:block" />
               <div>
-                <FieldLabel>{tr(lang, 'ACTIVIDAD', 'ACTIVITY')}</FieldLabel>
-                <Select value={activity} onChange={setActivity} options={activityOptions} />
+                <FieldLabel>{tr(lang, 'ZONA A ENTRENAR', 'MUSCLE GROUP')}</FieldLabel>
+                <Select
+                  value={muscleGroup}
+                  onChange={setMuscleGroup}
+                  options={
+                    filteredZones.length
+                      ? filteredZones.map((z) => ({
+                          value: z.key,
+                          label: (lang === 'en' ? z.label_en : z.label_es).toUpperCase(),
+                        }))
+                      : [{ value: 'full_body', label: tr(lang, 'CUERPO COMPLETO', 'FULL BODY') }]
+                  }
+                />
               </div>
-              {isGym ? (
-                <>
-                  <div>
-                    <FieldLabel>{tr(lang, 'ZONA A ENTRENAR', 'MUSCLE GROUP')}</FieldLabel>
-                    <Select
-                      value={muscleGroup}
-                      onChange={setMuscleGroup}
-                      options={
-                        filteredZones.length
-                          ? filteredZones.map((z) => ({
-                              value: z.key,
-                              label: (lang === 'en' ? z.label_en : z.label_es).toUpperCase(),
-                            }))
-                          : [{ value: 'full_body', label: tr(lang, 'CUERPO COMPLETO', 'FULL BODY') }]
-                      }
-                    />
-                  </div>
-                  <div>
-                    <FieldLabel>{tr(lang, 'TIPO DE ENTRENO', 'WORKOUT TYPE')}</FieldLabel>
-                    <Select
-                      value={workoutType}
-                      onChange={setWorkoutType}
-                      options={
-                        filteredTypes.length
-                          ? filteredTypes.map((t) => ({
-                              value: t.key,
-                              label: (lang === 'en' ? t.label_en : t.label_es).toUpperCase(),
-                            }))
-                          : [{ value: 'strength', label: tr(lang, 'FUERZA', 'STRENGTH') }]
-                      }
-                    />
-                  </div>
-                </>
-              ) : isRunning ? (
-                <>
-                  <div className="md:col-span-2">
-                    <FieldLabel>{tr(lang, 'SESIONES DE RUNNING', 'RUNNING ENTRIES')}</FieldLabel>
-                    <div className="space-y-3">
-                      {runs.map((r, idx) => (
-                        <div
-                          key={r.id}
-                          className="rounded-lg border border-white/10 bg-white/[0.03] p-4 sm:p-5"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="text-[12px] font-semibold text-white/85">
-                              {tr(lang, 'SESIÓN', 'RUN')} #{idx + 1}
-                            </div>
-                            <OutlineButton
-                              onClick={() => removeRun(r.id)}
-                              className={cx('px-3 py-2 text-[11px]', runs.length <= 1 ? 'opacity-50 cursor-not-allowed' : '')}
-                              disabled={runs.length <= 1}
-                            >
-                              {tr(lang, 'ELIMINAR', 'REMOVE')}
-                            </OutlineButton>
-                          </div>
-
-                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div>
-                              <FieldLabel>{tr(lang, 'TIPO', 'TYPE')}</FieldLabel>
-                              <Select
-                                value={r.type}
-                                onChange={(v) => updateRun(r.id, { type: v })}
-                                options={runningTypeOptions}
-                              />
-                            </div>
-                            <div>
-                              <FieldLabel>{tr(lang, 'SUPERFICIE', 'SURFACE')}</FieldLabel>
-                              <Select
-                                value={r.surface}
-                                onChange={(v) => updateRun(r.id, { surface: v })}
-                                options={runningSurfaceOptions}
-                              />
-                            </div>
-                            <div>
-                              <FieldLabel>{tr(lang, 'DISTANCIA (KM)', 'DISTANCE (KM)')}</FieldLabel>
-                              <Input
-                                value={r.distanceKm}
-                                onChange={(e) => updateRun(r.id, { distanceKm: e.target.value })}
-                                inputMode="decimal"
-                                placeholder="5"
-                              />
-                            </div>
-                            <div>
-                              <FieldLabel>{tr(lang, 'TIEMPO (MIN)', 'TIME (MIN)')}</FieldLabel>
-                              <Input
-                                value={r.durationMin}
-                                onChange={(e) => updateRun(r.id, { durationMin: e.target.value })}
-                                inputMode="numeric"
-                                placeholder="30"
-                              />
-                            </div>
-                            <div>
-                              <FieldLabel>{tr(lang, 'DESNIVEL + (M)', 'ELEVATION + (M)')}</FieldLabel>
-                              <Input
-                                value={r.elevationGainM}
-                                onChange={(e) => updateRun(r.id, { elevationGainM: e.target.value })}
-                                inputMode="numeric"
-                                placeholder="120"
-                              />
-                            </div>
-                            <div>
-                              <FieldLabel>{tr(lang, 'FC MEDIA (BPM)', 'AVG HR (BPM)')}</FieldLabel>
-                              <Input
-                                value={r.avgHr}
-                                onChange={(e) => updateRun(r.id, { avgHr: e.target.value })}
-                                inputMode="numeric"
-                                placeholder="150"
-                              />
-                            </div>
-                            <div className="md:col-span-2">
-                              <div className="text-[10px] uppercase tracking-widest text-white/45 mb-2">
-                                {tr(lang, 'RITMO', 'PACE')}
-                              </div>
-                              <div className="rounded-lg border border-white/10 bg-white/[0.02] px-4 py-3 text-[12px] text-white/75">
-                                {formatPace(r.distanceKm, r.durationMin) || tr(lang, 'Introduce distancia y tiempo', 'Enter distance and time')}
-                              </div>
-                            </div>
-                            <div className="md:col-span-2">
-                              <FieldLabel>{tr(lang, 'NOTAS', 'NOTES')}</FieldLabel>
-                              <Input
-                                value={r.notes}
-                                onChange={(e) => updateRun(r.id, { notes: e.target.value })}
-                                placeholder={tr(lang, 'Ej: series 10x400', 'e.g. 10x400 intervals')}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="mt-3">
-                      <OutlineButton onClick={addRun} className="w-full">
-                        + {tr(lang, 'AÑADIR SESIÓN', 'ADD RUN')}
-                      </OutlineButton>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <FieldLabel>{tr(lang, 'TIEMPO (MIN)', 'TIME (MIN)')}</FieldLabel>
-                    <Input
-                      value={durationMinutes}
-                      onChange={(e) => setDurationMinutes(e.target.value)}
-                      inputMode="numeric"
-                      placeholder="60"
-                    />
-                  </div>
-                  <div>
-                    <FieldLabel>{tr(lang, 'RESULTADO', 'RESULT')}</FieldLabel>
-                    <Input
-                      value={sportResult}
-                      onChange={(e) => setSportResult(e.target.value)}
-                      placeholder={tr(lang, 'Ej: 3-2 / Victoria', 'e.g. 3-2 / Win')}
-                    />
-                  </div>
-                </>
-              )}
+              <div>
+                <FieldLabel>{tr(lang, 'TIPO DE ENTRENO', 'WORKOUT TYPE')}</FieldLabel>
+                <Select
+                  value={workoutType}
+                  onChange={setWorkoutType}
+                  options={
+                    filteredTypes.length
+                      ? filteredTypes.map((t) => ({
+                          value: t.key,
+                          label: (lang === 'en' ? t.label_en : t.label_es).toUpperCase(),
+                        }))
+                      : [{ value: 'strength', label: tr(lang, 'FUERZA', 'STRENGTH') }]
+                  }
+                />
+              </div>
             </div>
 
             {catalogError ? (
@@ -1066,8 +795,7 @@ export default function CreateSession() {
               </div>
             ) : null}
 
-            {activity === 'gym' ? (
-              <div className="mt-6">
+            <div className="mt-6">
               <div className="text-[13px] sm:text-[14px] font-bold uppercase tracking-wide text-white/85">
                 {tr(lang, 'AÑADIR EJERCICIO', 'ADD EXERCISE')}
               </div>
@@ -1106,29 +834,24 @@ export default function CreateSession() {
                 ))}
               </div>
             </div>
-            ) : null}
           </Card>
 
-          {activity === 'gym' ? (
-            <>
-              <div className="text-[13px] sm:text-[14px] font-bold uppercase tracking-widest text-white/85">
-                {tr(lang, 'EJERCICIOS AÑADIDOS', 'ADDED EXERCISES')}
-              </div>
+          <div className="text-[13px] sm:text-[14px] font-bold uppercase tracking-widest text-white/85">
+            {tr(lang, 'EJERCICIOS AÑADIDOS', 'ADDED EXERCISES')}
+          </div>
 
-              <div className="space-y-5 sm:space-y-6">
-                {added.map((exercise) => (
-                  <AddedExerciseCard
-                    key={exercise.id}
-                    exercise={exercise}
-                    onRemoveExercise={() => removeExercise(exercise.id)}
-                    onAddSet={() => addSet(exercise.id)}
-                    onUpdateSet={(setId, patch) => updateSet(exercise.id, setId, patch)}
-                    onRemoveSet={(setId) => removeSet(exercise.id, setId)}
-                  />
-                ))}
-              </div>
-            </>
-          ) : null}
+          <div className="space-y-5 sm:space-y-6">
+            {added.map((exercise) => (
+              <AddedExerciseCard
+                key={exercise.id}
+                exercise={exercise}
+                onRemoveExercise={() => removeExercise(exercise.id)}
+                onAddSet={() => addSet(exercise.id)}
+                onUpdateSet={(setId, patch) => updateSet(exercise.id, setId, patch)}
+                onRemoveSet={(setId) => removeSet(exercise.id, setId)}
+              />
+            ))}
+          </div>
 
           {saveError ? (
             <div className="rounded-lg border border-[#ff7849]/25 bg-[#ff7849]/10 px-4 py-3 text-[12px] text-white/85">
