@@ -31,16 +31,112 @@ const seedIfEmpty = async () => {
   ];
 
   const defaultExercises = [
+    // CHEST
     { nombre: 'Press banca plano', zoneKeys: ['chest'], typeKeys: ['strength'] },
     { nombre: 'Press banca inclinado', zoneKeys: ['chest'], typeKeys: ['strength'] },
+    { nombre: 'Press banca declinado', zoneKeys: ['chest'], typeKeys: ['strength'] },
+    { nombre: 'Press banca con mancuernas', zoneKeys: ['chest'], typeKeys: ['strength'] },
+    { nombre: 'Press inclinado con mancuernas', zoneKeys: ['chest'], typeKeys: ['strength'] },
+    { nombre: 'Press declinado con mancuernas', zoneKeys: ['chest'], typeKeys: ['strength'] },
     { nombre: 'Aperturas con mancuernas', zoneKeys: ['chest'], typeKeys: ['strength'] },
-    { nombre: 'Dominadas', zoneKeys: ['back'], typeKeys: ['strength'] },
-    { nombre: 'Remo con barra', zoneKeys: ['back'], typeKeys: ['strength'] },
-    { nombre: 'Sentadilla', zoneKeys: ['legs'], typeKeys: ['strength'] },
-    { nombre: 'Peso muerto', zoneKeys: ['legs', 'lower_back'], typeKeys: ['strength'] },
+    { nombre: 'Aperturas en banco inclinado', zoneKeys: ['chest'], typeKeys: ['strength'] },
+    { nombre: 'Aperturas en polea (crossover)', zoneKeys: ['chest'], typeKeys: ['strength'] },
+    { nombre: 'Press en máquina (pecho)', zoneKeys: ['chest'], typeKeys: ['strength'] },
+    { nombre: 'Fondos en paralelas (pecho)', zoneKeys: ['chest', 'triceps'], typeKeys: ['strength'] },
+    { nombre: 'Flexiones', zoneKeys: ['chest', 'triceps', 'shoulders'], typeKeys: ['strength'] },
+    { nombre: 'Flexiones inclinadas', zoneKeys: ['chest', 'triceps'], typeKeys: ['strength'] },
+    { nombre: 'Flexiones declinadas', zoneKeys: ['chest', 'triceps', 'shoulders'], typeKeys: ['strength'] },
+    { nombre: 'Pullover con mancuerna', zoneKeys: ['chest', 'back'], typeKeys: ['strength'] },
+
+    // BACK
+    { nombre: 'Dominadas', zoneKeys: ['back', 'biceps'], typeKeys: ['strength'] },
+    { nombre: 'Dominadas asistidas', zoneKeys: ['back', 'biceps'], typeKeys: ['strength'] },
+    { nombre: 'Jalón al pecho', zoneKeys: ['back', 'biceps'], typeKeys: ['strength'] },
+    { nombre: 'Jalón tras nuca', zoneKeys: ['back'], typeKeys: ['strength'] },
+    { nombre: 'Jalón con agarre neutro', zoneKeys: ['back', 'biceps'], typeKeys: ['strength'] },
+    { nombre: 'Remo con barra', zoneKeys: ['back', 'lower_back'], typeKeys: ['strength'] },
+    { nombre: 'Remo con mancuerna', zoneKeys: ['back'], typeKeys: ['strength'] },
+    { nombre: 'Remo en máquina', zoneKeys: ['back'], typeKeys: ['strength'] },
+    { nombre: 'Remo en polea baja', zoneKeys: ['back'], typeKeys: ['strength'] },
+    { nombre: 'Remo T', zoneKeys: ['back'], typeKeys: ['strength'] },
+    { nombre: 'Peso muerto rumano', zoneKeys: ['legs', 'lower_back'], typeKeys: ['strength'] },
+    { nombre: 'Peso muerto convencional', zoneKeys: ['legs', 'lower_back', 'back'], typeKeys: ['strength'] },
+    { nombre: 'Hiperextensiones lumbares', zoneKeys: ['lower_back', 'glutes'], typeKeys: ['strength'] },
+    { nombre: 'Face pull', zoneKeys: ['back', 'shoulders'], typeKeys: ['strength'] },
+    { nombre: 'Pull-over en polea', zoneKeys: ['back'], typeKeys: ['strength'] },
+
+    // LEGS / GLUTES / CALVES
+    { nombre: 'Sentadilla', zoneKeys: ['legs', 'glutes'], typeKeys: ['strength'] },
+    { nombre: 'Sentadilla frontal', zoneKeys: ['legs', 'glutes'], typeKeys: ['strength'] },
+    { nombre: 'Sentadilla búlgara', zoneKeys: ['legs', 'glutes'], typeKeys: ['strength'] },
+    { nombre: 'Prensa de piernas', zoneKeys: ['legs', 'glutes'], typeKeys: ['strength'] },
+    { nombre: 'Zancadas', zoneKeys: ['legs', 'glutes'], typeKeys: ['strength'] },
+    { nombre: 'Zancadas caminando', zoneKeys: ['legs', 'glutes'], typeKeys: ['strength'] },
+    { nombre: 'Step-up', zoneKeys: ['legs', 'glutes'], typeKeys: ['strength'] },
+    { nombre: 'Extensión de cuádriceps', zoneKeys: ['legs'], typeKeys: ['strength'] },
+    { nombre: 'Curl femoral', zoneKeys: ['legs'], typeKeys: ['strength'] },
+    { nombre: 'Curl femoral sentado', zoneKeys: ['legs'], typeKeys: ['strength'] },
+    { nombre: 'Peso muerto sumo', zoneKeys: ['legs', 'glutes', 'lower_back'], typeKeys: ['strength'] },
+    { nombre: 'Hip thrust', zoneKeys: ['glutes', 'legs'], typeKeys: ['strength'] },
+    { nombre: 'Puente de glúteos', zoneKeys: ['glutes'], typeKeys: ['strength'] },
+    { nombre: 'Abducción de cadera en máquina', zoneKeys: ['glutes'], typeKeys: ['strength'] },
+    { nombre: 'Aducción de cadera en máquina', zoneKeys: ['legs'], typeKeys: ['strength'] },
+    { nombre: 'Elevación de gemelos de pie', zoneKeys: ['calves'], typeKeys: ['strength'] },
+    { nombre: 'Elevación de gemelos sentado', zoneKeys: ['calves'], typeKeys: ['strength'] },
+
+    // SHOULDERS / TRAPS
     { nombre: 'Press militar', zoneKeys: ['shoulders'], typeKeys: ['strength'] },
+    { nombre: 'Press militar con mancuernas', zoneKeys: ['shoulders'], typeKeys: ['strength'] },
+    { nombre: 'Press Arnold', zoneKeys: ['shoulders'], typeKeys: ['strength'] },
     { nombre: 'Elevaciones laterales', zoneKeys: ['shoulders'], typeKeys: ['strength'] },
-    { nombre: 'Plancha', zoneKeys: ['abs'], typeKeys: ['strength', 'mobility'] }
+    { nombre: 'Elevaciones laterales en polea', zoneKeys: ['shoulders'], typeKeys: ['strength'] },
+    { nombre: 'Elevaciones frontales', zoneKeys: ['shoulders'], typeKeys: ['strength'] },
+    { nombre: 'Pájaros (deltoide posterior)', zoneKeys: ['shoulders'], typeKeys: ['strength'] },
+    { nombre: 'Pájaros en peck deck', zoneKeys: ['shoulders'], typeKeys: ['strength'] },
+    { nombre: 'Encogimientos de trapecio con barra', zoneKeys: ['traps'], typeKeys: ['strength'] },
+    { nombre: 'Encogimientos de trapecio con mancuernas', zoneKeys: ['traps'], typeKeys: ['strength'] },
+
+    // BICEPS
+    { nombre: 'Curl de bíceps con barra', zoneKeys: ['biceps'], typeKeys: ['strength'] },
+    { nombre: 'Curl de bíceps con mancuernas', zoneKeys: ['biceps'], typeKeys: ['strength'] },
+    { nombre: 'Curl martillo', zoneKeys: ['biceps', 'arms'], typeKeys: ['strength'] },
+    { nombre: 'Curl concentrado', zoneKeys: ['biceps'], typeKeys: ['strength'] },
+    { nombre: 'Curl en banco inclinado', zoneKeys: ['biceps'], typeKeys: ['strength'] },
+    { nombre: 'Curl en polea', zoneKeys: ['biceps'], typeKeys: ['strength'] },
+    { nombre: 'Curl predicador', zoneKeys: ['biceps'], typeKeys: ['strength'] },
+
+    // TRICEPS
+    { nombre: 'Extensión de tríceps en polea', zoneKeys: ['triceps'], typeKeys: ['strength'] },
+    { nombre: 'Extensión de tríceps con cuerda', zoneKeys: ['triceps'], typeKeys: ['strength'] },
+    { nombre: 'Press francés', zoneKeys: ['triceps'], typeKeys: ['strength'] },
+    { nombre: 'Extensión de tríceps con mancuerna', zoneKeys: ['triceps'], typeKeys: ['strength'] },
+    { nombre: 'Patada de tríceps', zoneKeys: ['triceps'], typeKeys: ['strength'] },
+    { nombre: 'Fondos en banco', zoneKeys: ['triceps'], typeKeys: ['strength'] },
+
+    // ABS / CORE / MOBILITY
+    { nombre: 'Plancha', zoneKeys: ['abs'], typeKeys: ['strength', 'mobility'] },
+    { nombre: 'Plancha lateral', zoneKeys: ['abs'], typeKeys: ['strength', 'mobility'] },
+    { nombre: 'Crunch', zoneKeys: ['abs'], typeKeys: ['strength'] },
+    { nombre: 'Crunch en polea', zoneKeys: ['abs'], typeKeys: ['strength'] },
+    { nombre: 'Elevaciones de piernas', zoneKeys: ['abs'], typeKeys: ['strength'] },
+    { nombre: 'Ab wheel', zoneKeys: ['abs'], typeKeys: ['strength'] },
+    { nombre: 'Russian twists', zoneKeys: ['abs'], typeKeys: ['strength'] },
+    { nombre: 'Bird dog', zoneKeys: ['abs', 'lower_back'], typeKeys: ['mobility'] },
+    { nombre: 'Dead bug', zoneKeys: ['abs'], typeKeys: ['mobility'] },
+
+    // CARDIO (gym)
+    { nombre: 'Cinta de correr', zoneKeys: ['legs'], typeKeys: ['cardio'] },
+    { nombre: 'Bicicleta estática', zoneKeys: ['legs'], typeKeys: ['cardio'] },
+    { nombre: 'Elíptica', zoneKeys: ['legs'], typeKeys: ['cardio'] },
+    { nombre: 'Remo ergómetro', zoneKeys: ['back', 'legs'], typeKeys: ['cardio'] },
+    { nombre: 'Escaladora', zoneKeys: ['legs', 'glutes'], typeKeys: ['cardio'] },
+
+    // HIIT / FULL BODY
+    { nombre: 'Burpees', zoneKeys: ['full_body'], typeKeys: ['hiit'] },
+    { nombre: 'Mountain climbers', zoneKeys: ['full_body', 'abs'], typeKeys: ['hiit'] },
+    { nombre: 'Jumping jacks', zoneKeys: ['full_body'], typeKeys: ['hiit'] },
+    { nombre: 'Kettlebell swing', zoneKeys: ['full_body', 'glutes'], typeKeys: ['hiit', 'strength'] },
+    { nombre: 'Battle ropes', zoneKeys: ['full_body', 'arms'], typeKeys: ['hiit'] }
   ];
 
   // Upsert defaults (works even if partial data already exists).

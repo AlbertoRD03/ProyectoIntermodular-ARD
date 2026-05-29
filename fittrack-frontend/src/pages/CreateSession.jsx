@@ -450,7 +450,12 @@ export default function CreateSession() {
     setExerciseLoading(true);
 
     const timer = window.setTimeout(() => {
-      searchCatalogExercises({ search: q, zoneKey: muscleGroups.join(','), typeKey: workoutType })
+      const isSuggest = !q;
+      searchCatalogExercises({
+        search: isSuggest ? '' : q,
+        zoneKey: muscleGroups.join(','),
+        typeKey: workoutType,
+      })
         .then((data) => {
           if (!alive) return;
           setExerciseResults(Array.isArray(data?.items) ? data.items : []);
@@ -464,7 +469,7 @@ export default function CreateSession() {
           if (!alive) return;
           setExerciseLoading(false);
         });
-    }, 180);
+    }, q ? 180 : 120);
 
     return () => {
       alive = false;
@@ -474,61 +479,17 @@ export default function CreateSession() {
 
   const results = useMemo(() => {
     if (exerciseLoading) return [];
+    const limit = search.trim() ? 6 : 5;
     return (Array.isArray(exerciseResults) ? exerciseResults : [])
-      .slice(0, 6)
+      .slice(0, limit)
       .map((x) => ({
         id: String(x?._id || x?.id || ''),
         name: String(x?.nombre || '').toUpperCase(),
       }))
       .filter((x) => x.id && x.name);
-  }, [exerciseLoading, exerciseResults]);
+  }, [exerciseLoading, exerciseResults, search]);
 
-  const savedWorkouts = useMemo(
-    () => [
-      {
-        id: 'sw_1',
-        title: 'Pierna completo',
-        sourceUser: 'JUAN_FITNESS',
-        stats: { exercises: 8, duration: '65m', calories: 420 },
-        muscleGroup: 'legs',
-        workoutType: 'strength',
-        exercises: [
-          { name: 'SENTADILLA', setsCount: 4 },
-          { name: 'PESO MUERTO', setsCount: 3 },
-          { name: 'PRENSA', setsCount: 4 },
-          { name: 'ZANCADAS', setsCount: 3 },
-        ],
-      },
-      {
-        id: 'sw_2',
-        title: 'HIIT rápido',
-        sourceUser: 'ANA_STRONG',
-        stats: { exercises: 6, duration: '30m', calories: 420 },
-        muscleGroup: 'full_body',
-        workoutType: 'hiit',
-        exercises: [
-          { name: 'BURPEES', setsCount: 5 },
-          { name: 'SPRINT', setsCount: 5 },
-          { name: 'SALTOS', setsCount: 5 },
-        ],
-      },
-      {
-        id: 'sw_3',
-        title: 'Pecho + tríceps',
-        sourceUser: 'COACH_MIGUEL',
-        stats: { exercises: 7, duration: '55m', calories: 410 },
-        muscleGroup: 'chest',
-        workoutType: 'strength',
-        exercises: [
-          { name: 'PRESS BANCA PLANO', setsCount: 4 },
-          { name: 'PRESS BANCA INCLINADO', setsCount: 4 },
-          { name: 'APERTURAS CON MANCUERNAS', setsCount: 3 },
-          { name: 'FONDOS', setsCount: 3 },
-        ],
-      },
-    ],
-    []
-  );
+  const savedWorkouts = useMemo(() => [], []);
 
   const filteredSavedWorkouts = useMemo(() => {
     const q = savedQuery.trim().toLowerCase();
@@ -538,35 +499,7 @@ export default function CreateSession() {
     );
   }, [savedQuery, savedWorkouts]);
 
-  const [added, setAdded] = useState(() => [
-    {
-      id: makeId('ex'),
-      name: 'PRESS BANCA PLANO',
-      sets: [
-        { id: makeId('set'), reps: '', weight: '', option: 'OPCIONES' },
-        { id: makeId('set'), reps: '', weight: '', option: 'OPCIONES' },
-        { id: makeId('set'), reps: '', weight: '', option: 'OPCIONES' },
-      ],
-    },
-    {
-      id: makeId('ex'),
-      name: 'PRESS BANCA INCLINADO',
-      sets: [
-        { id: makeId('set'), reps: '', weight: '', option: 'OPCIONES' },
-        { id: makeId('set'), reps: '', weight: '', option: 'OPCIONES' },
-        { id: makeId('set'), reps: '', weight: '', option: 'OPCIONES' },
-      ],
-    },
-    {
-      id: makeId('ex'),
-      name: 'PRESS BANCA DECLINADO',
-      sets: [
-        { id: makeId('set'), reps: '', weight: '', option: 'OPCIONES' },
-        { id: makeId('set'), reps: '', weight: '', option: 'OPCIONES' },
-        { id: makeId('set'), reps: '', weight: '', option: 'OPCIONES' },
-      ],
-    },
-  ]);
+  const [added, setAdded] = useState(() => []);
 
   const toAddedExercises = (savedWorkout) => {
     return savedWorkout.exercises.map((exercise) => ({
@@ -847,7 +780,7 @@ export default function CreateSession() {
                 {tr(lang, 'AÑADIR EJERCICIO', 'ADD EXERCISE')}
               </div>
 
-              <div className="mt-4 grid grid-cols-1 lg:grid-cols-[1fr_140px] gap-3">
+              <div className="mt-4 grid grid-cols-1 gap-3">
                 <div className="relative">
                   <Search className="h-4 w-4 text-white/35 absolute left-4 top-1/2 -translate-y-1/2" />
                   <Input
@@ -857,13 +790,14 @@ export default function CreateSession() {
                     className="pl-11"
                   />
                 </div>
-                <OutlineButton className="py-3">{tr(lang, 'BUSCAR', 'SEARCH')}</OutlineButton>
               </div>
 
               <div className="h-px w-full bg-white/10 my-5" />
 
               <div className="text-[10px] sm:text-[11px] uppercase tracking-widest text-white/45 mb-3">
-                {tr(lang, 'RESULTADOS', 'RESULTS')}
+                {search.trim()
+                  ? tr(lang, 'RESULTADOS', 'RESULTS')
+                  : tr(lang, 'SUGERENCIAS', 'SUGGESTIONS')}
               </div>
               <div className="space-y-3">
                 {exerciseError ? (
@@ -887,18 +821,24 @@ export default function CreateSession() {
             {tr(lang, 'EJERCICIOS AÑADIDOS', 'ADDED EXERCISES')}
           </div>
 
-          <div className="space-y-5 sm:space-y-6">
-            {added.map((exercise) => (
-              <AddedExerciseCard
-                key={exercise.id}
-                exercise={exercise}
-                onRemoveExercise={() => removeExercise(exercise.id)}
-                onAddSet={() => addSet(exercise.id)}
-                onUpdateSet={(setId, patch) => updateSet(exercise.id, setId, patch)}
-                onRemoveSet={(setId) => removeSet(exercise.id, setId)}
-              />
-            ))}
-          </div>
+          {added.length ? (
+            <div className="space-y-5 sm:space-y-6">
+              {added.map((exercise) => (
+                <AddedExerciseCard
+                  key={exercise.id}
+                  exercise={exercise}
+                  onRemoveExercise={() => removeExercise(exercise.id)}
+                  onAddSet={() => addSet(exercise.id)}
+                  onUpdateSet={(setId, patch) => updateSet(exercise.id, setId, patch)}
+                  onRemoveSet={(setId) => removeSet(exercise.id, setId)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-4 text-[12px] text-white/60">
+              {tr(lang, 'Aún no has añadido ejercicios. Busca arriba y pulsa uno para añadirlo.', 'No exercises added yet. Search above and click one to add it.')}
+            </div>
+          )}
 
           {saveError ? (
             <div className="rounded-lg border border-[#ff7849]/25 bg-[#ff7849]/10 px-4 py-3 text-[12px] text-white/85">
