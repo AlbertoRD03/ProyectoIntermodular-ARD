@@ -86,6 +86,18 @@ export default function Calendario() {
   const year = currentDate.getFullYear();
   const monthIndex = currentDate.getMonth();
 
+  const toDateKey = (y, mIndex, d) => {
+    const mm = String(mIndex + 1).padStart(2, '0');
+    const dd = String(d).padStart(2, '0');
+    return `${y}-${mm}-${dd}`;
+  };
+
+  const openCreateSession = (day) => {
+    if (!day) return;
+    const dateKey = toDateKey(year, monthIndex, day);
+    navigate(`/crear-sesion?date=${encodeURIComponent(dateKey)}`);
+  };
+
   const openWorkoutDetail = (session) => {
     if (!session) return;
     const fecha = session?.fecha ? new Date(session.fecha) : null;
@@ -251,6 +263,7 @@ export default function Calendario() {
                         'aspect-square p-2 sm:p-3 md:p-4 border-r border-white/10 last:border-r-0 flex flex-col',
                         day ? 'bg-white/[0.02] hover:bg-white/[0.06] transition cursor-pointer' : 'bg-black/20'
                       )}
+                      onClick={() => openCreateSession(day)}
                     >
                       {day && (
                         <>
