@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 
 const exerciseCatalogSchema = new mongoose.Schema(
   {
-    nombre: { type: String, required: true, trim: true, index: true },
+    nombre: { type: String, required: true, trim: true },
     zoneKeys: { type: [String], default: [], index: true },
     typeKeys: { type: [String], default: [], index: true }
   },
@@ -15,4 +15,3 @@ const ExerciseCatalog =
   mongoose.models.ExerciseCatalog || mongoose.model('ExerciseCatalog', exerciseCatalogSchema);
 
 export default ExerciseCatalog;
-

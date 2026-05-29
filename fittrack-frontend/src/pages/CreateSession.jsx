@@ -183,9 +183,11 @@ function SetRow({ index, reps, weight, option, onChange, onRemove }) {
         >
           <option value="OPCIONES">{tr(lang, 'OPCIONES', 'OPTIONS')}</option>
           <option value="NORMAL">{tr(lang, 'NORMAL', 'NORMAL')}</option>
-          <option value="FALLO">{tr(lang, 'FALLO', 'FAILURE')}</option>
-          <option value="DROPSET">{tr(lang, 'DROPSET', 'DROPSET')}</option>
-          <option value="PAUSA">{tr(lang, 'PAUSA', 'PAUSE')}</option>
+          <option value="CALENTAMIENTO">{tr(lang, 'CALENTAMIENTO', 'WARM-UP')}</option>
+          <option value="APROXIMACION">{tr(lang, 'APROXIMACIÓN', 'RAMP-UP')}</option>
+          <option value="EFECTIVA">{tr(lang, 'EFECTIVA', 'WORKING SET')}</option>
+          <option value="DROP_SET">{tr(lang, 'DROP SET', 'DROP SET')}</option>
+          <option value="AL_FALLO">{tr(lang, 'AL FALLO', 'TO FAILURE')}</option>
         </select>
         <ChevronDown className="h-4 w-4 text-white/40 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
       </div>
