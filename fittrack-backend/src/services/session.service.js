@@ -4,13 +4,19 @@ export const createSession = async (data) => {
   return Session.create(data);
 };
 
-export const getSessionsByUser = async (userId) => {
+export const getSessionsByUser = async (userId, { from, to } = {}) => {
   const idStr = String(userId);
   const idNum = Number(idStr);
   const match = Number.isFinite(idNum)
     ? { $or: [{ usuario_id: idStr }, { usuario_id: idNum }] }
     : { usuario_id: idStr };
-  return Session.find(match).sort({ fecha: -1 });
+
+  const fechaFilter = {};
+  if (from instanceof Date && !Number.isNaN(from.getTime())) fechaFilter.$gte = from;
+  if (to instanceof Date && !Number.isNaN(to.getTime())) fechaFilter.$lt = to;
+  const finalMatch = Object.keys(fechaFilter).length ? { ...match, fecha: fechaFilter } : match;
+
+  return Session.find(finalMatch).sort({ fecha: -1 }).lean();
 };
 
 export const updateSession = async (sessionId, userId, data) => {

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -6,6 +6,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { useI18n } from '../i18n/I18nProvider';
+import { listSessionHistory, listSessionHistoryRange } from '../services/sessionsApi';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -55,28 +56,10 @@ export default function Calendario() {
   const navigate = useNavigate();
   const { lang, t } = useI18n();
   const [currentDate, setCurrentDate] = useState(() => new Date()); // mes actual
-
-  // Datos de entrenamientos por día
-  const workoutsByDay = useMemo(() => {
-    return {
-      3: ['Pecho'],
-      5: ['Pierna'],
-      6: ['Espalda'],
-      8: ['Cardio'],
-      10: ['Pecho'],
-      12: ['Pierna'],
-      13: ['Hombros'],
-      17: ['Espalda'],
-      19: ['Pierna'],
-      20: ['Pecho'],
-      22: ['Cardio'],
-      23: ['Pierna'],
-      24: ['Espalda'],
-      25: ['Hombros'],
-      27: ['Yoga'],
-      30: ['Pecho'],
-    };
-  }, []);
+  const [monthSessions, setMonthSessions] = useState([]);
+  const [totalSessionsCount, setTotalSessionsCount] = useState(null);
+  const [loadingMonth, setLoadingMonth] = useState(false);
+  const [loadError, setLoadError] = useState('');
 
   const getDaysInMonth = (date) => {
     return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
@@ -103,43 +86,85 @@ export default function Calendario() {
   const year = currentDate.getFullYear();
   const monthIndex = currentDate.getMonth();
 
-  const openWorkoutDetail = (day, type) => {
-    const normalizedType = String(type).trim();
-    const typeKey = normalizedType.toLowerCase();
+  const openWorkoutDetail = (session) => {
+    if (!session) return;
+    const fecha = session?.fecha ? new Date(session.fecha) : null;
+    const dateLabel = fecha && !Number.isNaN(fecha.getTime())
+      ? fecha.toLocaleDateString(locale, { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })
+      : '';
 
-    const dateObj = new Date(year, monthIndex, day);
-    const dateLabel = dateObj.toLocaleDateString(locale, {
-      weekday: 'long',
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-
-    const durationByType = {
-      cardio: '30 MIN',
-      yoga: '35 MIN',
-      pecho: '45 MIN',
-      espalda: '50 MIN',
-      pierna: '60 MIN',
-      hombros: '40 MIN',
-    };
+    const ejercicios = Array.isArray(session?.ejercicios_realizados) ? session.ejercicios_realizados : [];
+    const totalSets = ejercicios.reduce((acc, ex) => acc + (Array.isArray(ex?.sets) ? ex.sets.length : 0), 0);
 
     const workout = {
-      id: `${year}-${monthIndex + 1}-${day}-${typeKey}`,
-      title: `${t('Entrenamiento de')} ${t(normalizedType)}`,
-      duration: durationByType[typeKey] || '45 MIN',
+      id: String(session?._id || session?.id || ''),
+      title: String(session?.tipo_rutina || t('Sesión')),
+      duration: session?.duracion_minutos ? `${session.duracion_minutos} MIN` : '—',
       date: dateLabel,
-      series: typeKey === 'cardio' ? 10 : 24,
-      volume: typeKey === 'cardio' ? '350 KCAL' : '2400 KG',
-      muscleGroup: ['pecho', 'espalda', 'pierna', 'hombros'].includes(typeKey) ? [typeKey] : [],
+      series: totalSets,
+      volume: totalSets ? `${totalSets * 40} KG` : '0 KG',
+      exercises: ejercicios.map((ex) => ({
+        name: String(ex?.nombre_ejercicio || '').toUpperCase(),
+        sets: Array.isArray(ex?.sets)
+          ? ex.sets.map((s, idx) => ({
+              number: idx + 1,
+              reps: s?.reps ?? 0,
+              weight: s?.peso ?? 0,
+            }))
+          : [],
+      })),
     };
 
     navigate(`/sessiondetail/${workout.id}`, { state: { workout } });
   };
 
-  // Contar entrenamientos totales (simulado)
-  const totalWorkouts = 203;
-  const monthWorkouts = Object.keys(workoutsByDay).length;
+  useEffect(() => {
+    let alive = true;
+    setLoadError('');
+    setLoadingMonth(true);
+
+    const from = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+    const to = new Date(year, monthIndex + 1, 1, 0, 0, 0, 0);
+
+    Promise.all([
+      listSessionHistoryRange({ from: from.toISOString(), to: to.toISOString() }),
+      totalSessionsCount === null ? listSessionHistory() : Promise.resolve(null),
+    ])
+      .then(([monthRes, allRes]) => {
+        if (!alive) return;
+        setMonthSessions(Array.isArray(monthRes?.items) ? monthRes.items : []);
+        if (allRes && Array.isArray(allRes?.items)) setTotalSessionsCount(allRes.items.length);
+      })
+      .catch((e) => {
+        if (!alive) return;
+        setMonthSessions([]);
+        setLoadError(e?.message || t('No se pudo cargar el calendario.'));
+      })
+      .finally(() => {
+        if (!alive) return;
+        setLoadingMonth(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [monthIndex, totalSessionsCount, t, year]);
+
+  const workoutsByDay = useMemo(() => {
+    const map = {};
+    monthSessions.forEach((s) => {
+      const d = s?.fecha ? new Date(s.fecha) : null;
+      if (!d || Number.isNaN(d.getTime())) return;
+      const day = d.getDate();
+      if (!map[day]) map[day] = [];
+      map[day].push(s);
+    });
+    return map;
+  }, [monthSessions]);
+
+  const monthWorkouts = useMemo(() => {
+    return Object.keys(workoutsByDay).length;
+  }, [workoutsByDay]);
 
   const days = [];
   for (let i = 0; i < adjustedFirstDay; i++) {
@@ -163,7 +188,10 @@ export default function Calendario() {
         <div className="max-w-6xl mx-auto space-y-5 sm:space-y-6 md:space-y-7">
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-5">
-            <StatCard label={t('Días entrenados en total')} value={totalWorkouts} />
+            <StatCard
+              label={t('Días entrenados en total')}
+              value={totalSessionsCount === null ? '—' : totalSessionsCount}
+            />
             <div className="flex items-center justify-center">
               <button
                 onClick={previousMonth}
@@ -186,8 +214,17 @@ export default function Calendario() {
                 <ChevronRight className="h-5 w-5" />
               </button>
             </div>
-            <StatCard label={t('Días entrenados este mes')} value={monthWorkouts} />
+            <StatCard
+              label={t('Días entrenados este mes')}
+              value={loadingMonth ? '…' : monthWorkouts}
+            />
           </div>
+
+          {loadError ? (
+            <div className="rounded-lg border border-[#ff7849]/25 bg-[#ff7849]/10 px-4 py-3 text-[12px] text-white/85">
+              {loadError}
+            </div>
+          ) : null}
 
           {/* Calendar */}
           <div className="rounded-lg border border-white/10 bg-white/[0.04] overflow-hidden">
@@ -222,13 +259,13 @@ export default function Calendario() {
                           </div>
                           {workoutsByDay[day] && (
                             <div className="space-y-1 flex-1 flex flex-col justify-center">
-                              {workoutsByDay[day].map((workout, idx) => (
+                              {workoutsByDay[day].map((session, idx) => (
                                 <WorkoutBadge
                                   key={idx}
-                                  type={workout}
+                                  type={String(session?.tipo_rutina || t('Sesión'))}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    openWorkoutDetail(day, workout);
+                                    openWorkoutDetail(session);
                                   }}
                                 />
                               ))}

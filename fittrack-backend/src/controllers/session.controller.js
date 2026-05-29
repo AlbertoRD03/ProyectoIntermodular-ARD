@@ -57,7 +57,11 @@ export const obtenerHistorial = async (req, res) => {
       return res.status(400).json({ error: 'Usuario inválido' });
     }
 
-    const sessions = await getSessionsByUser(userId);
+    const fromRaw = req.query?.from;
+    const toRaw = req.query?.to;
+    const from = fromRaw ? new Date(String(fromRaw)) : undefined;
+    const to = toRaw ? new Date(String(toRaw)) : undefined;
+    const sessions = await getSessionsByUser(userId, { from, to });
     return res.status(200).json({ items: sessions });
   } catch (error) {
     return res.status(500).json({ error: 'Error al obtener historial' });

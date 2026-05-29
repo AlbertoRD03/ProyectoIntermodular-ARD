@@ -32,3 +32,10 @@ export function listSessionHistory() {
   return fetchJson('/sesiones/historial', { method: 'GET' });
 }
 
+export function listSessionHistoryRange({ from, to } = {}) {
+  const params = new URLSearchParams();
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const qs = params.toString();
+  return fetchJson(`/sesiones/historial${qs ? `?${qs}` : ''}`, { method: 'GET' });
+}
