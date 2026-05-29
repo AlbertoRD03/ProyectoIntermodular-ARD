@@ -95,7 +95,13 @@ export const searchExercises = async ({ search = '', zoneKey = '', typeKey = '' 
 
   const filter = {};
   if (q) filter.nombre = { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
-  if (z) filter.zoneKeys = z;
+  if (z) {
+    const keys = z
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    filter.zoneKeys = keys.length > 1 ? { $in: keys } : keys[0];
+  }
   if (t) filter.typeKeys = t;
 
   return ExerciseCatalog.find(filter).sort({ nombre: 1 }).limit(50).lean();

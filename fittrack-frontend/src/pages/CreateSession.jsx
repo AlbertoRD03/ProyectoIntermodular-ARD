@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bookmark, Check, ChevronDown, ClipboardCopy, Search, X } from 'lucide-react';
+import { Bookmark, Check, ChevronDown, ClipboardCopy, Plus, Search, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import { useI18n, tr } from '../i18n/I18nProvider';
@@ -329,7 +329,7 @@ export default function CreateSession() {
   const [params] = useSearchParams();
   const [zones, setZones] = useState([]);
   const [types, setTypes] = useState([]);
-  const [muscleGroup, setMuscleGroup] = useState('full_body');
+  const [muscleGroups, setMuscleGroups] = useState(['full_body']);
   const [workoutType, setWorkoutType] = useState('strength');
   const [sessionName, setSessionName] = useState('');
   const [search, setSearch] = useState('');
@@ -342,6 +342,12 @@ export default function CreateSession() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [catalogError, setCatalogError] = useState('');
+
+  const addMuscleGroup = () => setMuscleGroups((prev) => [...prev, 'full_body']);
+  const removeMuscleGroup = (index) =>
+    setMuscleGroups((prev) => (prev.length <= 1 ? prev : prev.filter((_, idx) => idx !== index)));
+  const updateMuscleGroup = (index, value) =>
+    setMuscleGroups((prev) => prev.map((v, idx) => (idx === index ? value : v)));
 
   const dateKey = useMemo(() => {
     const raw = params.get('date');
@@ -400,20 +406,28 @@ export default function CreateSession() {
 
   useEffect(() => {
     // Keep selected values valid when activity changes or when catalog loads.
-    if (filteredZones.length && !filteredZones.some((z) => String(z?.key) === String(muscleGroup))) {
-      setMuscleGroup(String(filteredZones[0]?.key || 'full_body'));
+    if (filteredZones.length) {
+      setMuscleGroups((prev) =>
+        prev.map((k) =>
+          filteredZones.some((z) => String(z?.key) === String(k))
+            ? k
+            : String(filteredZones[0]?.key || 'full_body')
+        )
+      );
     }
     if (filteredTypes.length && !filteredTypes.some((t) => String(t?.key) === String(workoutType))) {
       setWorkoutType(String(filteredTypes[0]?.key || 'strength'));
     }
-  }, [filteredZones, filteredTypes, muscleGroup, workoutType]);
+  }, [filteredZones, filteredTypes, workoutType]);
 
-  const zoneLabel = useMemo(() => {
+  const zoneLabels = useMemo(() => {
     const source = filteredZones.length ? filteredZones : zones;
-    const z = source.find((x) => String(x?.key) === String(muscleGroup));
-    if (!z) return '';
-    return lang === 'en' ? z.label_en : z.label_es;
-  }, [filteredZones, lang, muscleGroup, zones]);
+    const map = new Map(source.map((z) => [String(z?.key), z]));
+    return muscleGroups
+      .map((k) => map.get(String(k)))
+      .filter(Boolean)
+      .map((z) => (lang === 'en' ? z.label_en : z.label_es));
+  }, [filteredZones, lang, muscleGroups, zones]);
 
   const typeLabel = useMemo(() => {
     const source = filteredTypes.length ? filteredTypes : types;
@@ -424,10 +438,10 @@ export default function CreateSession() {
 
   useEffect(() => {
     if (!sessionName.trim()) {
-      const next = [zoneLabel, typeLabel].filter(Boolean).join(' · ');
+      const next = [zoneLabels.join(' + '), typeLabel].filter(Boolean).join(' · ');
       if (next) setSessionName(next);
     }
-  }, [sessionName, typeLabel, zoneLabel]);
+  }, [sessionName, typeLabel, zoneLabels]);
 
   useEffect(() => {
     let alive = true;
@@ -436,7 +450,7 @@ export default function CreateSession() {
     setExerciseLoading(true);
 
     const timer = window.setTimeout(() => {
-      searchCatalogExercises({ search: q, zoneKey: muscleGroup, typeKey: workoutType })
+      searchCatalogExercises({ search: q, zoneKey: muscleGroups.join(','), typeKey: workoutType })
         .then((data) => {
           if (!alive) return;
           setExerciseResults(Array.isArray(data?.items) ? data.items : []);
@@ -456,7 +470,7 @@ export default function CreateSession() {
       alive = false;
       window.clearTimeout(timer);
     };
-  }, [lang, muscleGroup, search, workoutType]);
+  }, [lang, muscleGroups, search, workoutType]);
 
   const results = useMemo(() => {
     if (exerciseLoading) return [];
@@ -569,7 +583,7 @@ export default function CreateSession() {
 
   const copySavedWorkout = (savedWorkout, mode) => {
     const nextExercises = toAddedExercises(savedWorkout);
-    setMuscleGroup(savedWorkout.muscleGroup);
+    setMuscleGroups([savedWorkout.muscleGroup]);
     setWorkoutType(savedWorkout.workoutType);
 
     if (mode === 'append') {
@@ -654,10 +668,10 @@ export default function CreateSession() {
       createdAt,
       title: sessionName.trim()
         ? sessionName.trim()
-        : `${muscleGroup} · ${workoutType}`,
+        : `${muscleGroups.join(' + ')} · ${workoutType}`,
       date: workoutDateLabel,
       duration: '60 MIN',
-      muscleGroup,
+      muscleGroups,
       workoutType,
       exercisesCount: added.length,
       series: totalSets,
@@ -681,7 +695,7 @@ export default function CreateSession() {
         fecha: `${dateKey}T12:00:00.000Z`,
         tipo_rutina: sessionName.trim()
           ? sessionName.trim()
-          : `${muscleGroup} · ${workoutType}`,
+          : `${muscleGroups.join(' + ')} · ${workoutType}`,
         ejercicios_realizados: added.map((ex, idx) => ({
           ejercicio_id: ex.catalogId || idx + 1,
           nombre_ejercicio: ex.name,
@@ -756,22 +770,6 @@ export default function CreateSession() {
                   placeholder={tr(lang, 'Ej: Pecho pesado', 'e.g. Heavy chest')}
                 />
               </div>
-              <div className="hidden md:block" />
-              <div>
-                <FieldLabel>{tr(lang, 'ZONA A ENTRENAR', 'MUSCLE GROUP')}</FieldLabel>
-                <Select
-                  value={muscleGroup}
-                  onChange={setMuscleGroup}
-                  options={
-                    filteredZones.length
-                      ? filteredZones.map((z) => ({
-                          value: z.key,
-                          label: (lang === 'en' ? z.label_en : z.label_es).toUpperCase(),
-                        }))
-                      : [{ value: 'full_body', label: tr(lang, 'CUERPO COMPLETO', 'FULL BODY') }]
-                  }
-                />
-              </div>
               <div>
                 <FieldLabel>{tr(lang, 'TIPO DE ENTRENO', 'WORKOUT TYPE')}</FieldLabel>
                 <Select
@@ -786,6 +784,55 @@ export default function CreateSession() {
                       : [{ value: 'strength', label: tr(lang, 'FUERZA', 'STRENGTH') }]
                   }
                 />
+              </div>
+              <div className="md:col-span-2">
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <p className="text-[10px] sm:text-[11px] uppercase tracking-widest text-white/45">
+                    {tr(lang, 'ZONA A ENTRENAR', 'MUSCLE GROUP')}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={addMuscleGroup}
+                    className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/[0.02] px-3 py-2 text-[11px] font-semibold text-white/75 hover:text-white/90 hover:border-white/35 hover:bg-white/[0.05] transition"
+                    aria-label={tr(lang, 'Añadir zona', 'Add muscle group')}
+                    title={tr(lang, 'Añadir zona', 'Add muscle group')}
+                  >
+                    <Plus className="h-4 w-4" />
+                    {tr(lang, 'Añadir', 'Add')}
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {muscleGroups.map((mg, idx) => (
+                    <div key={`${mg}_${idx}`} className="grid grid-cols-[1fr_44px] gap-3 items-center">
+                      <Select
+                        value={mg}
+                        onChange={(v) => updateMuscleGroup(idx, v)}
+                        options={
+                          filteredZones.length
+                            ? filteredZones.map((z) => ({
+                                value: z.key,
+                                label: (lang === 'en' ? z.label_en : z.label_es).toUpperCase(),
+                              }))
+                            : [{ value: 'full_body', label: tr(lang, 'CUERPO COMPLETO', 'FULL BODY') }]
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeMuscleGroup(idx)}
+                        disabled={muscleGroups.length <= 1}
+                        className={cx(
+                          'h-11 w-11 rounded-lg border border-white/20 bg-white/[0.02] text-white/70 hover:bg-white/[0.06] hover:text-white/90 transition flex items-center justify-center',
+                          muscleGroups.length <= 1 ? 'opacity-50 cursor-not-allowed' : ''
+                        )}
+                        aria-label={tr(lang, 'Eliminar zona', 'Remove muscle group')}
+                        title={tr(lang, 'Eliminar zona', 'Remove muscle group')}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
