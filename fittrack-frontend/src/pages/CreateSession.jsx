@@ -5,7 +5,7 @@ import Header from '../components/Header';
 import { useI18n, tr } from '../i18n/I18nProvider';
 import { getDateKey, upsertSession } from '../services/sessionStore';
 import { createSession } from '../services/sessionsApi';
-import { listWorkoutTypes, listZones, searchCatalogExercises } from '../services/catalogApi';
+import { listZones, searchCatalogExercises } from '../services/catalogApi';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -316,9 +316,7 @@ export default function CreateSession() {
   const { lang } = useI18n();
   const [params] = useSearchParams();
   const [zones, setZones] = useState([]);
-  const [types, setTypes] = useState([]);
   const [muscleGroups, setMuscleGroups] = useState(['full_body']);
-  const [workoutType, setWorkoutType] = useState('strength');
   const [sessionName, setSessionName] = useState('');
   const [savedQuery, setSavedQuery] = useState('');
   const [copiedWorkoutId, setCopiedWorkoutId] = useState(null);
@@ -360,18 +358,16 @@ export default function CreateSession() {
   useEffect(() => {
     let alive = true;
     setCatalogError('');
-    Promise.all([listZones(), listWorkoutTypes()])
-      .then(([z, t]) => {
+    Promise.all([listZones()])
+      .then(([z]) => {
         if (!alive) return;
         setZones(Array.isArray(z?.items) ? z.items : []);
-        setTypes(Array.isArray(t?.items) ? t.items : []);
       })
       .catch((e) => {
         if (!alive) return;
         setZones([]);
-        setTypes([]);
         setCatalogError(
-          e?.message || tr(lang, 'No se pudieron cargar zonas y tipos', 'Could not load zones and types')
+          e?.message || tr(lang, 'No se pudieron cargar zonas', 'Could not load zones')
         );
       });
     return () => {
@@ -385,12 +381,6 @@ export default function CreateSession() {
     return all;
   }, [zones]);
 
-  const filteredTypes = useMemo(() => {
-    const all = Array.isArray(types) ? types : [];
-    if (!all.length) return [];
-    return all;
-  }, [types]);
-
   useEffect(() => {
     // Keep selected values valid when activity changes or when catalog loads.
     if (filteredZones.length) {
@@ -402,10 +392,7 @@ export default function CreateSession() {
         )
       );
     }
-    if (filteredTypes.length && !filteredTypes.some((t) => String(t?.key) === String(workoutType))) {
-      setWorkoutType(String(filteredTypes[0]?.key || 'strength'));
-    }
-  }, [filteredZones, filteredTypes, workoutType]);
+  }, [filteredZones]);
 
   const zoneLabels = useMemo(() => {
     const source = filteredZones.length ? filteredZones : zones;
@@ -430,19 +417,12 @@ export default function CreateSession() {
     return result;
   }, [filteredZones, lang, muscleGroups, zones]);
 
-  const typeLabel = useMemo(() => {
-    const source = filteredTypes.length ? filteredTypes : types;
-    const t = source.find((x) => String(x?.key) === String(workoutType));
-    if (!t) return '';
-    return lang === 'en' ? t.label_en : t.label_es;
-  }, [filteredTypes, lang, types, workoutType]);
-
   useEffect(() => {
     if (!sessionName.trim()) {
-      const next = [zoneLabels.join(' + '), typeLabel].filter(Boolean).join(' · ');
+      const next = zoneLabels.join(' + ');
       if (next) setSessionName(next);
     }
-  }, [sessionName, typeLabel, zoneLabels]);
+  }, [sessionName, zoneLabels]);
 
   useEffect(() => {
     let alive = true;
@@ -469,7 +449,6 @@ export default function CreateSession() {
         const data = await searchCatalogExercises({
           search: '',
           zoneKey,
-          typeKey: workoutType,
           // load "full list" but keep it bounded
           limit: 500,
         });
@@ -499,7 +478,7 @@ export default function CreateSession() {
     return () => {
       alive = false;
     };
-  }, [lang, muscleGroups, workoutType, zones]);
+  }, [lang, muscleGroups, zones]);
 
   const savedWorkouts = useMemo(() => [], []);
 
@@ -529,7 +508,6 @@ export default function CreateSession() {
   const copySavedWorkout = (savedWorkout, mode) => {
     const nextExercises = toAddedExercises(savedWorkout);
     setMuscleGroups([savedWorkout.muscleGroup]);
-    setWorkoutType(savedWorkout.workoutType);
 
     if (mode === 'append') {
       setAdded((prev) => {
@@ -613,11 +591,10 @@ export default function CreateSession() {
       createdAt,
       title: sessionName.trim()
         ? sessionName.trim()
-        : `${muscleGroups.join(' + ')} · ${workoutType}`,
+        : `${muscleGroups.join(' + ')}`,
       date: workoutDateLabel,
       duration: '60 MIN',
       muscleGroups,
-      workoutType,
       exercisesCount: added.length,
       series: totalSets,
       volume: totalSets ? `${totalSets * 40} KG` : '0 KG',
@@ -640,7 +617,7 @@ export default function CreateSession() {
         fecha: `${dateKey}T12:00:00.000Z`,
         tipo_rutina: sessionName.trim()
           ? sessionName.trim()
-          : `${muscleGroups.join(' + ')} · ${workoutType}`,
+          : `${muscleGroups.join(' + ')}`,
         ejercicios_realizados: added.map((ex, idx) => ({
           ejercicio_id: ex.catalogId || idx + 1,
           nombre_ejercicio: ex.name,
@@ -707,27 +684,12 @@ export default function CreateSession() {
             </div>
 
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-              <div>
+              <div className="md:col-span-2">
                 <FieldLabel>{tr(lang, 'NOMBRE DE LA SESIÓN', 'SESSION NAME')}</FieldLabel>
                 <Input
                   value={sessionName}
                   onChange={(e) => setSessionName(e.target.value)}
                   placeholder={tr(lang, 'Ej: Pecho pesado', 'e.g. Heavy chest')}
-                />
-              </div>
-              <div>
-                <FieldLabel>{tr(lang, 'TIPO DE ENTRENO', 'WORKOUT TYPE')}</FieldLabel>
-                <Select
-                  value={workoutType}
-                  onChange={setWorkoutType}
-                  options={
-                    filteredTypes.length
-                      ? filteredTypes.map((t) => ({
-                          value: t.key,
-                          label: (lang === 'en' ? t.label_en : t.label_es).toUpperCase(),
-                        }))
-                      : [{ value: 'strength', label: tr(lang, 'FUERZA', 'STRENGTH') }]
-                  }
                 />
               </div>
               <div className="md:col-span-2">
