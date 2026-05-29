@@ -151,18 +151,6 @@ function PrimaryButton({ children, className, ...props }) {
   );
 }
 
-function ResultRow({ label, onAdd }) {
-  return (
-    <button
-      type="button"
-      onClick={onAdd}
-      className="w-full text-left rounded-lg border border-white/15 bg-white/[0.02] hover:bg-white/[0.06] transition px-5 py-4"
-    >
-      <div className="text-[12px] sm:text-[13px] font-semibold text-white/85 uppercase tracking-wide">{label}</div>
-    </button>
-  );
-}
-
 function SetRow({ index, reps, weight, option, onChange, onRemove }) {
   const { lang } = useI18n();
   return (
@@ -332,13 +320,9 @@ export default function CreateSession() {
   const [muscleGroups, setMuscleGroups] = useState(['full_body']);
   const [workoutType, setWorkoutType] = useState('strength');
   const [sessionName, setSessionName] = useState('');
-  const [search, setSearch] = useState('');
   const [savedQuery, setSavedQuery] = useState('');
   const [copiedWorkoutId, setCopiedWorkoutId] = useState(null);
   const [isSavedPanelOpen, setIsSavedPanelOpen] = useState(false);
-  const [exerciseResults, setExerciseResults] = useState([]);
-  const [exerciseLoading, setExerciseLoading] = useState(false);
-  const [exerciseError, setExerciseError] = useState('');
   const [zoneExerciseMap, setZoneExerciseMap] = useState({});
   const [zoneExerciseLoading, setZoneExerciseLoading] = useState(false);
   const [zoneExerciseError, setZoneExerciseError] = useState('');
@@ -436,7 +420,9 @@ export default function CreateSession() {
     const source = filteredZones.length ? filteredZones : zones;
     const map = new Map(source.map((z) => [String(z?.key), z]));
     const result = {};
-    muscleGroups.forEach((k) => {
+    const hasFullBody = muscleGroups.some((k) => String(k) === 'full_body');
+    const keys = hasFullBody ? Array.from(map.keys()) : muscleGroups.map((k) => String(k));
+    keys.forEach((k) => {
       const z = map.get(String(k));
       if (!z) return;
       result[String(k)] = (lang === 'en' ? z.label_en : z.label_es).toUpperCase();
@@ -460,54 +446,26 @@ export default function CreateSession() {
 
   useEffect(() => {
     let alive = true;
-    const q = search.trim();
-    setExerciseError('');
-    setExerciseLoading(true);
+    const hasFullBody = muscleGroups.some((k) => String(k) === 'full_body');
+    const allZones = (Array.isArray(zones) ? zones : []).map((z) => String(z?.key)).filter(Boolean);
+    const zoneKeys = hasFullBody
+      ? allZones.filter((k) => k && k !== 'full_body')
+      : muscleGroups.map((k) => String(k)).filter((k) => k && k !== 'full_body');
 
-    const timer = window.setTimeout(() => {
-      const isSuggest = !q;
-      searchCatalogExercises({
-        search: isSuggest ? '' : q,
-        zoneKey: muscleGroups.join(','),
-        typeKey: workoutType,
-      })
-        .then((data) => {
-          if (!alive) return;
-          setExerciseResults(Array.isArray(data?.items) ? data.items : []);
-        })
-        .catch((e) => {
-          if (!alive) return;
-          setExerciseResults([]);
-          setExerciseError(e?.message || tr(lang, 'Error buscando ejercicios', 'Error searching exercises'));
-        })
-        .finally(() => {
-          if (!alive) return;
-          setExerciseLoading(false);
-        });
-    }, q ? 180 : 120);
-
-    return () => {
-      alive = false;
-      window.clearTimeout(timer);
-    };
-  }, [lang, muscleGroups, search, workoutType]);
-
-  useEffect(() => {
-    let alive = true;
-    const q = search.trim();
-    if (q) return undefined;
-
-    const selectedKeys = muscleGroups.map((k) => String(k)).filter(Boolean);
-    if (!selectedKeys.length) {
+    if (!zoneKeys.length) {
       setZoneExerciseMap({});
-      return undefined;
+      setZoneExerciseLoading(false);
+      setZoneExerciseError('');
+      return () => {
+        alive = false;
+      };
     }
 
     setZoneExerciseError('');
     setZoneExerciseLoading(true);
 
     Promise.all(
-      selectedKeys.map(async (zoneKey) => {
+      zoneKeys.map(async (zoneKey) => {
         const data = await searchCatalogExercises({
           search: '',
           zoneKey,
@@ -541,19 +499,7 @@ export default function CreateSession() {
     return () => {
       alive = false;
     };
-  }, [lang, muscleGroups, search, workoutType]);
-
-  const results = useMemo(() => {
-    if (exerciseLoading) return [];
-    const limit = search.trim() ? 8 : 6;
-    return (Array.isArray(exerciseResults) ? exerciseResults : [])
-      .slice(0, limit)
-      .map((x) => ({
-        id: String(x?._id || x?.id || ''),
-        name: String(x?.nombre || '').toUpperCase(),
-      }))
-      .filter((x) => x.id && x.name);
-  }, [exerciseLoading, exerciseResults, search]);
+  }, [lang, muscleGroups, workoutType, zones]);
 
   const savedWorkouts = useMemo(() => [], []);
 
@@ -846,103 +792,86 @@ export default function CreateSession() {
                 {tr(lang, 'AÑADIR EJERCICIO', 'ADD EXERCISE')}
               </div>
 
-              <div className="mt-4 grid grid-cols-1 gap-3">
-                <div className="relative">
-                  <Search className="h-4 w-4 text-white/35 absolute left-4 top-1/2 -translate-y-1/2" />
-                  <Input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder={tr(lang, 'BUSCAR EJERCICIO (EJ: PRESS BANCA, FONDOS...)', 'SEARCH EXERCISE (E.G. BENCH PRESS, DIPS...)')}
-                    className="pl-11"
-                  />
-                </div>
-              </div>
-
-              <div className="h-px w-full bg-white/10 my-5" />
-
               <div className="text-[10px] sm:text-[11px] uppercase tracking-widest text-white/45 mb-3">
-                {search.trim()
-                  ? tr(lang, 'RESULTADOS', 'RESULTS')
-                  : tr(lang, 'SUGERENCIAS', 'SUGGESTIONS')}
+                {muscleGroups.some((k) => String(k) === 'full_body')
+                  ? tr(lang, 'EJERCICIOS (CUERPO COMPLETO)', 'EXERCISES (FULL BODY)')
+                  : tr(lang, 'EJERCICIOS POR ZONA', 'EXERCISES BY ZONE')}
               </div>
-              {search.trim() ? (
-                <div className="space-y-3">
-                  {exerciseError ? (
-                    <div className="rounded-lg border border-[#ff7849]/25 bg-[#ff7849]/10 px-4 py-3 text-[12px] text-white/85">
-                      {exerciseError}
-                    </div>
-                  ) : null}
-                  {exerciseLoading ? (
-                    <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-[12px] text-white/60">
-                      {tr(lang, 'Buscando...', 'Searching...')}
-                    </div>
-                  ) : null}
-                  {results.map((ex) => (
-                    <ResultRow key={ex.id} label={ex.name} onAdd={() => addExercise(ex)} />
-                  ))}
-                </div>
-              ) : (
-                <div>
-                  {zoneExerciseError ? (
-                    <div className="rounded-lg border border-[#ff7849]/25 bg-[#ff7849]/10 px-4 py-3 text-[12px] text-white/85">
-                      {zoneExerciseError}
-                    </div>
-                  ) : null}
-                  {zoneExerciseLoading ? (
-                    <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-[12px] text-white/60">
-                      {tr(lang, 'Cargando sugerencias...', 'Loading suggestions...')}
-                    </div>
-                  ) : null}
-
-                  <div
-                    className="grid gap-4"
-                    style={{
-                      gridTemplateColumns: `repeat(${Math.max(1, muscleGroups.length)}, minmax(0, 1fr))`,
-                    }}
-                  >
-                    {muscleGroups.map((zoneKey, idx) => {
-                      const key = String(zoneKey);
-                      const items = Array.isArray(zoneExerciseMap?.[key]) ? zoneExerciseMap[key] : [];
-                      return (
-                        <div
-                          key={`${key}_${idx}`}
-                          className="rounded-lg border border-white/10 bg-white/[0.02] overflow-hidden"
-                        >
-                          <div className="px-4 py-3 border-b border-white/10 text-[11px] font-bold tracking-widest text-white/75 uppercase">
-                            {zoneLabelByKey[key] || key}
-                          </div>
-                          <div className="max-h-[260px] overflow-auto">
-                            {items.length ? (
-                              <div className="divide-y divide-white/5">
-                                {items.map((it) => {
-                                  const id = String(it?._id || it?.id || '');
-                                  const name = String(it?.nombre || '').trim().toUpperCase();
-                                  if (!id || !name) return null;
-                                  return (
-                                    <button
-                                      key={id}
-                                      type="button"
-                                      onClick={() => addExercise({ id, name })}
-                                      className="w-full text-left px-4 py-2.5 text-[12px] text-white/80 hover:bg-[#ff7849]/10 hover:text-white transition"
-                                      title={name}
-                                    >
-                                      <span className="block truncate">{name}</span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <div className="px-4 py-3 text-[12px] text-white/50">
-                                {tr(lang, 'Sin ejercicios para esta zona.', 'No exercises for this zone.')}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+              <div>
+                {zoneExerciseError ? (
+                  <div className="rounded-lg border border-[#ff7849]/25 bg-[#ff7849]/10 px-4 py-3 text-[12px] text-white/85">
+                    {zoneExerciseError}
                   </div>
+                ) : null}
+                {zoneExerciseLoading ? (
+                  <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-[12px] text-white/60">
+                    {tr(lang, 'Cargando ejercicios...', 'Loading exercises...')}
+                  </div>
+                ) : null}
+
+                <div
+                  className={cx(
+                    'grid gap-4',
+                    muscleGroups.some((k) => String(k) === 'full_body')
+                      ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                      : ''
+                  )}
+                  style={
+                    muscleGroups.some((k) => String(k) === 'full_body')
+                      ? undefined
+                      : {
+                          gridTemplateColumns: `repeat(${Math.max(
+                            1,
+                            muscleGroups.filter((k) => String(k) !== 'full_body').length
+                          )}, minmax(0, 1fr))`,
+                        }
+                  }
+                >
+                  {(muscleGroups.some((k) => String(k) === 'full_body')
+                    ? Object.keys(zoneExerciseMap || {}).filter((k) => k !== 'full_body')
+                    : muscleGroups.filter((k) => String(k) !== 'full_body')
+                  ).map((zoneKey, idx) => {
+                    const key = String(zoneKey);
+                    const items = Array.isArray(zoneExerciseMap?.[key]) ? zoneExerciseMap[key] : [];
+                    return (
+                      <div
+                        key={`${key}_${idx}`}
+                        className="rounded-lg border border-white/10 bg-white/[0.02] overflow-hidden"
+                      >
+                        <div className="px-4 py-3 border-b border-white/10 text-[11px] font-bold tracking-widest text-white/75 uppercase">
+                          {zoneLabelByKey[key] || key}
+                        </div>
+                        <div className="max-h-[260px] overflow-auto">
+                          {items.length ? (
+                            <div className="divide-y divide-white/5">
+                              {items.map((it) => {
+                                const id = String(it?._id || it?.id || '');
+                                const name = String(it?.nombre || '').trim().toUpperCase();
+                                if (!id || !name) return null;
+                                return (
+                                  <button
+                                    key={id}
+                                    type="button"
+                                    onClick={() => addExercise({ id, name })}
+                                    className="w-full text-left px-4 py-2.5 text-[12px] text-white/80 hover:bg-[#ff7849]/10 hover:text-white transition"
+                                    title={name}
+                                  >
+                                    <span className="block truncate">{name}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="px-4 py-3 text-[12px] text-white/50">
+                              {tr(lang, 'Sin ejercicios para esta zona.', 'No exercises for this zone.')}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
             </div>
           </Card>
 
