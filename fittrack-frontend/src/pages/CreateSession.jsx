@@ -153,6 +153,36 @@ function PrimaryButton({ children, className, ...props }) {
 
 function SetRow({ index, reps, weight, option, onChange, onRemove }) {
   const { lang } = useI18n();
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = React.useRef(null);
+
+  const optionItems = useMemo(
+    () => [
+      { value: 'OPCIONES', label: tr(lang, 'OPCIONES', 'OPTIONS') },
+      { value: 'NORMAL', label: tr(lang, 'NORMAL', 'NORMAL') },
+      { value: 'CALENTAMIENTO', label: tr(lang, 'CALENTAMIENTO', 'WARM-UP') },
+      { value: 'APROXIMACION', label: tr(lang, 'APROXIMACIÓN', 'RAMP-UP') },
+      { value: 'EFECTIVA', label: tr(lang, 'EFECTIVA', 'WORKING SET') },
+      { value: 'DROP_SET', label: tr(lang, 'DROP SET', 'DROP SET') },
+      { value: 'AL_FALLO', label: tr(lang, 'AL FALLO', 'TO FAILURE') },
+    ],
+    [lang]
+  );
+
+  const selectedLabel = useMemo(() => {
+    return optionItems.find((x) => x.value === option)?.label || optionItems[0].label;
+  }, [option, optionItems]);
+
+  useEffect(() => {
+    const onDocMouseDown = (event) => {
+      if (!dropdownRef.current) return;
+      if (dropdownRef.current.contains(event.target)) return;
+      setIsOpen(false);
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    return () => document.removeEventListener('mousedown', onDocMouseDown);
+  }, []);
+
   return (
     <div className="grid grid-cols-[44px_1fr_1fr_1fr_44px] gap-3 items-center">
       <div className="h-10 w-10 rounded-lg border border-white/20 bg-white/[0.02] flex items-center justify-center text-[12px] font-semibold text-white/80">
@@ -175,21 +205,51 @@ function SetRow({ index, reps, weight, option, onChange, onRemove }) {
         inputMode="decimal"
       />
 
-      <div className="relative">
-        <select
-          value={option}
-          onChange={(e) => onChange({ option: e.target.value })}
-          className="appearance-none w-full rounded-lg border border-white/15 bg-white/[0.03] px-4 py-2.5 pr-10 text-[12px] text-white/70 outline-none focus:border-white/30 focus:bg-white/[0.06]"
+      <div className="relative" ref={dropdownRef}>
+        <button
+          type="button"
+          onClick={() => setIsOpen((v) => !v)}
+          className="w-full rounded-lg border border-white/15 bg-white/[0.03] px-4 py-2.5 pr-10 text-left text-[12px] text-white/80 outline-none hover:border-white/25 focus:border-white/30 focus:bg-white/[0.06] transition"
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
         >
-          <option value="OPCIONES">{tr(lang, 'OPCIONES', 'OPTIONS')}</option>
-          <option value="NORMAL">{tr(lang, 'NORMAL', 'NORMAL')}</option>
-          <option value="CALENTAMIENTO">{tr(lang, 'CALENTAMIENTO', 'WARM-UP')}</option>
-          <option value="APROXIMACION">{tr(lang, 'APROXIMACIÓN', 'RAMP-UP')}</option>
-          <option value="EFECTIVA">{tr(lang, 'EFECTIVA', 'WORKING SET')}</option>
-          <option value="DROP_SET">{tr(lang, 'DROP SET', 'DROP SET')}</option>
-          <option value="AL_FALLO">{tr(lang, 'AL FALLO', 'TO FAILURE')}</option>
-        </select>
-        <ChevronDown className="h-4 w-4 text-white/40 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <span className="block truncate">{selectedLabel}</span>
+          <ChevronDown
+            className={cx(
+              'h-4 w-4 text-white/40 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none transition-transform',
+              isOpen ? 'rotate-180' : ''
+            )}
+          />
+        </button>
+
+        {isOpen ? (
+          <div
+            role="listbox"
+            className="absolute z-50 mt-2 w-full rounded-lg border border-white/10 bg-[#2a2a2a] shadow-xl overflow-hidden"
+          >
+            {optionItems.map((item) => {
+              const active = item.value === option;
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  onClick={() => {
+                    onChange({ option: item.value });
+                    setIsOpen(false);
+                  }}
+                  className={cx(
+                    'w-full text-left px-4 py-2.5 text-[12px] transition',
+                    active ? 'bg-white/10 text-white/90' : 'text-white/80 hover:bg-[#ff7849]/15 hover:text-white'
+                  )}
+                >
+                  <span className="block truncate">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
 
       <button
