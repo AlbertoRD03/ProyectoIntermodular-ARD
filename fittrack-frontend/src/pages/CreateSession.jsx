@@ -380,6 +380,7 @@ export default function CreateSession() {
   const [zones, setZones] = useState([]);
   const [muscleGroups, setMuscleGroups] = useState(['full_body']);
   const [sessionName, setSessionName] = useState('');
+  const [sessionNameTouched, setSessionNameTouched] = useState(false);
   const [savedQuery, setSavedQuery] = useState('');
   const [copiedWorkoutId, setCopiedWorkoutId] = useState(null);
   const [isSavedPanelOpen, setIsSavedPanelOpen] = useState(false);
@@ -480,11 +481,12 @@ export default function CreateSession() {
   }, [filteredZones, lang, muscleGroups, zones]);
 
   useEffect(() => {
+    if (sessionNameTouched) return;
     if (!sessionName.trim()) {
       const next = zoneLabels.join(' + ');
       if (next) setSessionName(next);
     }
-  }, [sessionName, zoneLabels]);
+  }, [sessionName, sessionNameTouched, zoneLabels]);
 
   useEffect(() => {
     let alive = true;
@@ -750,7 +752,10 @@ export default function CreateSession() {
                 <FieldLabel>{tr(lang, 'NOMBRE DE LA SESIÓN', 'SESSION NAME')}</FieldLabel>
                 <Input
                   value={sessionName}
-                  onChange={(e) => setSessionName(e.target.value)}
+                  onChange={(e) => {
+                    setSessionNameTouched(true);
+                    setSessionName(e.target.value);
+                  }}
                   placeholder={tr(lang, 'Ej: Pecho pesado', 'e.g. Heavy chest')}
                 />
               </div>
