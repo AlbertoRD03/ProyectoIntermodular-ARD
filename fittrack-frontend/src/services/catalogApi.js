@@ -24,12 +24,12 @@ export function listWorkoutTypes() {
   return fetchJson('/catalog/types');
 }
 
-export function searchCatalogExercises({ search = '', zoneKey = '', typeKey = '' } = {}) {
+export function searchCatalogExercises({ search = '', zoneKey = '', typeKey = '', limit } = {}) {
   const params = new URLSearchParams();
   if (search) params.set('search', search);
   if (zoneKey) params.set('zoneKey', zoneKey);
   if (typeKey) params.set('typeKey', typeKey);
+  if (limit !== undefined && limit !== null && String(limit).trim() !== '') params.set('limit', String(limit));
   const qs = params.toString();
   return fetchJson(`/catalog/exercises${qs ? `?${qs}` : ''}`);
 }
-

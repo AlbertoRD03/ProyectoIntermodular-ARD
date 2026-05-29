@@ -339,6 +339,9 @@ export default function CreateSession() {
   const [exerciseResults, setExerciseResults] = useState([]);
   const [exerciseLoading, setExerciseLoading] = useState(false);
   const [exerciseError, setExerciseError] = useState('');
+  const [zoneExerciseMap, setZoneExerciseMap] = useState({});
+  const [zoneExerciseLoading, setZoneExerciseLoading] = useState(false);
+  const [zoneExerciseError, setZoneExerciseError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [catalogError, setCatalogError] = useState('');
@@ -429,6 +432,18 @@ export default function CreateSession() {
       .map((z) => (lang === 'en' ? z.label_en : z.label_es));
   }, [filteredZones, lang, muscleGroups, zones]);
 
+  const zoneLabelByKey = useMemo(() => {
+    const source = filteredZones.length ? filteredZones : zones;
+    const map = new Map(source.map((z) => [String(z?.key), z]));
+    const result = {};
+    muscleGroups.forEach((k) => {
+      const z = map.get(String(k));
+      if (!z) return;
+      result[String(k)] = (lang === 'en' ? z.label_en : z.label_es).toUpperCase();
+    });
+    return result;
+  }, [filteredZones, lang, muscleGroups, zones]);
+
   const typeLabel = useMemo(() => {
     const source = filteredTypes.length ? filteredTypes : types;
     const t = source.find((x) => String(x?.key) === String(workoutType));
@@ -477,9 +492,60 @@ export default function CreateSession() {
     };
   }, [lang, muscleGroups, search, workoutType]);
 
+  useEffect(() => {
+    let alive = true;
+    const q = search.trim();
+    if (q) return undefined;
+
+    const selectedKeys = muscleGroups.map((k) => String(k)).filter(Boolean);
+    if (!selectedKeys.length) {
+      setZoneExerciseMap({});
+      return undefined;
+    }
+
+    setZoneExerciseError('');
+    setZoneExerciseLoading(true);
+
+    Promise.all(
+      selectedKeys.map(async (zoneKey) => {
+        const data = await searchCatalogExercises({
+          search: '',
+          zoneKey,
+          typeKey: workoutType,
+          // load "full list" but keep it bounded
+          limit: 500,
+        });
+        return [zoneKey, Array.isArray(data?.items) ? data.items : []];
+      })
+    )
+      .then((pairs) => {
+        if (!alive) return;
+        const next = {};
+        pairs.forEach(([k, items]) => {
+          next[String(k)] = items;
+        });
+        setZoneExerciseMap(next);
+      })
+      .catch((e) => {
+        if (!alive) return;
+        setZoneExerciseMap({});
+        setZoneExerciseError(
+          e?.message || tr(lang, 'No se pudieron cargar sugerencias', 'Could not load suggestions')
+        );
+      })
+      .finally(() => {
+        if (!alive) return;
+        setZoneExerciseLoading(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [lang, muscleGroups, search, workoutType]);
+
   const results = useMemo(() => {
     if (exerciseLoading) return [];
-    const limit = search.trim() ? 6 : 5;
+    const limit = search.trim() ? 8 : 6;
     return (Array.isArray(exerciseResults) ? exerciseResults : [])
       .slice(0, limit)
       .map((x) => ({
@@ -799,21 +865,84 @@ export default function CreateSession() {
                   ? tr(lang, 'RESULTADOS', 'RESULTS')
                   : tr(lang, 'SUGERENCIAS', 'SUGGESTIONS')}
               </div>
-              <div className="space-y-3">
-                {exerciseError ? (
-                  <div className="rounded-lg border border-[#ff7849]/25 bg-[#ff7849]/10 px-4 py-3 text-[12px] text-white/85">
-                    {exerciseError}
+              {search.trim() ? (
+                <div className="space-y-3">
+                  {exerciseError ? (
+                    <div className="rounded-lg border border-[#ff7849]/25 bg-[#ff7849]/10 px-4 py-3 text-[12px] text-white/85">
+                      {exerciseError}
+                    </div>
+                  ) : null}
+                  {exerciseLoading ? (
+                    <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-[12px] text-white/60">
+                      {tr(lang, 'Buscando...', 'Searching...')}
+                    </div>
+                  ) : null}
+                  {results.map((ex) => (
+                    <ResultRow key={ex.id} label={ex.name} onAdd={() => addExercise(ex)} />
+                  ))}
+                </div>
+              ) : (
+                <div>
+                  {zoneExerciseError ? (
+                    <div className="rounded-lg border border-[#ff7849]/25 bg-[#ff7849]/10 px-4 py-3 text-[12px] text-white/85">
+                      {zoneExerciseError}
+                    </div>
+                  ) : null}
+                  {zoneExerciseLoading ? (
+                    <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-[12px] text-white/60">
+                      {tr(lang, 'Cargando sugerencias...', 'Loading suggestions...')}
+                    </div>
+                  ) : null}
+
+                  <div
+                    className="grid gap-4"
+                    style={{
+                      gridTemplateColumns: `repeat(${Math.max(1, muscleGroups.length)}, minmax(0, 1fr))`,
+                    }}
+                  >
+                    {muscleGroups.map((zoneKey, idx) => {
+                      const key = String(zoneKey);
+                      const items = Array.isArray(zoneExerciseMap?.[key]) ? zoneExerciseMap[key] : [];
+                      return (
+                        <div
+                          key={`${key}_${idx}`}
+                          className="rounded-lg border border-white/10 bg-white/[0.02] overflow-hidden"
+                        >
+                          <div className="px-4 py-3 border-b border-white/10 text-[11px] font-bold tracking-widest text-white/75 uppercase">
+                            {zoneLabelByKey[key] || key}
+                          </div>
+                          <div className="max-h-[260px] overflow-auto">
+                            {items.length ? (
+                              <div className="divide-y divide-white/5">
+                                {items.map((it) => {
+                                  const id = String(it?._id || it?.id || '');
+                                  const name = String(it?.nombre || '').trim().toUpperCase();
+                                  if (!id || !name) return null;
+                                  return (
+                                    <button
+                                      key={id}
+                                      type="button"
+                                      onClick={() => addExercise({ id, name })}
+                                      className="w-full text-left px-4 py-2.5 text-[12px] text-white/80 hover:bg-[#ff7849]/10 hover:text-white transition"
+                                      title={name}
+                                    >
+                                      <span className="block truncate">{name}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="px-4 py-3 text-[12px] text-white/50">
+                                {tr(lang, 'Sin ejercicios para esta zona.', 'No exercises for this zone.')}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ) : null}
-                {exerciseLoading ? (
-                  <div className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-3 text-[12px] text-white/60">
-                    {tr(lang, 'Buscando...', 'Searching...')}
-                  </div>
-                ) : null}
-                {results.map((ex) => (
-                  <ResultRow key={ex.id} label={ex.name} onAdd={() => addExercise(ex)} />
-                ))}
-              </div>
+                </div>
+              )}
             </div>
           </Card>
 

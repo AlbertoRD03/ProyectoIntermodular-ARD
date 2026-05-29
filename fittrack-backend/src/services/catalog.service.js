@@ -183,11 +183,13 @@ export const listWorkoutTypes = async () => {
   return WorkoutType.find({}).sort({ label_es: 1 }).lean();
 };
 
-export const searchExercises = async ({ search = '', zoneKey = '', typeKey = '' } = {}) => {
+export const searchExercises = async ({ search = '', zoneKey = '', typeKey = '', limit = 50 } = {}) => {
   await seedIfEmpty();
   const q = String(search || '').trim();
   const z = String(zoneKey || '').trim().toLowerCase();
   const t = String(typeKey || '').trim().toLowerCase();
+  const rawLimit = Number.parseInt(String(limit ?? 50), 10);
+  const safeLimit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 500) : 50;
 
   const filter = {};
   if (q) filter.nombre = { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
@@ -200,5 +202,5 @@ export const searchExercises = async ({ search = '', zoneKey = '', typeKey = '' 
   }
   if (t) filter.typeKeys = t;
 
-  return ExerciseCatalog.find(filter).sort({ nombre: 1 }).limit(50).lean();
+  return ExerciseCatalog.find(filter).sort({ nombre: 1 }).limit(safeLimit).lean();
 };
