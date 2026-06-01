@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart3, Calendar, Plus, Trash2, TrendingUp, Weight } from 'lucide-react';
+import { BarChart3, Calendar, Info, Plus, Trash2, TrendingUp, Weight } from 'lucide-react';
 
 import Header from '../components/Header';
 import { API_BASE } from '../config/apiBase';
@@ -9,6 +9,42 @@ import { useI18n } from '../i18n/I18nProvider';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
+}
+
+function toISODate(d) {
+  const date = d instanceof Date ? d : new Date(String(d || ''));
+  if (!Number.isFinite(date.getTime())) return '';
+  const yyyy = String(date.getFullYear()).padStart(4, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function startOfDay(d) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function startOfISOWeek(d) {
+  const date = new Date(d);
+  const day = (date.getDay() + 6) % 7; // Mon=0..Sun=6
+  date.setDate(date.getDate() - day);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function startOfMonth(d) {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+function addDays(d, n) {
+  return new Date(d.getTime() + n * 24 * 60 * 60 * 1000);
+}
+
+function formatTonnage(kg) {
+  const v = Number(kg);
+  if (!Number.isFinite(v)) return '--';
+  if (v >= 1000) return `${Math.round((v / 1000) * 10) / 10}`;
+  return `${Math.round(v)}`;
 }
 
 function Card({ title, icon: Icon, children }) {
@@ -60,31 +96,125 @@ function Segmented({ value, onChange, options }) {
   );
 }
 
-function SvgBarChart({ data, height = 160 }) {
+function Hint({ text }) {
+  return (
+    <span className="relative inline-flex align-middle">
+      <span className="group inline-flex cursor-help items-center justify-center rounded-md p-1 text-white/35 hover:text-white/70">
+        <Info className="h-4 w-4" />
+        <span className="pointer-events-none absolute right-0 top-[calc(100%+10px)] z-20 hidden w-[280px] rounded-xl border border-white/10 bg-[#121212] px-4 py-3 text-[12px] text-white/75 shadow-[0_30px_90px_-40px_rgba(0,0,0,0.9)] group-hover:block">
+          {text}
+        </span>
+      </span>
+    </span>
+  );
+}
+
+function SvgBarChart({ data, height = 180, tooltipFormatter }) {
   const safe = Array.isArray(data) ? data : [];
   const max = Math.max(1, ...safe.map((d) => Number(d?.value) || 0));
-  const width = 640;
-  const padding = 18;
-  const innerW = width - padding * 2;
-  const innerH = height - padding * 2;
-  const barGap = 6;
+  const width = 760;
+  const paddingL = 44;
+  const paddingR = 18;
+  const paddingT = 18;
+  const paddingB = 28;
+  const innerW = width - paddingL - paddingR;
+  const innerH = height - paddingT - paddingB;
+  const barGap = 8;
   const barW = safe.length ? (innerW - barGap * (safe.length - 1)) / safe.length : innerW;
+  const ticks = 4;
+  const formatTick = (v) => {
+    if (v >= 1000) return `${Math.round((v / 1000) * 10) / 10}T`;
+    return `${Math.round(v)}kg`;
+  };
+
+  const [hover, setHover] = useState(null);
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full">
-      <rect x="0" y="0" width={width} height={height} rx="12" fill="rgba(255,255,255,0.03)" />
-      {safe.map((d, idx) => {
-        const v = Number(d?.value) || 0;
-        const h = Math.max(0, (v / max) * innerH);
-        const x = padding + idx * (barW + barGap);
-        const y = padding + (innerH - h);
-        return (
-          <g key={d.key || idx}>
-            <rect x={x} y={y} width={barW} height={h} rx="6" fill="rgba(255,120,73,0.85)" />
-          </g>
-        );
-      })}
-    </svg>
+    <div className="relative">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full">
+        <defs>
+          <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgba(255,120,73,0.95)" />
+            <stop offset="100%" stopColor="rgba(255,120,73,0.55)" />
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width={width} height={height} rx="14" fill="rgba(255,255,255,0.03)" />
+
+        {/* grid + ticks */}
+        {Array.from({ length: ticks + 1 }, (_, i) => {
+          const y = paddingT + (innerH * i) / ticks;
+          const v = max - (max * i) / ticks;
+          return (
+            <g key={i}>
+              <line
+                x1={paddingL}
+                x2={width - paddingR}
+                y1={y}
+                y2={y}
+                stroke="rgba(255,255,255,0.08)"
+                strokeWidth="1"
+              />
+              <text
+                x={paddingL - 10}
+                y={y + 4}
+                textAnchor="end"
+                fontSize="10"
+                fill="rgba(255,255,255,0.45)"
+              >
+                {formatTick(v)}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* bars */}
+        {safe.map((d, idx) => {
+          const v = Number(d?.value) || 0;
+          const h = Math.max(0, (v / max) * innerH);
+          const x = paddingL + idx * (barW + barGap);
+          const y = paddingT + (innerH - h);
+          const isHot = hover?.idx === idx;
+          return (
+            <g
+              key={d.key || idx}
+              onMouseEnter={() => setHover({ idx, d })}
+              onMouseLeave={() => setHover(null)}
+            >
+              <rect
+                x={x}
+                y={y}
+                width={barW}
+                height={h}
+                rx="8"
+                fill="url(#barGrad)"
+                opacity={isHot ? 1 : 0.85}
+              />
+              {/* x labels: sparse */}
+              {safe.length <= 12 || idx % Math.ceil(safe.length / 8) === 0 ? (
+                <text
+                  x={x + barW / 2}
+                  y={height - 10}
+                  textAnchor="middle"
+                  fontSize="10"
+                  fill="rgba(255,255,255,0.45)"
+                >
+                  {d?.label || ''}
+                </text>
+              ) : null}
+            </g>
+          );
+        })}
+      </svg>
+
+      {hover ? (
+        <div className="pointer-events-none absolute left-4 top-4 z-10 w-[260px] rounded-xl border border-white/10 bg-[#121212] px-4 py-3 text-[12px] text-white/80 shadow-[0_30px_90px_-40px_rgba(0,0,0,0.9)]">
+          <div className="font-semibold text-white/90">{hover.d?.title || hover.d?.key}</div>
+          <div className="mt-1 text-white/65">
+            {tooltipFormatter ? tooltipFormatter(hover.d) : `${Math.round(Number(hover.d?.value) || 0)} kg`}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -172,35 +302,13 @@ function Heatmap({ startDate, days, valueByDay }) {
           </div>
         ))}
       </div>
-      <div className="mt-3 text-[12px] text-white/55">
-        {`0 → ${formatTonnage(max)} ${max >= 1000 ? 'T' : 'KG'} • ${weeks}w`}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-[12px] text-white/55">
+        <div>{`0 → ${formatTonnage(max)} ${max >= 1000 ? 'T' : 'KG'}`}</div>
+        <div>{`${weeks} semanas • más oscuro = más volumen`}</div>
       </div>
     </div>
   );
 }
-
-const toISODate = (d) => {
-  const date = d instanceof Date ? d : new Date(String(d || ''));
-  if (!Number.isFinite(date.getTime())) return '';
-  const yyyy = String(date.getFullYear()).padStart(4, '0');
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-};
-
-const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-
-const startOfISOWeek = (d) => {
-  const date = new Date(d);
-  const day = (date.getDay() + 6) % 7; // Mon=0..Sun=6
-  date.setDate(date.getDate() - day);
-  date.setHours(0, 0, 0, 0);
-  return date;
-};
-
-const startOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
-
-const addDays = (d, n) => new Date(d.getTime() + n * 24 * 60 * 60 * 1000);
 
 const formatKg = (n) => {
   const v = Number(n);
@@ -208,12 +316,6 @@ const formatKg = (n) => {
   return String(Math.round(v * 10) / 10);
 };
 
-const formatTonnage = (kg) => {
-  const v = Number(kg);
-  if (!Number.isFinite(v)) return '--';
-  if (v >= 1000) return `${Math.round((v / 1000) * 10) / 10}`;
-  return `${Math.round(v)}`;
-};
 
 const sumSessionVolumeKg = (session) => {
   const ex = Array.isArray(session?.ejercicios_realizados) ? session.ejercicios_realizados : [];
@@ -356,7 +458,7 @@ export default function WeightEvolution() {
         const k = toISODate(it.date);
         if (map.has(k)) map.set(k, map.get(k) + it.volumeKg);
       }
-      return keys.map((k) => ({ key: k, label: k.slice(5), value: map.get(k) || 0 }));
+      return keys.map((k) => ({ key: k, title: k, label: k.slice(5), value: map.get(k) || 0 }));
     }
 
     if (range === 'semana') {
@@ -368,7 +470,7 @@ export default function WeightEvolution() {
         const wk = toISODate(startOfISOWeek(it.date));
         if (map.has(wk)) map.set(wk, map.get(wk) + it.volumeKg);
       }
-      return keys.map((k) => ({ key: k, label: k.slice(5), value: map.get(k) || 0 }));
+      return keys.map((k) => ({ key: k, title: `Semana ${k}`, label: k.slice(5), value: map.get(k) || 0 }));
     }
 
     const start = startOfMonth(new Date(now.getFullYear(), now.getMonth() - 11, 1));
@@ -383,7 +485,7 @@ export default function WeightEvolution() {
       const mk = toISODate(m);
       if (map.has(mk)) map.set(mk, map.get(mk) + it.volumeKg);
     }
-    return keys.map((k) => ({ key: k, label: k.slice(0, 7), value: map.get(k) || 0 }));
+    return keys.map((k) => ({ key: k, title: k.slice(0, 7), label: k.slice(0, 7), value: map.get(k) || 0 }));
   }, [sessions, range]);
 
   const volumeKPIs = useMemo(() => {
@@ -595,6 +697,9 @@ export default function WeightEvolution() {
                 <div className="mt-2 text-[12px] text-white/55">
                   {t('Top')}: <span className="text-white/75">{volumeKPIs.topDay?.name || '--'}</span>
                 </div>
+                <div className="mt-3 text-[12px] text-white/50">
+                  Volumen = repeticiones × peso (por set). <Hint text="El 'volumen' (tonnage) es la suma de repeticiones x carga de todos tus sets. Es útil para ver cuánto trabajo total haces." />
+                </div>
               </Card>
               <Card title={t('Esta semana').toUpperCase()} icon={TrendingUp}>
                 <StatValue value={formatTonnage(volumeKPIs.week)} suffix={volumeKPIs.week >= 1000 ? 'T' : 'KG'} />
@@ -636,21 +741,37 @@ export default function WeightEvolution() {
                 </div>
               </div>
 
-              <div className="lg:col-span-3 rounded-2xl border border-white/15 bg-white/[0.02] p-6">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-[12px] font-bold tracking-[0.22em] text-white/70">
-                    {t('Pesos levantados').toUpperCase()} ({range.toUpperCase()})
+                <div className="lg:col-span-3 rounded-2xl border border-white/15 bg-white/[0.02] p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[12px] font-bold tracking-[0.22em] text-white/70">
+                    {t('Pesos levantados').toUpperCase()} ({range.toUpperCase()}){' '}
+                    <Hint text="Esto NO es tu peso corporal. Es el volumen total levantado: sumamos reps × kg en todos tus sets (sentadilla, press banca, etc.)." />
+                    </div>
+                    {sessionsLoading ? <div className="text-[12px] text-white/55">{t('Cargando...')}</div> : null}
                   </div>
-                  {sessionsLoading ? <div className="text-[12px] text-white/55">{t('Cargando...')}</div> : null}
-                </div>
                 {sessionsError ? <div className="mt-3 text-[13px] text-[#ff7849]/90">{sessionsError}</div> : null}
                 <div className="mt-5">
-                  <SvgBarChart data={volumeSeries.map((d) => ({ key: d.key, value: d.value }))} />
+                  <SvgBarChart
+                    data={volumeSeries}
+                    tooltipFormatter={(d) => {
+                      const v = Number(d?.value) || 0;
+                      return v >= 1000 ? `${Math.round((v / 1000) * 10) / 10} toneladas` : `${Math.round(v)} kg`;
+                    }}
+                  />
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3 text-[12px] text-white/55 sm:grid-cols-4">
-                  <div>{t('Ventana')}: {range === 'dia' ? '14d' : range === 'semana' ? '12w' : '12m'}</div>
+                  <div>
+                    {t('Ventana')}: {range === 'dia' ? '14 días' : range === 'semana' ? '12 semanas' : '12 meses'}{' '}
+                    <Hint text="La ventana es el periodo que se muestra en la gráfica. No es un objetivo; solo el rango de tiempo visualizado." />
+                  </div>
                   <div>{t('Sesiones')}: {sessions.length}</div>
-                  <div>{t('Último punto')}: {formatTonnage(volumeSeries[volumeSeries.length - 1]?.value || 0)} {volumeSeries[volumeSeries.length - 1]?.value >= 1000 ? 'T' : 'KG'}</div>
+                  <div>
+                    {t('Último punto')}: {(() => {
+                      const lastNonZero = [...volumeSeries].reverse().find((x) => (Number(x?.value) || 0) > 0);
+                      const val = Number(lastNonZero?.value) || 0;
+                      return `${formatTonnage(val)} ${val >= 1000 ? 'T' : 'KG'}`;
+                    })()}
+                  </div>
                   <div>{t('Máximo')}: {formatTonnage(Math.max(0, ...volumeSeries.map((d) => d.value)))} {Math.max(0, ...volumeSeries.map((d) => d.value)) >= 1000 ? 'T' : 'KG'}</div>
                 </div>
               </div>
