@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import { useI18n } from '../i18n/I18nProvider';
+import { API_BASE } from '../config/apiBase';
+import { getAuthToken } from '../services/authToken';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -93,7 +95,6 @@ export default function Perfil() {
   const initial = params.get('tab') === 'fisico' ? 'fisico' : 'usuario';
   const [tab, setTab] = useState(initial);
   const [isEditingUser, setIsEditingUser] = useState(false);
-  const [isEditingPhysical, setIsEditingPhysical] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -126,34 +127,31 @@ export default function Perfil() {
   });
 
   const [physical, setPhysical] = useState(() => {
-    // Mock UI based on `views/PhysicalProfileScreen.png` (with localStorage persistence)
     const defaults = {
-      pesoActual: { value: 78, unit: 'KG' },
-      altura: { value: 175, unit: 'CM' },
-      imc: { value: 25.4, badge: 'NORMAL', percent: 55 },
-      grasa: { value: 18, unit: '%' },
-      masa: { value: 64, unit: 'KG' },
-      ultimaActualizacion: '20/01/2026',
+      pesoActual: { value: '--', unit: 'KG' },
+      altura: { value: '--', unit: 'CM' },
+      imc: { value: '--', badge: '---', percent: 0 },
+      grasa: { value: '--', unit: '%' },
+      masa: { value: '--', unit: 'KG' },
+      ultimaActualizacion: '',
       objetivos: {
-        pesoObjetivo: '75 KG',
-        tipo: 'PÉRDIDA DE PESO',
-        progresoLeft: '3 KG RESTANTES',
-        progresoPercent: 50,
-        fecha: '30/03/2026',
+        pesoObjetivo: '--',
+        tipo: '--',
+        progresoLeft: '--',
+        progresoPercent: 0,
+        fecha: '',
       },
       actividad: {
-        nivel: 'MODERADO',
-        metaSemanal: '4–5 ENTRENAMIENTOS',
-        preferida: 'GIMNASIO + CARDIO',
+        nivel: '--',
+        metaSemanal: '--',
+        preferida: '--',
       },
     };
-    try {
-      const stored = window.localStorage.getItem('fittrack_physical_profile');
-      return stored ? { ...defaults, ...JSON.parse(stored) } : defaults;
-    } catch {
-      return defaults;
-    }
+    return defaults;
   });
+
+  const [physicalLoading, setPhysicalLoading] = useState(false);
+  const [physicalError, setPhysicalError] = useState('');
 
   useEffect(() => {
     try {
@@ -165,21 +163,117 @@ export default function Perfil() {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem('fittrack_physical_profile', JSON.stringify(physical));
-    } catch {
-      // ignore
-    }
-  }, [physical]);
-
-  useEffect(() => {
-    try {
       window.localStorage.setItem('fittrack_profile_photo', photoDataUrl || '');
     } catch {
       // ignore
     }
   }, [photoDataUrl]);
 
-  const isEditing = tab === 'usuario' ? isEditingUser : isEditingPhysical;
+  const isEditing = tab === 'usuario' ? isEditingUser : false;
+
+  const fmtDate = (input) => {
+    const date = input instanceof Date ? input : new Date(String(input || ''));
+    if (!Number.isFinite(date.getTime())) return '';
+    try {
+      return new Intl.DateTimeFormat(lang === 'es' ? 'es-ES' : 'en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }).format(date);
+    } catch {
+      return '';
+    }
+  };
+
+  const calcBmi = (weightKg, heightCm) => {
+    const w = Number(weightKg);
+    const h = Number(heightCm);
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) {
+      return { value: '--', badge: '---', percent: 0 };
+    }
+    const bmi = w / Math.pow(h / 100, 2);
+    const rounded = Math.round(bmi * 10) / 10;
+    let badge = 'NORMAL';
+    if (rounded < 18.5) badge = 'BAJO';
+    else if (rounded < 25) badge = 'NORMAL';
+    else if (rounded < 30) badge = 'SOBREPESO';
+    else badge = 'OBESIDAD';
+    const percent = Math.max(0, Math.min(100, Math.round(((rounded - 15) / (35 - 15)) * 100)));
+    return { value: rounded, badge, percent };
+  };
+
+  useEffect(() => {
+    if (tab !== 'fisico') return;
+
+    const token = getAuthToken();
+    if (!token) {
+      navigate('/login', { replace: true });
+      return;
+    }
+
+    let cancelled = false;
+    setPhysicalError('');
+    setPhysicalLoading(true);
+
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/users/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+
+        if (!res.ok) {
+          setPhysicalError(data?.error || data?.message || t('No se pudieron cargar tus datos físicos.'));
+          return;
+        }
+
+        const userFromApi = data?.user || data?.data?.user || null;
+        if (userFromApi) {
+          try {
+            window.localStorage.setItem('fittrack_user', JSON.stringify(userFromApi));
+          } catch {
+            // ignore
+          }
+        }
+
+        const source = userFromApi?.physicalProfile || userFromApi || {};
+        const peso = source?.peso_kg ?? source?.pesoKg ?? '--';
+        const altura = source?.altura_cm ?? source?.alturaCm ?? '--';
+        const grasa = source?.grasa ?? source?.grasa_corporal ?? source?.body_fat ?? '--';
+        const masa = source?.masa_muscular ?? source?.muscle_mass ?? '--';
+        const actividad = source?.nivel_actividad ?? source?.nivel_experiencia ?? source?.nivelActividad ?? '--';
+        const objetivo = source?.objetivo_principal ?? source?.objetivoPrincipal ?? '--';
+        const last =
+          userFromApi?.updatedAt ||
+          userFromApi?.updated_at ||
+          userFromApi?.createdAt ||
+          userFromApi?.created_at ||
+          '';
+
+        const bmi = calcBmi(peso, altura);
+        setPhysical((p) => ({
+          ...p,
+          pesoActual: { ...p.pesoActual, value: peso === null || peso === undefined ? '--' : peso },
+          altura: { ...p.altura, value: altura === null || altura === undefined ? '--' : altura },
+          imc: bmi,
+          grasa: { ...p.grasa, value: grasa === null || grasa === undefined ? '--' : grasa },
+          masa: { ...p.masa, value: masa === null || masa === undefined ? '--' : masa },
+          ultimaActualizacion: fmtDate(last),
+          objetivos: { ...p.objetivos, tipo: objetivo || '--' },
+          actividad: { ...p.actividad, nivel: actividad || '--' },
+        }));
+      } catch (e) {
+        if (!cancelled) setPhysicalError(t('Error de conexión. Inténtalo de nuevo.'));
+      } finally {
+        if (!cancelled) setPhysicalLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, navigate, t, lang]);
 
   useEffect(() => {
     if (!showLogoutConfirm) return;
@@ -192,12 +286,11 @@ export default function Perfil() {
 
   const handleEditToggle = () => {
     if (tab === 'usuario') setIsEditingUser(true);
-    else setIsEditingPhysical(true);
+    else navigate('/physical-data');
   };
 
   const handleSave = () => {
     if (tab === 'usuario') setIsEditingUser(false);
-    else setIsEditingPhysical(false);
   };
 
   const handleChangePhotoClick = () => {
@@ -368,47 +461,20 @@ export default function Perfil() {
             ) : (
               <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <Section title={t('physical_current_metrics').toUpperCase()}>
+                  {physicalLoading ? (
+                    <div className="text-[13px] text-white/60">{t('Cargando...')}</div>
+                  ) : physicalError ? (
+                    <div className="text-[13px] text-[#ff7849]/90">{physicalError}</div>
+                  ) : null}
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <div className="rounded-xl border border-white/35 bg-black/10 p-5 text-center">
                       <Label>{t('physical_weight').toUpperCase()}</Label>
-                      {isEditingPhysical ? (
-                        <input
-                          value={physical.pesoActual.value}
-                          onChange={(e) =>
-                            setPhysical((p) => ({
-                              ...p,
-                              pesoActual: { ...p.pesoActual, value: e.target.value },
-                            }))
-                          }
-                          className="mt-4 w-full bg-transparent text-center text-[28px] font-bold text-white/95 outline-none"
-                          inputMode="decimal"
-                        />
-                      ) : (
-                        <div className="mt-4 text-[28px] font-bold text-white/95">
-                          {physical.pesoActual.value}
-                        </div>
-                      )}
+                      <div className="mt-4 text-[28px] font-bold text-white/95">{physical.pesoActual.value}</div>
                       <div className="text-[11px] tracking-wide text-white/40">{physical.pesoActual.unit}</div>
                     </div>
                     <div className="rounded-xl border border-white/35 bg-black/10 p-5 text-center">
                       <Label>{t('physical_height').toUpperCase()}</Label>
-                      {isEditingPhysical ? (
-                        <input
-                          value={physical.altura.value}
-                          onChange={(e) =>
-                            setPhysical((p) => ({
-                              ...p,
-                              altura: { ...p.altura, value: e.target.value },
-                            }))
-                          }
-                          className="mt-4 w-full bg-transparent text-center text-[28px] font-bold text-white/95 outline-none"
-                          inputMode="numeric"
-                        />
-                      ) : (
-                        <div className="mt-4 text-[28px] font-bold text-white/95">
-                          {physical.altura.value}
-                        </div>
-                      )}
+                      <div className="mt-4 text-[28px] font-bold text-white/95">{physical.altura.value}</div>
                       <div className="text-[11px] tracking-wide text-white/40">{physical.altura.unit}</div>
                     </div>
                   </div>
@@ -416,18 +482,7 @@ export default function Perfil() {
                   <div className="mt-6 rounded-xl border border-white/35 bg-black/10 p-5">
                     <Label>{t('physical_bmi').toUpperCase()}</Label>
                     <div className="mt-4 flex items-center justify-between gap-4">
-                      {isEditingPhysical ? (
-                        <input
-                          value={physical.imc.value}
-                          onChange={(e) =>
-                            setPhysical((p) => ({ ...p, imc: { ...p.imc, value: e.target.value } }))
-                          }
-                          className="w-[120px] bg-transparent text-[26px] font-bold text-white/95 outline-none"
-                          inputMode="decimal"
-                        />
-                      ) : (
-                        <div className="text-[26px] font-bold text-white/95">{physical.imc.value}</div>
-                      )}
+                      <div className="text-[26px] font-bold text-white/95">{physical.imc.value}</div>
                       <div className="rounded-md border border-white/35 bg-black/20 px-3 py-1 text-[10px] font-bold tracking-wide text-white/90">
                         {physical.imc.badge}
                       </div>
@@ -438,44 +493,18 @@ export default function Perfil() {
                   <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <div className="rounded-xl border border-white/35 bg-black/10 p-5 text-center">
                       <Label>{t('physical_body_fat').toUpperCase()}</Label>
-                      {isEditingPhysical ? (
-                        <input
-                          value={physical.grasa.value}
-                          onChange={(e) =>
-                            setPhysical((p) => ({ ...p, grasa: { ...p.grasa, value: e.target.value } }))
-                          }
-                          className="mt-4 w-full bg-transparent text-center text-[28px] font-bold text-white/95 outline-none"
-                          inputMode="decimal"
-                        />
-                      ) : (
-                        <div className="mt-4 text-[28px] font-bold text-white/95">
-                          {physical.grasa.value}
-                        </div>
-                      )}
+                      <div className="mt-4 text-[28px] font-bold text-white/95">{physical.grasa.value}</div>
                       <div className="text-[11px] tracking-wide text-white/40">{physical.grasa.unit}</div>
                     </div>
                     <div className="rounded-xl border border-white/35 bg-black/10 p-5 text-center">
                       <Label>{t('physical_muscle_mass').toUpperCase()}</Label>
-                      {isEditingPhysical ? (
-                        <input
-                          value={physical.masa.value}
-                          onChange={(e) =>
-                            setPhysical((p) => ({ ...p, masa: { ...p.masa, value: e.target.value } }))
-                          }
-                          className="mt-4 w-full bg-transparent text-center text-[28px] font-bold text-white/95 outline-none"
-                          inputMode="decimal"
-                        />
-                      ) : (
-                        <div className="mt-4 text-[28px] font-bold text-white/95">
-                          {physical.masa.value}
-                        </div>
-                      )}
+                      <div className="mt-4 text-[28px] font-bold text-white/95">{physical.masa.value}</div>
                       <div className="text-[11px] tracking-wide text-white/40">{physical.masa.unit}</div>
                     </div>
                   </div>
 
                   <div className="mt-8 text-[10px] uppercase tracking-[0.25em] text-white/35">
-                    {t('physical_last_update').toUpperCase()}: {physical.ultimaActualizacion}
+                    {t('physical_last_update').toUpperCase()}: {physical.ultimaActualizacion || '--'}
                   </div>
                 </Section>
 
@@ -484,29 +513,11 @@ export default function Perfil() {
                     <div className="space-y-5">
                       <div>
                         <Label>{t('physical_target_weight').toUpperCase()}</Label>
-                        <Input
-                          value={physical.objetivos.pesoObjetivo}
-                          readOnly={!isEditingPhysical}
-                          onChange={(e) =>
-                            setPhysical((p) => ({
-                              ...p,
-                              objetivos: { ...p.objetivos, pesoObjetivo: e.target.value },
-                            }))
-                          }
-                        />
+                        <Input value={physical.objetivos.pesoObjetivo} readOnly />
                       </div>
                       <div>
                         <Label>{t('physical_goal_type').toUpperCase()}</Label>
-                        <Input
-                          value={physical.objetivos.tipo}
-                          readOnly={!isEditingPhysical}
-                          onChange={(e) =>
-                            setPhysical((p) => ({
-                              ...p,
-                              objetivos: { ...p.objetivos, tipo: e.target.value },
-                            }))
-                          }
-                        />
+                        <Input value={physical.objetivos.tipo} readOnly />
                       </div>
                       <div>
                         <Label>{t('physical_progress').toUpperCase()}</Label>
@@ -520,16 +531,7 @@ export default function Perfil() {
                       </div>
                       <div>
                         <Label>{t('physical_goal_date').toUpperCase()}</Label>
-                        <Input
-                          value={physical.objetivos.fecha}
-                          readOnly={!isEditingPhysical}
-                          onChange={(e) =>
-                            setPhysical((p) => ({
-                              ...p,
-                              objetivos: { ...p.objetivos, fecha: e.target.value },
-                            }))
-                          }
-                        />
+                        <Input value={physical.objetivos.fecha} readOnly />
                       </div>
                     </div>
                   </Section>
@@ -538,39 +540,15 @@ export default function Perfil() {
                     <div className="space-y-5">
                       <div>
                         <Label>{t('physical_current_level').toUpperCase()}</Label>
-                        <Input
-                          value={physical.actividad.nivel}
-                          readOnly={!isEditingPhysical}
-                          onChange={(e) =>
-                            setPhysical((p) => ({ ...p, actividad: { ...p.actividad, nivel: e.target.value } }))
-                          }
-                        />
+                        <Input value={physical.actividad.nivel} readOnly />
                       </div>
                       <div>
                         <Label>{t('physical_weekly_goal').toUpperCase()}</Label>
-                        <Input
-                          value={physical.actividad.metaSemanal}
-                          readOnly={!isEditingPhysical}
-                          onChange={(e) =>
-                            setPhysical((p) => ({
-                              ...p,
-                              actividad: { ...p.actividad, metaSemanal: e.target.value },
-                            }))
-                          }
-                        />
+                        <Input value={physical.actividad.metaSemanal} readOnly />
                       </div>
                       <div>
                         <Label>{t('physical_preferred_activity').toUpperCase()}</Label>
-                        <Input
-                          value={physical.actividad.preferida}
-                          readOnly={!isEditingPhysical}
-                          onChange={(e) =>
-                            setPhysical((p) => ({
-                              ...p,
-                              actividad: { ...p.actividad, preferida: e.target.value },
-                            }))
-                          }
-                        />
+                        <Input value={physical.actividad.preferida} readOnly />
                       </div>
                     </div>
                   </Section>
