@@ -67,18 +67,22 @@ export const login = async (req, res) => {
 export const requestPasswordReset = async (req, res) => {
   try {
     const email = String(req.body?.email || '').trim().toLowerCase();
-    const result = await requestPasswordResetService({ email });
-    if (!result?.exists) {
-      return res.status(404).json({ message: 'No existe ninguna cuenta vinculada a ese email.' });
+    if (!email) {
+      return res.status(400).json({ message: 'El email es obligatorio.' });
     }
-    res.status(200).json({ message: 'Te hemos enviado un enlace de recuperación.' });
+
+    // Always return 200 to avoid account enumeration.
+    await requestPasswordResetService({ email });
+    res.status(200).json({ message: 'Si el email existe, te enviaremos un enlace de recuperación.' });
   } catch (error) {
     console.error('Error en requestPasswordReset:', error);
-    const status = isMySQLDisabledError(error) ? 503 : 500;
-    if (String(process.env.NODE_ENV || '').toLowerCase() !== 'production') {
-      return res.status(status).json({ message: error.message || 'Error interno del servidor' });
-    }
-    res.status(status).json({ message: 'Error interno del servidor' });
+    const status = inferStatus(error, 500);
+    const message = safeMessage({
+      status,
+      error,
+      fallback: status === 503 ? 'Servicio no disponible' : 'Error interno del servidor',
+    });
+    return res.status(status).json({ message });
   }
 };
 

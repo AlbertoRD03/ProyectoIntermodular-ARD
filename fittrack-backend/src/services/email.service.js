@@ -1,3 +1,5 @@
+import { createHttpError } from '../utils/httpError.js';
+
 const EMAIL_PROVIDER = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
 
 const parseFrom = (raw) => {
@@ -8,7 +10,8 @@ const parseFrom = (raw) => {
   return { name: '', email: value };
 };
 
-const isBrevoSelected = () => EMAIL_PROVIDER === 'brevo' || (EMAIL_PROVIDER === '' && Boolean(process.env.BREVO_API_KEY));
+const isBrevoSelected = () =>
+  EMAIL_PROVIDER === 'brevo' || (EMAIL_PROVIDER === '' && Boolean(process.env.BREVO_API_KEY));
 
 export const isEmailConfigured = () => {
   // Allow "no-op email" in dev if email isn't configured.
@@ -23,7 +26,7 @@ export const sendPasswordResetEmail = async ({ to, resetUrl }) => {
 
   if (!isEmailConfigured()) {
     console.warn(
-      `[email] SMTP no configurado. Enlace de recuperación para ${to}: ${resetUrl}`
+      `[email] Email no configurado. Enlace de recuperación para ${to}: ${resetUrl}`
     );
     return;
   }
@@ -48,9 +51,9 @@ export const sendPasswordResetEmail = async ({ to, resetUrl }) => {
 
   if (isBrevoSelected()) {
     const apiKey = String(process.env.BREVO_API_KEY || '').trim();
-    if (!apiKey) throw new Error('BREVO_API_KEY no configurada.');
+    if (!apiKey) throw createHttpError(503, 'Servicio de email no configurado', { expose: false });
     const from = parseFrom(fromRaw);
-    if (!from.email) throw new Error('SMTP_FROM inválido. Usa "Nombre <email@dominio>".');
+    if (!from.email) throw createHttpError(500, 'Remitente inválido', { expose: false });
 
     const res = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
@@ -69,13 +72,14 @@ export const sendPasswordResetEmail = async ({ to, resetUrl }) => {
 
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      throw new Error(`Error enviando email por Brevo (status ${res.status}). ${body || ''}`.trim());
+      console.error(
+        `[email] Brevo error status=${res.status} body=${String(body || '').slice(0, 800)}`
+      );
+      throw createHttpError(502, 'No se pudo enviar el email', { expose: false });
     }
     return;
   }
 
   // Fallback SMTP (local/self-hosted deployments).
-  throw new Error(
-    'EMAIL_PROVIDER=brevo recomendado en Vercel. Configura BREVO_API_KEY y SMTP_FROM, o define SMTP_HOST para usar SMTP.'
-  );
+  throw createHttpError(503, 'Servicio de email no configurado', { expose: false });
 };
