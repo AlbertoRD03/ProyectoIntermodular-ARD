@@ -128,25 +128,18 @@ export default function Perfil() {
     }
   });
 
-  const [user, setUser] = useState(() => {
-    // Mock UI based on `views/Perfil.png` (with localStorage persistence)
-    const defaults = {
-      nombre: 'Carlos',
-      apellidos: 'Fernández García',
-      email: 'carlos.fernandez@email.com',
-      nacimiento: '15/03/1990',
-      genero: 'Masculino',
-      telefono: '+34 612 345 678',
-      ciudad: 'Madrid',
-      pais: 'España',
-    };
-    try {
-      const stored = window.localStorage.getItem('fittrack_user_profile');
-      return stored ? { ...defaults, ...JSON.parse(stored) } : defaults;
-    } catch {
-      return defaults;
-    }
-  });
+  const [userLoading, setUserLoading] = useState(false);
+  const [userError, setUserError] = useState('');
+  const [userSaving, setUserSaving] = useState(false);
+  const [userSaveError, setUserSaveError] = useState('');
+  const [userSaveSuccess, setUserSaveSuccess] = useState('');
+
+  const [user, setUser] = useState(() => ({
+    nombre: '',
+    apodo: '',
+    email: '',
+    telefono: '',
+  }));
 
 	  const [physical, setPhysical] = useState(() => {
 	    const defaults = {
@@ -179,12 +172,54 @@ export default function Perfil() {
   const [physicalSaveSuccess, setPhysicalSaveSuccess] = useState('');
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem('fittrack_user_profile', JSON.stringify(user));
-    } catch {
-      // ignore
+    if (tab !== 'usuario') return;
+    const token = getAuthToken();
+    if (!token) {
+      navigate('/login', { replace: true });
+      return;
     }
-  }, [user]);
+
+    let cancelled = false;
+    setUserError('');
+    setUserLoading(true);
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/users/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (!res.ok) {
+          setUserError(data?.error || data?.message || t('No se pudo cargar el perfil.'));
+          return;
+        }
+
+        const u = data?.user || data?.data?.user || null;
+        if (u) {
+          try {
+            window.localStorage.setItem('fittrack_user', JSON.stringify(u));
+          } catch {
+            // ignore
+          }
+        }
+
+        setUser({
+          nombre: String(u?.nombre || ''),
+          apodo: String(u?.apodo || u?.nickname || ''),
+          email: String(u?.email || ''),
+          telefono: String(u?.telefono || ''),
+        });
+      } catch {
+        if (!cancelled) setUserError(t('Error de conexión. Inténtalo de nuevo.'));
+      } finally {
+        if (!cancelled) setUserLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, navigate, t]);
 
   useEffect(() => {
     try {
@@ -566,7 +601,58 @@ export default function Perfil() {
 
   const handleSave = async () => {
     if (tab === 'usuario') {
-      setIsEditingUser(false);
+      const token = getAuthToken();
+      if (!token) {
+        navigate('/login', { replace: true });
+        return;
+      }
+
+      setUserSaveError('');
+      setUserSaveSuccess('');
+      setUserSaving(true);
+      try {
+        const payload = {
+          nombre: user.nombre,
+          apodo: user.apodo,
+          email: user.email,
+          telefono: user.telefono,
+        };
+        const res = await fetch(`${API_BASE}/users/profile`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setUserSaveError(data?.error || data?.message || t('No se pudo guardar el perfil.'));
+          return;
+        }
+
+        const u = data?.user || data?.data?.user || data?.user;
+        if (u) {
+          try {
+            window.localStorage.setItem('fittrack_user', JSON.stringify(u));
+          } catch {
+            // ignore
+          }
+          setUser({
+            nombre: String(u?.nombre || ''),
+            apodo: String(u?.apodo || ''),
+            email: String(u?.email || ''),
+            telefono: String(u?.telefono || ''),
+          });
+        }
+
+        setUserSaveSuccess(t('Perfil actualizado.'));
+        setIsEditingUser(false);
+      } catch {
+        setUserSaveError(t('Error de conexión. Inténtalo de nuevo.'));
+      } finally {
+        setUserSaving(false);
+      }
       return;
     }
 
@@ -671,7 +757,9 @@ export default function Perfil() {
                         className="inline-flex items-center justify-center rounded-lg border border-white/35 bg-black/10 px-4 py-2 transition hover:border-white/60"
                         aria-label={lang === 'es' ? 'Switch to English' : 'Cambiar a español'}
                       >
-                        <span className="text-[30px] leading-none">{lang === 'es' ? '🇬🇧' : '🇪🇸'}</span>
+                        <span className="text-[13px] font-bold tracking-[0.22em] text-white/85">
+                          {lang === 'es' ? 'EN' : 'ES'}
+                        </span>
                       </button>
                     </div>
                   </div>
@@ -679,34 +767,36 @@ export default function Perfil() {
 
                 <div className="space-y-6">
                   <Section title={t('profile_personal_data').toUpperCase()}>
+                    {userLoading ? (
+                      <div className="text-[13px] text-white/60">{t('Cargando...')}</div>
+                    ) : userError ? (
+                      <div className="text-[13px] text-[#ff7849]/90">{userError}</div>
+                    ) : null}
+                    {isEditingUser && userSaving ? (
+                      <div className="mt-2 text-[13px] text-white/60">{t('Guardando...')}</div>
+                    ) : null}
+                    {isEditingUser && userSaveError ? (
+                      <div className="mt-2 text-[13px] text-[#ff7849]/90">{userSaveError}</div>
+                    ) : null}
+                    {userSaveSuccess ? (
+                      <div className="mt-2 text-[13px] text-emerald-300/90">{userSaveSuccess}</div>
+                    ) : null}
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                       <div>
                         <Label>{t('profile_name').toUpperCase()}</Label>
                         <Input value={user.nombre} readOnly={!isEditingUser} onChange={(e) => setUser((p) => ({ ...p, nombre: e.target.value }))} />
                       </div>
                       <div>
-                        <Label>{t('profile_lastname').toUpperCase()}</Label>
+                        <Label>{t('Apodo').toUpperCase()}</Label>
                         <Input
-                          value={user.apellidos}
+                          value={user.apodo}
                           readOnly={!isEditingUser}
-                          onChange={(e) => setUser((p) => ({ ...p, apellidos: e.target.value }))}
+                          onChange={(e) => setUser((p) => ({ ...p, apodo: e.target.value }))}
                         />
                       </div>
                       <div className="sm:col-span-2">
                         <Label>{t('profile_email').toUpperCase()}</Label>
                         <Input value={user.email} readOnly={!isEditingUser} onChange={(e) => setUser((p) => ({ ...p, email: e.target.value }))} type="email" />
-                      </div>
-                      <div>
-                        <Label>{t('profile_birthdate').toUpperCase()}</Label>
-                        <Input
-                          value={user.nacimiento}
-                          readOnly={!isEditingUser}
-                          onChange={(e) => setUser((p) => ({ ...p, nacimiento: e.target.value }))}
-                        />
-                      </div>
-                      <div>
-                        <Label>{t('profile_gender').toUpperCase()}</Label>
-                        <Input value={user.genero} readOnly={!isEditingUser} onChange={(e) => setUser((p) => ({ ...p, genero: e.target.value }))} />
                       </div>
                       <div className="sm:col-span-2">
                         <Label>{t('profile_phone').toUpperCase()}</Label>
@@ -715,14 +805,6 @@ export default function Perfil() {
                           readOnly={!isEditingUser}
                           onChange={(e) => setUser((p) => ({ ...p, telefono: e.target.value }))}
                         />
-                      </div>
-                      <div>
-                        <Label>{t('profile_city').toUpperCase()}</Label>
-                        <Input value={user.ciudad} readOnly={!isEditingUser} onChange={(e) => setUser((p) => ({ ...p, ciudad: e.target.value }))} />
-                      </div>
-                      <div>
-                        <Label>{t('profile_country').toUpperCase()}</Label>
-                        <Input value={user.pais} readOnly={!isEditingUser} onChange={(e) => setUser((p) => ({ ...p, pais: e.target.value }))} />
                       </div>
                     </div>
                   </Section>
