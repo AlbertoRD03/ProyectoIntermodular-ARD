@@ -774,7 +774,11 @@ export default function Perfil() {
       );
       const sig = await sigRes.json().catch(() => ({}));
       if (!sigRes.ok) {
-        setPhotoUploadError(sig?.error || sig?.message || t('No se pudo preparar la subida.'));
+        console.error('[profile-photo] signature failed', {
+          status: sigRes.status,
+          body: sig,
+        });
+        setPhotoUploadError(t('Fallo al subir la foto. Inténtalo de nuevo más tarde.'));
         return;
       }
 
@@ -790,13 +794,24 @@ export default function Perfil() {
       const upRes = await fetch(uploadUrl, { method: 'POST', body: form });
       const upData = await upRes.json().catch(() => ({}));
       if (!upRes.ok) {
-        setPhotoUploadError(upData?.error?.message || t('No se pudo subir la imagen.'));
+        console.error('[profile-photo] cloudinary upload failed', {
+          status: upRes.status,
+          cloudName: sig.cloudName,
+          publicId: sig.publicId,
+          folder: sig.folder,
+          body: upData,
+        });
+        setPhotoUploadError(t('Fallo al subir la foto. Inténtalo de nuevo más tarde.'));
         return;
       }
 
       const url = String(upData?.secure_url || upData?.url || '').trim();
       if (!url) {
-        setPhotoUploadError(t('La subida no devolvió una URL válida.'));
+        console.error('[profile-photo] cloudinary upload missing URL', {
+          status: upRes.status,
+          body: upData,
+        });
+        setPhotoUploadError(t('Fallo al subir la foto. Inténtalo de nuevo más tarde.'));
         return;
       }
 
@@ -824,7 +839,7 @@ export default function Perfil() {
       }
     } catch (err) {
       console.error(err);
-      setPhotoUploadError(t('Error de conexión. Inténtalo de nuevo.'));
+      setPhotoUploadError(t('Fallo al subir la foto. Inténtalo de nuevo más tarde.'));
     } finally {
       // Allow selecting the same file again
       try {
