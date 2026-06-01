@@ -115,8 +115,34 @@ export default function Register() {
         return;
       }
 
-      setSuccess(t('Cuenta creada. Ahora puedes iniciar sesión.'));
-      setTimeout(() => navigate('/login'), 700);
+      // Auto-login after register so onboarding can be completed immediately.
+      const loginRes = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+
+      const loginData = await loginRes.json().catch(() => ({}));
+      if (!loginRes.ok) {
+        setSuccess(t('Cuenta creada. Inicia sesión para completar tus datos físicos.'));
+        setTimeout(() => navigate('/login'), 700);
+        return;
+      }
+
+      const token =
+        loginData?.token ||
+        loginData?.accessToken ||
+        loginData?.data?.token ||
+        loginData?.data?.accessToken;
+
+      if (token) {
+        localStorage.setItem('fittrack_token', token);
+        localStorage.setItem('authToken', token);
+      }
+      if (loginData?.user) localStorage.setItem('fittrack_user', JSON.stringify(loginData.user));
+
+      setSuccess(t('Cuenta creada. Completa tus datos físicos para continuar.'));
+      setTimeout(() => navigate('/physical-data', { replace: true }), 400);
     } catch (err) {
       console.error(err);
       setError(t('Error de conexión. Inténtalo de nuevo.'));

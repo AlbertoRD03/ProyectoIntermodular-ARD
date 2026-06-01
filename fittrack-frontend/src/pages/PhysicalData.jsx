@@ -53,12 +53,17 @@ export default function PhysicalData() {
       // Endpoint to implement later (per your project instructions).
       // We'll send the fields using your backend's naming conventions where possible.
       const token = localStorage.getItem('fittrack_token') || localStorage.getItem('authToken');
+      if (!token) {
+        setError(t('Necesitas iniciar sesión para guardar estos datos.'));
+        setTimeout(() => navigate('/login', { replace: true }), 600);
+        return;
+      }
 
       const res = await fetch(`${API_BASE}/users/onboarding`, {
-        method: 'POST',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           edad: Number(edad),
@@ -66,6 +71,8 @@ export default function PhysicalData() {
           altura_cm: Number(alturaCm),
           peso_kg: Number(pesoKg),
           nivel_actividad: nivelActividad,
+          // Fallback naming used by some backends.
+          nivel_experiencia: nivelActividad,
           objetivo_principal: objetivo,
         }),
       });
@@ -75,6 +82,9 @@ export default function PhysicalData() {
         setError(data?.error || data?.message || t('No se pudieron guardar los datos.'));
         return;
       }
+
+      const user = data?.user || data?.data?.user;
+      if (user) localStorage.setItem('fittrack_user', JSON.stringify(user));
 
       setSuccess(t('Datos guardados correctamente.'));
       // Next step could be dashboard or next onboarding step.

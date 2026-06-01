@@ -17,33 +17,37 @@ import Perfil from './pages/Perfil';
 import FitIA from './pages/FitIA';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
+import OnboardingEnforcer from './components/OnboardingEnforcer';
 
 const App = () => {
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/password-recovery" element={<PasswordRecovery />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/physical-data" element={<PhysicalData />} />
-      <Route path="/terms" element={<Terms />} />
-      <Route path="/privacy" element={<Privacy />} />
-      <Route path="/dashboard" element={<Main />} />
-      <Route path="/entrenamientos" element={<Entrenamientos />} />
-      <Route path="/calendario" element={<Calendario />} />
-      <Route path="/fitgram/empty" element={<FitGram forceEmpty />} />
-      <Route path="/fitgram/create" element={<CreateFitGramPost />} />
-      <Route path="/fitgram" element={<FitGram />} />
-      <Route path="/logros" element={<Logros />} />
-      <Route path="/fitia" element={<FitIA />} />
-      <Route path="/perfil" element={<Perfil />} />
-      <Route path="/crear-sesion" element={<CreateSession />} />
-      <Route path="/sessiondetail" element={<SessionDetail />} />
-      <Route path="/sessiondetail/:id" element={<SessionDetail />} />
-      <Route path="/dashboard-old" element={<Dashboard />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
+    <>
+      <OnboardingEnforcer />
+      <Routes>
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/password-recovery" element={<PasswordRecovery />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/physical-data" element={<PhysicalData />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/dashboard" element={<Main />} />
+        <Route path="/entrenamientos" element={<Entrenamientos />} />
+        <Route path="/calendario" element={<Calendario />} />
+        <Route path="/fitgram/empty" element={<FitGram forceEmpty />} />
+        <Route path="/fitgram/create" element={<CreateFitGramPost />} />
+        <Route path="/fitgram" element={<FitGram />} />
+        <Route path="/logros" element={<Logros />} />
+        <Route path="/fitia" element={<FitIA />} />
+        <Route path="/perfil" element={<Perfil />} />
+        <Route path="/crear-sesion" element={<CreateSession />} />
+        <Route path="/sessiondetail" element={<SessionDetail />} />
+        <Route path="/sessiondetail/:id" element={<SessionDetail />} />
+        <Route path="/dashboard-old" element={<Dashboard />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </>
   );
 };
 
