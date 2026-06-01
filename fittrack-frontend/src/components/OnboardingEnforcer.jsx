@@ -54,6 +54,12 @@ export default function OnboardingEnforcer() {
     const storedUser = readStoredUser();
     if (isOnboardingCompleted(storedUser)) return;
 
+    // If we already know onboarding is pending, redirect immediately without waiting for the API.
+    if (window.localStorage.getItem('fittrack_onboarding_pending') === '1') {
+      navigate('/physical-data', { replace: true, state: { from: pathname } });
+      return;
+    }
+
     if (inFlightRef.current) return;
     if (lastCheckedPathRef.current === pathname) return;
 
@@ -86,7 +92,10 @@ export default function OnboardingEnforcer() {
         if (user) window.localStorage.setItem('fittrack_user', JSON.stringify(user));
 
         if (!isOnboardingCompleted(user)) {
+          window.localStorage.setItem('fittrack_onboarding_pending', '1');
           navigate('/physical-data', { replace: true, state: { from: pathname } });
+        } else {
+          window.localStorage.removeItem('fittrack_onboarding_pending');
         }
       } finally {
         inFlightRef.current = false;
@@ -100,4 +109,3 @@ export default function OnboardingEnforcer() {
 
   return null;
 }
-

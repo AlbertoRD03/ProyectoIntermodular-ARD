@@ -124,8 +124,9 @@ export default function Register() {
 
       const loginData = await loginRes.json().catch(() => ({}));
       if (!loginRes.ok) {
-        setSuccess(t('Cuenta creada. Inicia sesión para completar tus datos físicos.'));
-        setTimeout(() => navigate('/login'), 700);
+        // Even if auto-login fails (e.g., auth service hiccup), force the onboarding route.
+        setSuccess(t('Cuenta creada. Completa tus datos físicos para continuar.'));
+        setTimeout(() => navigate('/physical-data', { replace: true }), 400);
         return;
       }
 

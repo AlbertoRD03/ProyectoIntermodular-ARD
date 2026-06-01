@@ -55,7 +55,6 @@ export default function PhysicalData() {
       const token = localStorage.getItem('fittrack_token') || localStorage.getItem('authToken');
       if (!token) {
         setError(t('Necesitas iniciar sesión para guardar estos datos.'));
-        setTimeout(() => navigate('/login', { replace: true }), 600);
         return;
       }
 
@@ -85,6 +84,7 @@ export default function PhysicalData() {
 
       const user = data?.user || data?.data?.user;
       if (user) localStorage.setItem('fittrack_user', JSON.stringify(user));
+      localStorage.removeItem('fittrack_onboarding_pending');
 
       setSuccess(t('Datos guardados correctamente.'));
       // Next step could be dashboard or next onboarding step.
