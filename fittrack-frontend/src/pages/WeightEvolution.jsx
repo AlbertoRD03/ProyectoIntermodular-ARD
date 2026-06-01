@@ -286,7 +286,7 @@ export default function WeightEvolution() {
     (async () => {
       try {
         const res = await fetch(
-          `${API_BASE}/sessions/historial?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`,
+          `${API_BASE}/sesiones/historial?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const data = await res.json().catch(() => ({}));
