@@ -551,12 +551,16 @@ export default function WeightEvolution() {
     let day = 0;
     let week = 0;
     let month = 0;
+    let lastActivityDate = null;
 
     const dayEx = new Map();
     const weekEx = new Map();
     const monthEx = new Map();
     for (const s of sessions) {
-      const date = new Date(s?.fecha || s?.createdAt || Date.now());
+      const raw = s?.fecha ?? s?.createdAt ?? s?.updatedAt ?? Date.now();
+      const date = new Date(raw);
+      if (!Number.isFinite(date.getTime())) continue;
+      if (!lastActivityDate || date > lastActivityDate) lastActivityDate = date;
       const v = sumSessionVolumeKg(s);
       if (date >= dayStart && date < dayEnd) day += v;
       if (date >= weekStart && date < weekEnd) week += v;
@@ -574,6 +578,71 @@ export default function WeightEvolution() {
       }
     }
 
+    // If the user didn't train today/this week/this month, show the last active period instead of 0.
+    const applyFallback = () => {
+      if (!lastActivityDate) return { dayRef: null, weekRef: null, monthRef: null };
+      const lastDayStart = startOfDay(lastActivityDate);
+      const lastDayEnd = addDays(lastDayStart, 1);
+      const lastWeekStart = startOfISOWeek(lastActivityDate);
+      const lastWeekEnd = addDays(lastWeekStart, 7);
+      const lastMonthStart = startOfMonth(lastActivityDate);
+      const lastMonthEnd = new Date(lastMonthStart.getFullYear(), lastMonthStart.getMonth() + 1, 1);
+
+      const acc = {
+        day: 0,
+        week: 0,
+        month: 0,
+        dayEx: new Map(),
+        weekEx: new Map(),
+        monthEx: new Map(),
+      };
+
+      for (const s of sessions) {
+        const raw = s?.fecha ?? s?.createdAt ?? s?.updatedAt ?? Date.now();
+        const date = new Date(raw);
+        if (!Number.isFinite(date.getTime())) continue;
+        const v = sumSessionVolumeKg(s);
+        const exMap = sumSessionVolumeByExercise(s);
+
+        if (date >= lastDayStart && date < lastDayEnd) {
+          acc.day += v;
+          for (const [k, val] of exMap.entries()) acc.dayEx.set(k, (acc.dayEx.get(k) || 0) + val);
+        }
+        if (date >= lastWeekStart && date < lastWeekEnd) {
+          acc.week += v;
+          for (const [k, val] of exMap.entries()) acc.weekEx.set(k, (acc.weekEx.get(k) || 0) + val);
+        }
+        if (date >= lastMonthStart && date < lastMonthEnd) {
+          acc.month += v;
+          for (const [k, val] of exMap.entries()) acc.monthEx.set(k, (acc.monthEx.get(k) || 0) + val);
+        }
+      }
+
+      const topOf = (m) => {
+        let best = { name: '--', value: 0 };
+        for (const [name, value] of m.entries()) if (value > best.value) best = { name, value };
+        return best;
+      };
+
+      if (day <= 0) {
+        day = acc.day;
+        dayEx.clear();
+        for (const [k, v] of acc.dayEx.entries()) dayEx.set(k, v);
+      }
+      if (week <= 0) {
+        week = acc.week;
+        weekEx.clear();
+        for (const [k, v] of acc.weekEx.entries()) weekEx.set(k, v);
+      }
+      if (month <= 0) {
+        month = acc.month;
+        monthEx.clear();
+        for (const [k, v] of acc.monthEx.entries()) monthEx.set(k, v);
+      }
+
+      return { dayRef: lastDayStart, weekRef: lastWeekStart, monthRef: lastMonthStart, topOf };
+    };
+
     const topOf = (m) => {
       let best = { name: '--', value: 0 };
       for (const [name, value] of m.entries()) {
@@ -582,6 +651,8 @@ export default function WeightEvolution() {
       return best;
     };
 
+    const fallback = applyFallback();
+
     return {
       day,
       week,
@@ -589,6 +660,7 @@ export default function WeightEvolution() {
       topDay: topOf(dayEx),
       topWeek: topOf(weekEx),
       topMonth: topOf(monthEx),
+      lastActivityIso: lastActivityDate ? toISODate(lastActivityDate) : '',
     };
   }, [sessions]);
 
