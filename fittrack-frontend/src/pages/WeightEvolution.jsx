@@ -6,6 +6,7 @@ import Header from '../components/Header';
 import { API_BASE } from '../config/apiBase';
 import { getAuthToken } from '../services/authToken';
 import { useI18n } from '../i18n/I18nProvider';
+import { readPrivacySettings, subscribePrivacySettings } from '../services/privacySettings';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -405,6 +406,13 @@ export default function WeightEvolution() {
   const [newWeightKg, setNewWeightKg] = useState('');
   const [savingWeight, setSavingWeight] = useState(false);
   const [saveWeightError, setSaveWeightError] = useState('');
+
+  const [privacy, setPrivacy] = useState(() => readPrivacySettings());
+
+  useEffect(() => {
+    setPrivacy(readPrivacySettings());
+    return subscribePrivacySettings(setPrivacy);
+  }, []);
 
   useEffect(() => {
     const token = getAuthToken();
@@ -813,7 +821,10 @@ export default function WeightEvolution() {
             <div className="flex flex-wrap items-center gap-3">
               <Segmented
                 value={tab}
-                onChange={setTab}
+                onChange={(next) => {
+                  if (next === 'peso' && privacy.hideWeight) return;
+                  setTab(next);
+                }}
                 options={[
                   { value: 'volumen', label: t('Volumen') },
                   { value: 'peso', label: t('Peso corporal') },
@@ -925,6 +936,25 @@ export default function WeightEvolution() {
               </div>
             </div>
           ) : (
+            privacy.hideWeight ? (
+              <div className="mt-8 rounded-2xl border border-white/15 bg-white/[0.02] p-6">
+                <div className="text-[12px] font-bold tracking-[0.22em] text-white/70">
+                  {t('Peso corporal oculto').toUpperCase()}
+                </div>
+                <div className="mt-3 text-[13px] text-white/60">
+                  {t('Has activado la opción de privacidad para ocultar el peso corporal.')}
+                </div>
+                <div className="mt-5">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/privacy-settings')}
+                    className="h-11 rounded-lg border border-white/15 bg-white/[0.02] px-4 text-[12px] font-bold tracking-wide text-white/80 transition hover:border-white/25 hover:bg-white/[0.03]"
+                  >
+                    {t('Abrir privacidad').toUpperCase()}
+                  </button>
+                </div>
+              </div>
+            ) : (
             <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
               <Card title={t('Peso actual').toUpperCase()} icon={Weight}>
                 <StatValue value={formatKg(weightKPIs.current)} suffix="KG" />
@@ -1031,6 +1061,7 @@ export default function WeightEvolution() {
                 </div>
               </div>
             </div>
+            )
           )}
         </div>
       </div>

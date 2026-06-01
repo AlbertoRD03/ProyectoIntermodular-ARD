@@ -4,6 +4,7 @@ import Header from '../components/Header';
 import { useI18n } from '../i18n/I18nProvider';
 import { API_BASE } from '../config/apiBase';
 import { getAuthToken } from '../services/authToken';
+import { readPrivacySettings, subscribePrivacySettings } from '../services/privacySettings';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -172,6 +173,13 @@ export default function Perfil() {
   const [physicalSaving, setPhysicalSaving] = useState(false);
   const [physicalSaveError, setPhysicalSaveError] = useState('');
   const [physicalSaveSuccess, setPhysicalSaveSuccess] = useState('');
+
+  const [privacy, setPrivacy] = useState(() => readPrivacySettings());
+
+  useEffect(() => {
+    setPrivacy(readPrivacySettings());
+    return subscribePrivacySettings(setPrivacy);
+  }, []);
 
   useEffect(() => {
     if (tab !== 'usuario') return;
@@ -890,46 +898,62 @@ export default function Perfil() {
                   {isEditingPhysical && physicalSaveSuccess ? (
                     <div className="mt-2 text-[13px] text-emerald-300/90">{physicalSaveSuccess}</div>
                   ) : null}
-                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                    <div className="rounded-xl border border-white/35 bg-black/10 p-5 text-center">
-                      <Label>{t('physical_weight').toUpperCase()}</Label>
-                      {isEditingPhysical ? (
-                        <input
-                          value={physical.pesoActual.value}
-                          onChange={(e) =>
-                            setPhysical((p) => ({
-                              ...p,
-                              pesoActual: { ...p.pesoActual, value: e.target.value },
-                            }))
-                          }
-                          className="mt-4 w-full bg-transparent text-center text-[28px] font-bold text-white/95 outline-none"
-                          inputMode="decimal"
-                        />
-                      ) : (
-                        <div className="mt-4 text-[28px] font-bold text-white/95">{physical.pesoActual.value}</div>
-                      )}
-                      <div className="text-[11px] tracking-wide text-white/40">{physical.pesoActual.unit}</div>
+                  {privacy.hidePhysicalProfile ? (
+                    <div className="rounded-xl border border-white/10 bg-black/10 px-4 py-4 text-[13px] text-white/65">
+                      <div className="font-semibold text-white/80">{t('Perfil físico oculto')}</div>
+                      <div className="mt-1">{t('Puedes cambiar esta opción en Configuración de privacidad.')}</div>
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          onClick={() => navigate('/privacy-settings')}
+                          className="h-10 rounded-lg border border-white/15 bg-white/[0.02] px-4 text-[12px] font-bold tracking-wide text-white/80 transition hover:border-white/25 hover:bg-white/[0.03]"
+                        >
+                          {t('Abrir privacidad').toUpperCase()}
+                        </button>
+                      </div>
                     </div>
-                    <div className="rounded-xl border border-white/35 bg-black/10 p-5 text-center">
-                      <Label>{t('physical_height').toUpperCase()}</Label>
-                      {isEditingPhysical ? (
-                        <input
-                          value={physical.altura.value}
-                          onChange={(e) =>
-                            setPhysical((p) => ({
-                              ...p,
-                              altura: { ...p.altura, value: e.target.value },
-                            }))
-                          }
-                          className="mt-4 w-full bg-transparent text-center text-[28px] font-bold text-white/95 outline-none"
-                          inputMode="numeric"
-                        />
-                      ) : (
-                        <div className="mt-4 text-[28px] font-bold text-white/95">{physical.altura.value}</div>
-                      )}
-                      <div className="text-[11px] tracking-wide text-white/40">{physical.altura.unit}</div>
-                    </div>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <div className="rounded-xl border border-white/35 bg-black/10 p-5 text-center">
+                          <Label>{t('physical_weight').toUpperCase()}</Label>
+                          {isEditingPhysical ? (
+                            <input
+                              value={physical.pesoActual.value}
+                              onChange={(e) =>
+                                setPhysical((p) => ({
+                                  ...p,
+                                  pesoActual: { ...p.pesoActual, value: e.target.value },
+                                }))
+                              }
+                              className="mt-4 w-full bg-transparent text-center text-[28px] font-bold text-white/95 outline-none"
+                              inputMode="decimal"
+                            />
+                          ) : (
+                            <div className="mt-4 text-[28px] font-bold text-white/95">{physical.pesoActual.value}</div>
+                          )}
+                          <div className="text-[11px] tracking-wide text-white/40">{physical.pesoActual.unit}</div>
+                        </div>
+                        <div className="rounded-xl border border-white/35 bg-black/10 p-5 text-center">
+                          <Label>{t('physical_height').toUpperCase()}</Label>
+                          {isEditingPhysical ? (
+                            <input
+                              value={physical.altura.value}
+                              onChange={(e) =>
+                                setPhysical((p) => ({
+                                  ...p,
+                                  altura: { ...p.altura, value: e.target.value },
+                                }))
+                              }
+                              className="mt-4 w-full bg-transparent text-center text-[28px] font-bold text-white/95 outline-none"
+                              inputMode="numeric"
+                            />
+                          ) : (
+                            <div className="mt-4 text-[28px] font-bold text-white/95">{physical.altura.value}</div>
+                          )}
+                          <div className="text-[11px] tracking-wide text-white/40">{physical.altura.unit}</div>
+                        </div>
+                      </div>
 
                   <div className="mt-6 rounded-xl border border-white/35 bg-black/10 p-5">
                     <Label>{t('physical_bmi').toUpperCase()}</Label>
@@ -984,14 +1008,22 @@ export default function Perfil() {
                     </div>
                   </div>
 
-                  <div className="mt-8 text-[10px] uppercase tracking-[0.25em] text-white/35">
-                    {t('physical_last_update').toUpperCase()}: {physical.ultimaActualizacion || '--'}
-                  </div>
+                      <div className="mt-8 text-[10px] uppercase tracking-[0.25em] text-white/35">
+                        {t('physical_last_update').toUpperCase()}: {physical.ultimaActualizacion || '--'}
+                      </div>
+                    </>
+                  )}
                 </Section>
 
                 <div className="space-y-6">
-	                  <Section title={t('physical_goals').toUpperCase()}>
-	                    <div className="space-y-5">
+                  <Section title={t('physical_goals').toUpperCase()}>
+                    {privacy.hidePhysicalProfile ? (
+                      <div className="rounded-xl border border-white/10 bg-black/10 px-4 py-4 text-[13px] text-white/65">
+                        <div className="font-semibold text-white/80">{t('Perfil físico oculto')}</div>
+                        <div className="mt-1">{t('Puedes cambiar esta opción en Configuración de privacidad.')}</div>
+                      </div>
+                    ) : (
+                    <div className="space-y-5">
 	                      <div>
 	                        <Label>{t('physical_target_weight').toUpperCase()}</Label>
                         <Input
@@ -1058,11 +1090,18 @@ export default function Perfil() {
 	                          <Input value={formatISODateForDisplay(physical.objetivos.fecha) || '--'} readOnly />
 	                        )}
 	                      </div>
-	                    </div>
-	                  </Section>
+                    </div>
+                    )}
+                  </Section>
 
-	                  <Section title={t('physical_activity_level').toUpperCase()}>
-	                    <div className="space-y-5">
+                  <Section title={t('physical_activity_level').toUpperCase()}>
+                    {privacy.hidePhysicalProfile ? (
+                      <div className="rounded-xl border border-white/10 bg-black/10 px-4 py-4 text-[13px] text-white/65">
+                        <div className="font-semibold text-white/80">{t('Perfil físico oculto')}</div>
+                        <div className="mt-1">{t('Puedes cambiar esta opción en Configuración de privacidad.')}</div>
+                      </div>
+                    ) : (
+                    <div className="space-y-5">
 	                      <div>
 	                        <Label>{t('physical_current_level').toUpperCase()}</Label>
 	                        {isEditingPhysical ? (
@@ -1137,8 +1176,9 @@ export default function Perfil() {
 	                          <Input value={physical.actividad.preferida || '--'} readOnly />
 	                        )}
 	                      </div>
-	                    </div>
-	                  </Section>
+                    </div>
+                    )}
+                  </Section>
                 </div>
 
                 <div className="lg:col-span-2 pt-4 border-t border-white/10">
