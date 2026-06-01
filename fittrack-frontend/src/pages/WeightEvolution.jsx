@@ -540,9 +540,13 @@ export default function WeightEvolution() {
 
   const volumeKPIs = useMemo(() => {
     const now = new Date();
-    const dayKey = toISODate(startOfDay(now));
-    const weekKey = toISODate(startOfISOWeek(now));
-    const monthKey = toISODate(startOfMonth(now));
+    // Rolling windows (more intuitive than calendar week/month for most users).
+    const dayStart = startOfDay(now);
+    const dayEnd = addDays(dayStart, 1);
+    const weekStart = addDays(dayStart, -6); // last 7 days including today
+    const weekEnd = dayEnd;
+    const monthStart = addDays(dayStart, -29); // last 30 days including today
+    const monthEnd = dayEnd;
 
     let day = 0;
     let week = 0;
@@ -554,18 +558,18 @@ export default function WeightEvolution() {
     for (const s of sessions) {
       const date = new Date(s?.fecha || s?.createdAt || Date.now());
       const v = sumSessionVolumeKg(s);
-      if (toISODate(startOfDay(date)) === dayKey) day += v;
-      if (toISODate(startOfISOWeek(date)) === weekKey) week += v;
-      if (toISODate(startOfMonth(date)) === monthKey) month += v;
+      if (date >= dayStart && date < dayEnd) day += v;
+      if (date >= weekStart && date < weekEnd) week += v;
+      if (date >= monthStart && date < monthEnd) month += v;
 
       const exMap = sumSessionVolumeByExercise(s);
-      if (toISODate(startOfDay(date)) === dayKey) {
+      if (date >= dayStart && date < dayEnd) {
         for (const [k, val] of exMap.entries()) dayEx.set(k, (dayEx.get(k) || 0) + val);
       }
-      if (toISODate(startOfISOWeek(date)) === weekKey) {
+      if (date >= weekStart && date < weekEnd) {
         for (const [k, val] of exMap.entries()) weekEx.set(k, (weekEx.get(k) || 0) + val);
       }
-      if (toISODate(startOfMonth(date)) === monthKey) {
+      if (date >= monthStart && date < monthEnd) {
         for (const [k, val] of exMap.entries()) monthEx.set(k, (monthEx.get(k) || 0) + val);
       }
     }
@@ -768,13 +772,13 @@ export default function WeightEvolution() {
                   Volumen = repeticiones × peso (por set). <Hint text="El 'volumen' (tonnage) es la suma de repeticiones x carga de todos tus sets. Es útil para ver cuánto trabajo total haces." />
                 </div>
               </Card>
-              <Card title={t('Esta semana').toUpperCase()} icon={TrendingUp} onClick={() => setRangeAndScroll('semana')}>
+              <Card title={t('Últimos 7 días').toUpperCase()} icon={TrendingUp} onClick={() => setRangeAndScroll('semana')}>
                 <StatValue value={formatTonnage(volumeKPIs.week)} suffix={volumeKPIs.week >= 1000 ? 'T' : 'KG'} />
                 <div className="mt-2 text-[12px] text-white/55">
                   {t('Top')}: <span className="text-white/75">{volumeKPIs.topWeek?.name || '--'}</span>
                 </div>
               </Card>
-              <Card title={t('Este mes').toUpperCase()} icon={Calendar} onClick={() => setRangeAndScroll('mes')}>
+              <Card title={t('Últimos 30 días').toUpperCase()} icon={Calendar} onClick={() => setRangeAndScroll('mes')}>
                 <StatValue value={formatTonnage(volumeKPIs.month)} suffix={volumeKPIs.month >= 1000 ? 'T' : 'KG'} />
                 <div className="mt-2 text-[12px] text-white/55">
                   {t('Top')}: <span className="text-white/75">{volumeKPIs.topMonth?.name || '--'}</span>
