@@ -44,7 +44,7 @@ function Label({ children }) {
   );
 }
 
-function Input({ value, onChange, placeholder, readOnly = true, type = 'text' }) {
+function Input({ value, onChange, placeholder, readOnly = true, type = 'text', className }) {
   return (
     <input
       value={value}
@@ -52,7 +52,10 @@ function Input({ value, onChange, placeholder, readOnly = true, type = 'text' })
       onChange={onChange}
       readOnly={readOnly}
       type={type}
-      className="mt-2 h-[44px] w-full rounded-lg border border-white/35 bg-transparent px-4 text-[13px] text-white/85 outline-none"
+      className={cx(
+        'mt-2 h-[44px] w-full rounded-lg border border-white/35 bg-transparent px-4 text-[13px] text-white/85 outline-none',
+        className
+      )}
     />
   );
 }
@@ -64,10 +67,10 @@ function Select({ value, onChange, disabled, children }) {
       onChange={onChange}
       disabled={disabled}
       className={cx(
-        'mt-2 h-[44px] w-full appearance-none rounded-lg border px-4 text-[13px] outline-none transition',
+        'mt-2 h-[44px] w-full appearance-none rounded-lg border px-4 text-[13px] outline-none transition focus:ring-2 focus:ring-[#ff7849]/15',
         disabled
-          ? 'border-white/25 bg-white/[0.02] text-white/55'
-          : 'border-white/35 bg-transparent text-white/85 hover:border-white/55 focus:border-white/70'
+          ? 'border-white/10 bg-white/[0.02] text-white/45'
+          : 'border-white/15 bg-[#1e1e1e] text-white/85 hover:border-white/25 focus:border-[#ff7849]/70'
       )}
     >
       {children}
@@ -805,7 +808,7 @@ export default function Perfil() {
                     <ProgressBar percent={physical.imc.percent} />
                   </div>
 
-	                  <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <div className="rounded-xl border border-white/35 bg-black/10 p-5 text-center">
                       <Label>{t('physical_body_fat').toUpperCase()}</Label>
                       {isEditingPhysical ? (
@@ -821,14 +824,7 @@ export default function Perfil() {
                         <div className="mt-4 text-[28px] font-bold text-white/95">{physical.grasa.value}</div>
                       )}
                       <div className="text-[11px] tracking-wide text-white/40">{physical.grasa.unit}</div>
-	                  </div>
-
-	                  <div className="mt-5 rounded-xl border border-white/25 bg-white/[0.02] px-4 py-4 text-[12px] text-white/65">
-	                    <div className="font-semibold text-white/80">{t('Recordatorio')}</div>
-	                    <div className="mt-1">
-	                      {t('Los valores de % de grasa y masa muscular deben ser medidos por ti (báscula de impedancia, pliegues, etc.) y guardados aquí para llevar un mejor control de tus entrenamientos.')}
-	                    </div>
-	                  </div>
+                    </div>
                     <div className="rounded-xl border border-white/35 bg-black/10 p-5 text-center">
                       <Label>{t('physical_muscle_mass').toUpperCase()}</Label>
                       {isEditingPhysical ? (
@@ -844,6 +840,13 @@ export default function Perfil() {
                         <div className="mt-4 text-[28px] font-bold text-white/95">{physical.masa.value}</div>
                       )}
                       <div className="text-[11px] tracking-wide text-white/40">{physical.masa.unit}</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-xl border border-white/15 bg-[#1e1e1e] px-4 py-4 text-[12px] text-white/65">
+                    <div className="font-semibold text-white/80">{t('Recordatorio')}</div>
+                    <div className="mt-1">
+                      {t('Los valores de % de grasa y masa muscular deben ser medidos por ti (báscula de impedancia, pliegues, etc.) y guardados aquí para llevar un mejor control de tus entrenamientos.')}
                     </div>
                   </div>
 
@@ -909,6 +912,7 @@ export default function Perfil() {
 	                            value={physical.objetivos.fecha}
 	                            type="date"
 	                            readOnly={false}
+	                            className="border-white/15 bg-[#1e1e1e] text-white/85 focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15"
 	                            onChange={(e) =>
 	                              setPhysical((p) => ({
 	                                ...p,
