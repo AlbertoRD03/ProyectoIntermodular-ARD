@@ -1012,7 +1012,7 @@ export default function Perfil() {
                     {t('physical_history_stats').toUpperCase()}
                   </div>
                   <div className="mt-5 flex flex-wrap items-center justify-center gap-4">
-                    <ActionButton>{t('physical_see_weight').toUpperCase()}</ActionButton>
+                    <ActionButton onClick={() => navigate('/evolucion-peso')}>{t('physical_see_weight').toUpperCase()}</ActionButton>
                     <ActionButton>{t('physical_measures_history').toUpperCase()}</ActionButton>
                     <ActionButton variant="primary">{t('physical_new_measure').toUpperCase()}</ActionButton>
                   </div>
