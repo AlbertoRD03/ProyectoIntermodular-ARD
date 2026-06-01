@@ -57,6 +57,24 @@ function Input({ value, onChange, placeholder, readOnly = true, type = 'text' })
   );
 }
 
+function Select({ value, onChange, disabled, children }) {
+  return (
+    <select
+      value={value}
+      onChange={onChange}
+      disabled={disabled}
+      className={cx(
+        'mt-2 h-[44px] w-full appearance-none rounded-lg border px-4 text-[13px] outline-none transition',
+        disabled
+          ? 'border-white/25 bg-white/[0.02] text-white/55'
+          : 'border-white/35 bg-transparent text-white/85 hover:border-white/55 focus:border-white/70'
+      )}
+    >
+      {children}
+    </select>
+  );
+}
+
 function ProgressBar({ percent }) {
   const p = Math.max(0, Math.min(100, Number(percent) || 0));
   return (
@@ -127,29 +145,29 @@ export default function Perfil() {
     }
   });
 
-  const [physical, setPhysical] = useState(() => {
-    const defaults = {
-      pesoActual: { value: '--', unit: 'KG' },
-      altura: { value: '--', unit: 'CM' },
-      imc: { value: '--', badge: '---', percent: 0 },
-      grasa: { value: '--', unit: '%' },
-      masa: { value: '--', unit: 'KG' },
-      ultimaActualizacion: '',
-      objetivos: {
-        pesoObjetivo: '--',
-        tipo: '--',
-        progresoLeft: '--',
-        progresoPercent: 0,
-        fecha: '',
-      },
-      actividad: {
-        nivel: '--',
-        metaSemanal: '--',
-        preferida: '--',
-      },
-    };
-    return defaults;
-  });
+	  const [physical, setPhysical] = useState(() => {
+	    const defaults = {
+	      pesoActual: { value: '--', unit: 'KG' },
+	      altura: { value: '--', unit: 'CM' },
+	      imc: { value: '--', badge: '---', percent: 0 },
+	      grasa: { value: '--', unit: '%' },
+	      masa: { value: '--', unit: 'KG' },
+	      ultimaActualizacion: '',
+	      objetivos: {
+	        pesoObjetivo: '--',
+	        tipo: '',
+	        progresoLeft: '--',
+	        progresoPercent: 0,
+	        fecha: '',
+	      },
+	      actividad: {
+	        nivel: '',
+	        metaSemanal: '',
+	        preferida: '',
+	      },
+	    };
+	    return defaults;
+	  });
 
   const [physicalLoading, setPhysicalLoading] = useState(false);
   const [physicalError, setPhysicalError] = useState('');
@@ -213,6 +231,87 @@ export default function Perfil() {
     return match ? Number(match[0]) : NaN;
   };
 
+  const toISODate = (input) => {
+    if (!input) return '';
+    const date = input instanceof Date ? input : new Date(String(input));
+    if (!Number.isFinite(date.getTime())) return '';
+    const yyyy = String(date.getFullYear()).padStart(4, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const formatISODateForDisplay = (iso) => {
+    if (!iso) return '';
+    return fmtDate(new Date(String(iso)));
+  };
+
+  const computeGoalProgress = ({ currentKg, targetKg, goalType, startKg }) => {
+    if (!Number.isFinite(currentKg) || !Number.isFinite(targetKg)) {
+      return { leftText: '--', percent: 0 };
+    }
+
+    const goal = String(goalType || '').toLowerCase();
+    const direction = goal.includes('ganar') ? 'up' : 'down';
+
+    const remainingKg =
+      direction === 'up' ? Math.max(0, targetKg - currentKg) : Math.max(0, currentKg - targetKg);
+
+    const totalKg = Number.isFinite(startKg)
+      ? direction === 'up'
+        ? Math.max(0.0001, targetKg - startKg)
+        : Math.max(0.0001, startKg - targetKg)
+      : Math.max(0.0001, remainingKg);
+
+    const progressedKg = Math.max(0, totalKg - remainingKg);
+    const percent = Math.max(0, Math.min(100, Math.round((progressedKg / totalKg) * 100)));
+
+    const pretty = (n) => Math.round(n * 10) / 10;
+    const deltaKg = direction === 'up' ? targetKg - currentKg : currentKg - targetKg;
+    const absDelta = Math.abs(deltaKg);
+
+    let leftText = '';
+    if (absDelta <= 0.05) {
+      leftText = 'OBJETIVO ALCANZADO';
+    } else if (direction === 'down') {
+      if (goal.includes('perder')) leftText = `Te faltan ${pretty(absDelta)} kg para tu objetivo`;
+      else leftText = `Aún quedan ${pretty(absDelta)} kg por bajar`;
+    } else {
+      if (goal.includes('ganar')) leftText = `Te faltan ${pretty(absDelta)} kg por ganar`;
+      else leftText = `Aún quedan ${pretty(absDelta)} kg por subir`;
+    }
+
+    return { leftText, percent };
+  };
+
+  const getGoalStorageKey = () => {
+    try {
+      const raw = window.localStorage.getItem('fittrack_user');
+      if (!raw) return 'fittrack_goal_progress';
+      const u = JSON.parse(raw);
+      return `fittrack_goal_progress:${u?.id || u?.email || 'anon'}`;
+    } catch {
+      return 'fittrack_goal_progress';
+    }
+  };
+
+  const readGoalProgressState = () => {
+    try {
+      const raw = window.localStorage.getItem(getGoalStorageKey());
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const writeGoalProgressState = (state) => {
+    try {
+      window.localStorage.setItem(getGoalStorageKey(), JSON.stringify(state));
+    } catch {
+      // ignore
+    }
+  };
+
   const savePhysicalProfile = async () => {
     const token = getAuthToken();
     if (!token) {
@@ -224,6 +323,10 @@ export default function Perfil() {
     setPhysicalSaveSuccess('');
     setPhysicalSaving(true);
     try {
+      const pesoKg = parseFirstNumber(physical.pesoActual.value);
+      const alturaCm = parseFirstNumber(physical.altura.value);
+      const targetKg = parseFirstNumber(physical.objetivos.pesoObjetivo);
+
       const payload = {
         peso_kg: Number.isFinite(parseFirstNumber(physical.pesoActual.value))
           ? Number(parseFirstNumber(physical.pesoActual.value))
@@ -273,9 +376,34 @@ export default function Perfil() {
       }
 
       const bmi = calcBmi(payload.peso_kg, payload.altura_cm);
+
+      if (Number.isFinite(pesoKg) && Number.isFinite(targetKg)) {
+        const prev = readGoalProgressState();
+        const shouldResetStart = !prev || Number(prev?.targetKg) !== targetKg;
+        const next = {
+          targetKg,
+          startKg: shouldResetStart ? pesoKg : Number(prev?.startKg),
+          goalType: physical.objetivos.tipo || '',
+        };
+        writeGoalProgressState(next);
+      }
+
+      const progressState = readGoalProgressState();
+      const progress = computeGoalProgress({
+        currentKg: Number.isFinite(pesoKg) ? pesoKg : NaN,
+        targetKg: Number.isFinite(targetKg) ? targetKg : NaN,
+        goalType: physical.objetivos.tipo,
+        startKg: Number(progressState?.startKg),
+      });
+
       setPhysical((p) => ({
         ...p,
         imc: bmi,
+        objetivos: {
+          ...p.objetivos,
+          progresoLeft: progress.leftText,
+          progresoPercent: progress.percent,
+        },
         ultimaActualizacion: fmtDate(new Date()),
       }));
       setPhysicalSaveSuccess(t('Datos guardados correctamente.'));
@@ -287,6 +415,20 @@ export default function Perfil() {
       setPhysicalSaving(false);
     }
   };
+
+  const liveGoalProgress = useMemo(() => {
+    const currentKg = parseFirstNumber(physical.pesoActual.value);
+    const targetKg = parseFirstNumber(physical.objetivos.pesoObjetivo);
+    const prev = readGoalProgressState();
+    const startKg =
+      prev && Number(prev?.targetKg) === targetKg ? Number(prev?.startKg) : currentKg;
+    return computeGoalProgress({
+      currentKg,
+      targetKg,
+      goalType: physical.objetivos.tipo,
+      startKg,
+    });
+  }, [physical.objetivos.pesoObjetivo, physical.objetivos.tipo, physical.pesoActual.value]);
 
   useEffect(() => {
     if (tab !== 'fisico') return;
@@ -336,7 +478,7 @@ export default function Perfil() {
         const actividad = source?.nivel_actividad ?? source?.nivel_experiencia ?? source?.nivelActividad ?? '--';
         const objetivo = source?.objetivo_principal ?? source?.objetivoPrincipal ?? '--';
         const pesoObjetivo = source?.peso_objetivo_kg ?? source?.peso_objetivo ?? '--';
-        const fechaObjetivo = source?.fecha_objetivo ? fmtDate(source.fecha_objetivo) : '';
+        const fechaObjetivoIso = source?.fecha_objetivo ? toISODate(source.fecha_objetivo) : '';
         const metaSemanal = source?.meta_semanal ?? '--';
         const preferida = source?.actividad_preferida ?? '--';
         const last =
@@ -347,28 +489,48 @@ export default function Perfil() {
           '';
 
         const bmi = calcBmi(peso, altura);
-        setPhysical((p) => ({
-          ...p,
-          pesoActual: { ...p.pesoActual, value: peso === null || peso === undefined ? '--' : peso },
-          altura: { ...p.altura, value: altura === null || altura === undefined ? '--' : altura },
-          imc: bmi,
-          grasa: { ...p.grasa, value: grasa === null || grasa === undefined ? '--' : grasa },
-          masa: { ...p.masa, value: masa === null || masa === undefined ? '--' : masa },
-          ultimaActualizacion: fmtDate(last),
-          objetivos: {
-            ...p.objetivos,
-            tipo: objetivo || '--',
-            pesoObjetivo: pesoObjetivo === null || pesoObjetivo === undefined ? '--' : pesoObjetivo,
-            fecha: fechaObjetivo || '',
-            // Keep existing UI-only progress fields as-is.
-          },
-          actividad: {
-            ...p.actividad,
-            nivel: actividad || '--',
-            metaSemanal: metaSemanal || '--',
-            preferida: preferida || '--',
-          },
-        }));
+
+        const currentKg = parseFirstNumber(peso);
+        const targetKg = parseFirstNumber(pesoObjetivo);
+        const prevProgress = readGoalProgressState();
+        const startKg =
+          prevProgress && Number(prevProgress?.targetKg) === targetKg
+            ? Number(prevProgress?.startKg)
+            : currentKg;
+        if (Number.isFinite(currentKg) && Number.isFinite(targetKg)) {
+          writeGoalProgressState({ targetKg, startKg, goalType: objetivo || '' });
+        }
+
+        const progress = computeGoalProgress({
+          currentKg,
+          targetKg,
+          goalType: objetivo,
+          startKg,
+        });
+
+	        setPhysical((p) => ({
+	          ...p,
+	          pesoActual: { ...p.pesoActual, value: peso === null || peso === undefined ? '--' : peso },
+	          altura: { ...p.altura, value: altura === null || altura === undefined ? '--' : altura },
+	          imc: bmi,
+	          grasa: { ...p.grasa, value: grasa === null || grasa === undefined ? '--' : grasa },
+	          masa: { ...p.masa, value: masa === null || masa === undefined ? '--' : masa },
+	          ultimaActualizacion: fmtDate(last),
+	          objetivos: {
+	            ...p.objetivos,
+	            tipo: objetivo || '',
+	            pesoObjetivo: pesoObjetivo === null || pesoObjetivo === undefined ? '--' : pesoObjetivo,
+	            fecha: fechaObjetivoIso || '',
+	            progresoLeft: progress.leftText,
+	            progresoPercent: progress.percent,
+	          },
+	          actividad: {
+	            ...p.actividad,
+	            nivel: actividad || '',
+	            metaSemanal: metaSemanal || '',
+	            preferida: preferida || '',
+	          },
+	        }));
       } catch (e) {
         if (!cancelled) setPhysicalError(t('Error de conexión. Inténtalo de nuevo.'));
       } finally {
@@ -643,7 +805,7 @@ export default function Perfil() {
                     <ProgressBar percent={physical.imc.percent} />
                   </div>
 
-                  <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
+	                  <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <div className="rounded-xl border border-white/35 bg-black/10 p-5 text-center">
                       <Label>{t('physical_body_fat').toUpperCase()}</Label>
                       {isEditingPhysical ? (
@@ -659,7 +821,14 @@ export default function Perfil() {
                         <div className="mt-4 text-[28px] font-bold text-white/95">{physical.grasa.value}</div>
                       )}
                       <div className="text-[11px] tracking-wide text-white/40">{physical.grasa.unit}</div>
-                    </div>
+	                  </div>
+
+	                  <div className="mt-5 rounded-xl border border-white/25 bg-white/[0.02] px-4 py-4 text-[12px] text-white/65">
+	                    <div className="font-semibold text-white/80">{t('Recordatorio')}</div>
+	                    <div className="mt-1">
+	                      {t('Los valores de % de grasa y masa muscular deben ser medidos por ti (báscula de impedancia, pliegues, etc.) y guardados aquí para llevar un mejor control de tus entrenamientos.')}
+	                    </div>
+	                  </div>
                     <div className="rounded-xl border border-white/35 bg-black/10 p-5 text-center">
                       <Label>{t('physical_muscle_mass').toUpperCase()}</Label>
                       {isEditingPhysical ? (
@@ -684,10 +853,10 @@ export default function Perfil() {
                 </Section>
 
                 <div className="space-y-6">
-                  <Section title={t('physical_goals').toUpperCase()}>
-                    <div className="space-y-5">
-                      <div>
-                        <Label>{t('physical_target_weight').toUpperCase()}</Label>
+	                  <Section title={t('physical_goals').toUpperCase()}>
+	                    <div className="space-y-5">
+	                      <div>
+	                        <Label>{t('physical_target_weight').toUpperCase()}</Label>
                         <Input
                           value={physical.objetivos.pesoObjetivo}
                           readOnly={!isEditingPhysical}
@@ -699,85 +868,139 @@ export default function Perfil() {
                           }
                         />
                       </div>
-                      <div>
-                        <Label>{t('physical_goal_type').toUpperCase()}</Label>
-                        <Input
-                          value={physical.objetivos.tipo}
-                          readOnly={!isEditingPhysical}
-                          onChange={(e) =>
-                            setPhysical((p) => ({
-                              ...p,
-                              objetivos: { ...p.objetivos, tipo: e.target.value },
-                            }))
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label>{t('physical_progress').toUpperCase()}</Label>
-                        <div className="mt-2 rounded-xl border border-white/35 bg-black/10 px-5 py-4">
-                          <div className="flex items-center justify-between text-[10px] font-bold tracking-wide text-white/80">
-                            <span>{physical.objetivos.progresoLeft}</span>
-                            <span>{physical.objetivos.progresoPercent}%</span>
-                          </div>
-                          <ProgressBar percent={physical.objetivos.progresoPercent} />
-                        </div>
-                      </div>
-                      <div>
-                        <Label>{t('physical_goal_date').toUpperCase()}</Label>
-                        <Input
-                          value={physical.objetivos.fecha}
-                          readOnly={!isEditingPhysical}
-                          onChange={(e) =>
-                            setPhysical((p) => ({
-                              ...p,
-                              objetivos: { ...p.objetivos, fecha: e.target.value },
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
-                  </Section>
+	                      <div>
+	                        <Label>{t('physical_goal_type').toUpperCase()}</Label>
+	                        {isEditingPhysical ? (
+	                          <Select
+	                            value={physical.objetivos.tipo}
+	                            onChange={(e) =>
+	                              setPhysical((p) => ({
+	                                ...p,
+	                                objetivos: { ...p.objetivos, tipo: e.target.value },
+	                              }))
+	                            }
+	                          >
+	                            <option value="" disabled>
+	                              {t('Selecciona tu objetivo')}
+	                            </option>
+	                            <option value="Perder peso">{t('Perder peso')}</option>
+	                            <option value="Ganar músculo">{t('Ganar músculo')}</option>
+	                            <option value="Mejorar resistencia">{t('Mejorar resistencia')}</option>
+	                            <option value="Mantenerme saludable">{t('Mantenerme saludable')}</option>
+	                          </Select>
+	                        ) : (
+	                          <Input value={physical.objetivos.tipo || '--'} readOnly />
+	                        )}
+	                      </div>
+	                      <div>
+	                        <Label>{t('physical_progress').toUpperCase()}</Label>
+	                        <div className="mt-2 rounded-xl border border-white/35 bg-black/10 px-5 py-4">
+	                          <div className="flex items-center justify-between text-[10px] font-bold tracking-wide text-white/80">
+	                            <span>{liveGoalProgress.leftText}</span>
+	                            <span>{liveGoalProgress.percent}%</span>
+	                          </div>
+	                          <ProgressBar percent={liveGoalProgress.percent} />
+	                        </div>
+	                      </div>
+	                      <div>
+	                        <Label>{t('physical_goal_date').toUpperCase()}</Label>
+	                        {isEditingPhysical ? (
+	                          <Input
+	                            value={physical.objetivos.fecha}
+	                            type="date"
+	                            readOnly={false}
+	                            onChange={(e) =>
+	                              setPhysical((p) => ({
+	                                ...p,
+	                                objetivos: { ...p.objetivos, fecha: e.target.value },
+	                              }))
+	                            }
+	                          />
+	                        ) : (
+	                          <Input value={formatISODateForDisplay(physical.objetivos.fecha) || '--'} readOnly />
+	                        )}
+	                      </div>
+	                    </div>
+	                  </Section>
 
-                  <Section title={t('physical_activity_level').toUpperCase()}>
-                    <div className="space-y-5">
-                      <div>
-                        <Label>{t('physical_current_level').toUpperCase()}</Label>
-                        <Input
-                          value={physical.actividad.nivel}
-                          readOnly={!isEditingPhysical}
-                          onChange={(e) =>
-                            setPhysical((p) => ({ ...p, actividad: { ...p.actividad, nivel: e.target.value } }))
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label>{t('physical_weekly_goal').toUpperCase()}</Label>
-                        <Input
-                          value={physical.actividad.metaSemanal}
-                          readOnly={!isEditingPhysical}
-                          onChange={(e) =>
-                            setPhysical((p) => ({
-                              ...p,
-                              actividad: { ...p.actividad, metaSemanal: e.target.value },
-                            }))
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label>{t('physical_preferred_activity').toUpperCase()}</Label>
-                        <Input
-                          value={physical.actividad.preferida}
-                          readOnly={!isEditingPhysical}
-                          onChange={(e) =>
-                            setPhysical((p) => ({
-                              ...p,
-                              actividad: { ...p.actividad, preferida: e.target.value },
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
-                  </Section>
+	                  <Section title={t('physical_activity_level').toUpperCase()}>
+	                    <div className="space-y-5">
+	                      <div>
+	                        <Label>{t('physical_current_level').toUpperCase()}</Label>
+	                        {isEditingPhysical ? (
+	                          <Select
+	                            value={physical.actividad.nivel}
+	                            onChange={(e) =>
+	                              setPhysical((p) => ({
+	                                ...p,
+	                                actividad: { ...p.actividad, nivel: e.target.value },
+	                              }))
+	                            }
+	                          >
+	                            <option value="" disabled>
+	                              {t('Selecciona tu nivel')}
+	                            </option>
+	                            <option value="Principiante">{t('Principiante')}</option>
+	                            <option value="Intermedio">{t('Intermedio')}</option>
+	                            <option value="Avanzado">{t('Avanzado')}</option>
+	                          </Select>
+	                        ) : (
+	                          <Input value={physical.actividad.nivel || '--'} readOnly />
+	                        )}
+	                      </div>
+	                      <div>
+	                        <Label>{t('physical_weekly_goal').toUpperCase()}</Label>
+	                        {isEditingPhysical ? (
+	                          <Select
+	                            value={physical.actividad.metaSemanal}
+	                            onChange={(e) =>
+	                              setPhysical((p) => ({
+	                                ...p,
+	                                actividad: { ...p.actividad, metaSemanal: e.target.value },
+	                              }))
+	                            }
+	                          >
+	                            <option value="" disabled>
+	                              {t('Selecciona una meta')}
+	                            </option>
+	                            <option value="1–2 entrenamientos">{t('1–2 entrenamientos')}</option>
+	                            <option value="3–4 entrenamientos">{t('3–4 entrenamientos')}</option>
+	                            <option value="4–5 entrenamientos">{t('4–5 entrenamientos')}</option>
+	                            <option value="6+ entrenamientos">{t('6+ entrenamientos')}</option>
+	                          </Select>
+	                        ) : (
+	                          <Input value={physical.actividad.metaSemanal || '--'} readOnly />
+	                        )}
+	                      </div>
+	                      <div>
+	                        <Label>{t('physical_preferred_activity').toUpperCase()}</Label>
+	                        {isEditingPhysical ? (
+	                          <Select
+	                            value={physical.actividad.preferida}
+	                            onChange={(e) =>
+	                              setPhysical((p) => ({
+	                                ...p,
+	                                actividad: { ...p.actividad, preferida: e.target.value },
+	                              }))
+	                            }
+	                          >
+	                            <option value="" disabled>
+	                              {t('Selecciona una actividad')}
+	                            </option>
+	                            <option value="Gimnasio">{t('Gimnasio')}</option>
+	                            <option value="Cardio">{t('Cardio')}</option>
+	                            <option value="HIIT">{t('HIIT')}</option>
+	                            <option value="Calistenia">{t('Calistenia')}</option>
+	                            <option value="Yoga / Movilidad">{t('Yoga / Movilidad')}</option>
+	                            <option value="Outdoor">{t('Outdoor')}</option>
+	                            <option value="Mixto">{t('Mixto')}</option>
+	                          </Select>
+	                        ) : (
+	                          <Input value={physical.actividad.preferida || '--'} readOnly />
+	                        )}
+	                      </div>
+	                    </div>
+	                  </Section>
                 </div>
 
                 <div className="lg:col-span-2 pt-4 border-t border-white/10">
