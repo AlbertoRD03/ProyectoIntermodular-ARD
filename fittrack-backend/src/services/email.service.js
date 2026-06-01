@@ -1,18 +1,24 @@
-import nodemailer from 'nodemailer';
+const EMAIL_PROVIDER = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
 
-const parseBoolean = (value, fallback = false) => {
-  const normalized = String(value ?? '').trim().toLowerCase();
-  if (normalized === '') return fallback;
-  return normalized === 'true' || normalized === '1' || normalized === 'yes';
+const parseFrom = (raw) => {
+  const value = String(raw || '').trim();
+  if (!value) return { name: '', email: '' };
+  const match = value.match(/^\s*(.*?)\s*<([^>]+)>\s*$/);
+  if (match) return { name: String(match[1] || '').trim(), email: String(match[2] || '').trim() };
+  return { name: '', email: value };
 };
 
+const isBrevoSelected = () => EMAIL_PROVIDER === 'brevo' || (EMAIL_PROVIDER === '' && Boolean(process.env.BREVO_API_KEY));
+
 export const isEmailConfigured = () => {
-  // Allow "no-op email" in dev if SMTP isn't configured.
-  return Boolean(process.env.SMTP_HOST && process.env.SMTP_FROM);
+  // Allow "no-op email" in dev if email isn't configured.
+  if (!process.env.SMTP_FROM) return false;
+  if (isBrevoSelected()) return Boolean(process.env.BREVO_API_KEY);
+  return Boolean(process.env.SMTP_HOST);
 };
 
 export const sendPasswordResetEmail = async ({ to, resetUrl }) => {
-  const from = process.env.SMTP_FROM;
+  const fromRaw = process.env.SMTP_FROM;
   const appName = process.env.APP_NAME || 'FitTrack';
 
   if (!isEmailConfigured()) {
@@ -20,33 +26,6 @@ export const sendPasswordResetEmail = async ({ to, resetUrl }) => {
       `[email] SMTP no configurado. Enlace de recuperación para ${to}: ${resetUrl}`
     );
     return;
-  }
-
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    throw new Error(
-      'SMTP incompleto: faltan SMTP_USER/SMTP_PASS. En Brevo, usa "Login" como SMTP_USER y una "SMTP key" como SMTP_PASS.'
-    );
-  }
-
-  const host = process.env.SMTP_HOST;
-  const port = Number.parseInt(process.env.SMTP_PORT || '587', 10);
-  const secure = parseBoolean(process.env.SMTP_SECURE, port === 465);
-
-  const transporter = nodemailer.createTransport({
-    host,
-    port,
-    secure,
-    auth: process.env.SMTP_USER
-      ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS || '' }
-      : undefined
-  });
-
-  try {
-    // Fast-fail with a readable error if credentials/connection are wrong.
-    await transporter.verify();
-  } catch (error) {
-    const message = error?.message ? String(error.message) : String(error);
-    throw new Error(`No se pudo conectar/autenticar con SMTP (${host}:${port}). ${message}`);
   }
 
   const subject = `${appName} - Recuperación de contraseña`;
@@ -67,10 +46,36 @@ export const sendPasswordResetEmail = async ({ to, resetUrl }) => {
     </div>
   `;
 
-  try {
-    await transporter.sendMail({ from, to, subject, text, html });
-  } catch (error) {
-    const message = error?.message ? String(error.message) : String(error);
-    throw new Error(`Error enviando email SMTP a ${to}. ${message}`);
+  if (isBrevoSelected()) {
+    const apiKey = String(process.env.BREVO_API_KEY || '').trim();
+    if (!apiKey) throw new Error('BREVO_API_KEY no configurada.');
+    const from = parseFrom(fromRaw);
+    if (!from.email) throw new Error('SMTP_FROM inválido. Usa "Nombre <email@dominio>".');
+
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': apiKey,
+      },
+      body: JSON.stringify({
+        sender: { name: from.name || appName, email: from.email },
+        to: [{ email: String(to).trim() }],
+        subject,
+        textContent: text,
+        htmlContent: html,
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Error enviando email por Brevo (status ${res.status}). ${body || ''}`.trim());
+    }
+    return;
   }
+
+  // Fallback SMTP (local/self-hosted deployments).
+  throw new Error(
+    'EMAIL_PROVIDER=brevo recomendado en Vercel. Configura BREVO_API_KEY y SMTP_FROM, o define SMTP_HOST para usar SMTP.'
+  );
 };
