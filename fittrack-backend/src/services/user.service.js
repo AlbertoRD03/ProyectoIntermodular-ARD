@@ -48,6 +48,16 @@ export const updateUserProfile = async (userId, updateData) => {
 };
 
 export const deleteUserFull = async (userId) => {
+  const deleteWeightEntries = async (match) => {
+    try {
+      const { default: WeightEntry } = await import('../models/mongodb/WeightEntry.js');
+      const result = await WeightEntry.deleteMany(match);
+      return result?.deletedCount ?? 0;
+    } catch {
+      return 0;
+    }
+  };
+
   if (isMySQLEnabled()) {
     const { default: User } = await import('../models/mysql/User.js');
     const user = await User.findByPk(userId);
@@ -55,10 +65,12 @@ export const deleteUserFull = async (userId) => {
 
     const deletedUser = await User.destroy({ where: { id: userId } });
     const deletedSessions = await Session.deleteMany({ usuario_id: userId });
+    const deletedWeightEntries = await deleteWeightEntries({ usuario_id: userId });
 
     return {
       deletedUser,
       deletedSessions: deletedSessions?.deletedCount ?? 0,
+      deletedWeightEntries,
     };
   }
 
@@ -68,10 +80,12 @@ export const deleteUserFull = async (userId) => {
 
   // Session model currently stores usuario_id as Number in schema; keep best-effort delete.
   const deletedSessions = await Session.deleteMany({ usuario_id: userId });
+  const deletedWeightEntries = await deleteWeightEntries({ usuario_id: userId });
 
   return {
     deletedUser: 1,
     deletedSessions: deletedSessions?.deletedCount ?? 0,
+    deletedWeightEntries,
   };
 };
 

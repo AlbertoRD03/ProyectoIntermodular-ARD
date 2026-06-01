@@ -119,6 +119,9 @@ export default function Perfil() {
   const [isEditingUser, setIsEditingUser] = useState(false);
   const [isEditingPhysical, setIsEditingPhysical] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const fileInputRef = useRef(null);
 
   const [photoDataUrl, setPhotoDataUrl] = useState(() => {
@@ -610,6 +613,49 @@ export default function Perfil() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [showLogoutConfirm]);
 
+  useEffect(() => {
+    if (!showDeleteConfirm) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setShowDeleteConfirm(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showDeleteConfirm]);
+
+  const confirmDeleteAccount = async () => {
+    const token = getAuthToken();
+    if (!token) return navigate('/login', { replace: true });
+
+    setDeleteError('');
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/users/profile`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDeleteError(data?.error || data?.message || t('No se pudo eliminar la cuenta.'));
+        return;
+      }
+
+      // Clear local state and go to login.
+      try {
+        window.localStorage.removeItem('fittrack_token');
+        window.localStorage.removeItem('authToken');
+        window.localStorage.removeItem('fittrack_user');
+      } catch {
+        // ignore
+      }
+      setShowDeleteConfirm(false);
+      navigate('/login', { replace: true });
+    } catch {
+      setDeleteError(t('Error de conexión. Inténtalo de nuevo.'));
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const handleEditToggle = () => {
     if (tab === 'usuario') setIsEditingUser(true);
     else {
@@ -876,7 +922,9 @@ export default function Perfil() {
                   <div className="mt-5 flex flex-wrap items-center justify-center gap-4">
                     <ActionButton>{t('profile_change_password').toUpperCase()}</ActionButton>
                     <ActionButton onClick={() => navigate('/privacy-settings')}>{t('profile_privacy_settings').toUpperCase()}</ActionButton>
-                    <ActionButton variant="danger">{t('profile_delete_account').toUpperCase()}</ActionButton>
+                    <ActionButton variant="danger" onClick={() => { setDeleteError(''); setShowDeleteConfirm(true); }}>
+                      {t('profile_delete_account').toUpperCase()}
+                    </ActionButton>
                   </div>
                 </div>
               </div>
@@ -1236,6 +1284,49 @@ export default function Perfil() {
                 }}
               >
                 {t('Cerrar sesión').toUpperCase()}
+              </ActionButton>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showDeleteConfirm ? (
+        <div className="fixed inset-0 z-50 grid place-items-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/70"
+            aria-label={t('Cerrar')}
+            onClick={() => setShowDeleteConfirm(false)}
+          />
+          <div className="relative w-full max-w-[560px] rounded-2xl border border-red-500/20 bg-[#121212] p-6 shadow-[0_30px_90px_-40px_rgba(0,0,0,0.9)]">
+            <div
+              className="text-[18px] font-bold tracking-wide text-white/95"
+              style={{ fontFamily: 'Arimo, Poppins, system-ui' }}
+            >
+              {t('Eliminar cuenta').toUpperCase()}
+            </div>
+            <div className="mt-2 text-[13px] text-white/65">
+              {t('Esta acción elimina todos tus datos y no es reversible.')}
+            </div>
+            <div className="mt-3 text-[12px] text-white/55">
+              {t('Se eliminarán tus sesiones, registros de peso y perfil.')}
+            </div>
+
+            {deleteError ? (
+              <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-[13px] text-red-200">
+                {deleteError}
+              </div>
+            ) : null}
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <ActionButton onClick={() => setShowDeleteConfirm(false)}>
+                {t('Cancelar').toUpperCase()}
+              </ActionButton>
+              <ActionButton
+                variant="danger"
+                onClick={confirmDeleteAccount}
+              >
+                {deleteLoading ? t('Eliminando...') : t('Confirmar eliminación')}
               </ActionButton>
             </div>
           </div>
