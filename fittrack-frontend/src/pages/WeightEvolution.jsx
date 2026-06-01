@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart3, Calendar, Info, Plus, Trash2, TrendingUp, Weight } from 'lucide-react';
 
@@ -47,9 +47,24 @@ function formatTonnage(kg) {
   return `${Math.round(v)}`;
 }
 
-function Card({ title, icon: Icon, children }) {
+function Card({ title, icon: Icon, onClick, children }) {
   return (
-    <div className="rounded-xl border border-white/15 bg-white/[0.02] p-5 shadow-[0_18px_50px_-40px_rgba(0,0,0,0.9)]">
+    <div
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') onClick();
+            }
+          : undefined
+      }
+      className={cx(
+        'rounded-xl border border-white/15 bg-white/[0.02] p-5 shadow-[0_18px_50px_-40px_rgba(0,0,0,0.9)]',
+        onClick ? 'cursor-pointer transition hover:border-white/25 hover:bg-white/[0.03]' : ''
+      )}
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="text-[11px] font-bold tracking-[0.22em] text-white/55">
           {title}
@@ -128,6 +143,12 @@ function SvgBarChart({ data, height = 180, tooltipFormatter }) {
   };
 
   const [hover, setHover] = useState(null);
+  const barColor = (v) => {
+    const t = Math.max(0, Math.min(1, v / Math.max(1, max)));
+    // Warm -> hot. Keep brand hue but adjust opacity.
+    const alpha = 0.35 + t * 0.65;
+    return `rgba(255,120,73,${alpha.toFixed(3)})`;
+  };
 
   return (
     <div className="relative">
@@ -186,8 +207,8 @@ function SvgBarChart({ data, height = 180, tooltipFormatter }) {
                 width={barW}
                 height={h}
                 rx="8"
-                fill="url(#barGrad)"
-                opacity={isHot ? 1 : 0.85}
+                fill={barColor(v)}
+                opacity={isHot ? 1 : 0.95}
               />
               {/* x labels: sparse */}
               {safe.length <= 12 || idx % Math.ceil(safe.length / 8) === 0 ? (
@@ -261,10 +282,11 @@ function SvgLineChart({ data, height = 160 }) {
   );
 }
 
-function Heatmap({ startDate, days, valueByDay }) {
+function Heatmap({ startDate, days, valueByDay, detailsByDay }) {
   const start = startOfISOWeek(startDate);
   const totalDays = Math.max(7, days);
   const weeks = Math.ceil(totalDays / 7);
+  const [hover, setHover] = useState(null);
 
   const getColor = (v, max) => {
     if (!v) return 'rgba(255,255,255,0.06)';
@@ -283,17 +305,31 @@ function Heatmap({ startDate, days, valueByDay }) {
   });
 
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
+      {hover ? (
+        <div className="pointer-events-none absolute left-0 top-0 z-10 w-[280px] rounded-xl border border-white/10 bg-[#121212] px-4 py-3 text-[12px] text-white/80 shadow-[0_30px_90px_-40px_rgba(0,0,0,0.9)]">
+          <div className="font-semibold text-white/90">{hover.key}</div>
+          <div className="mt-1 text-white/65">
+            Volumen: {hover.v >= 1000 ? `${Math.round((hover.v / 1000) * 10) / 10} T` : `${Math.round(hover.v)} kg`}
+          </div>
+          <div className="mt-2 text-white/65">
+            Top: <span className="text-white/85">{hover.top || '--'}</span>
+          </div>
+        </div>
+      ) : null}
       <div className="flex min-w-max gap-2">
         {cols.map((col, idx) => (
           <div key={idx} className="flex flex-col gap-2">
             {col.daysInCol.map((day) => {
               const key = toISODate(day);
               const v = valueByDay.get(key) || 0;
+              const extra = detailsByDay?.get ? detailsByDay.get(key) : null;
+              const top = extra?.topExercise || '--';
               return (
                 <div
                   key={key}
-                  title={`${key} • ${Math.round(v)} kg`}
+                  onMouseEnter={() => setHover({ key, v, top })}
+                  onMouseLeave={() => setHover(null)}
                   className="h-4 w-4 rounded-[4px] border border-white/10"
                   style={{ backgroundColor: getColor(v, max) }}
                 />
@@ -355,6 +391,7 @@ export default function WeightEvolution() {
 
   const [tab, setTab] = useState('volumen'); // volumen | peso
   const [range, setRange] = useState('dia'); // dia | semana | mes
+  const chartRef = useRef(null);
 
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [sessionsError, setSessionsError] = useState('');
@@ -409,6 +446,19 @@ export default function WeightEvolution() {
       cancelled = true;
     };
   }, [t]);
+
+  const setRangeAndScroll = (nextRange) => {
+    setTab('volumen');
+    setRange(nextRange);
+    // Wait a tick so layout updates with the selected range.
+    window.setTimeout(() => {
+      try {
+        chartRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      } catch {
+        // ignore
+      }
+    }, 0);
+  };
 
   useEffect(() => {
     const token = getAuthToken();
@@ -543,15 +593,32 @@ export default function WeightEvolution() {
     const start = startOfISOWeek(addDays(now, -(7 * 11))); // 12 weeks window
     const days = 7 * 12;
     const map = new Map();
+    const details = new Map();
     for (let i = 0; i < days; i++) map.set(toISODate(addDays(start, i)), 0);
 
     for (const s of sessions) {
       const date = new Date(s?.fecha || s?.createdAt || Date.now());
       const key = toISODate(startOfDay(date));
       if (!map.has(key)) continue;
-      map.set(key, (map.get(key) || 0) + sumSessionVolumeKg(s));
+      const v = sumSessionVolumeKg(s);
+      map.set(key, (map.get(key) || 0) + v);
+
+      // Track top exercise for that day.
+      const exMap = sumSessionVolumeByExercise(s);
+      const prev = details.get(key) || { topExercise: '--', topValue: 0 };
+      for (const [name, val] of exMap.entries()) {
+        const nextVal = (prev?.byExercise?.get?.(name) || 0) + val;
+        // Store running totals per exercise in a simple Map (kept inside details object).
+        if (!prev.byExercise) prev.byExercise = new Map();
+        prev.byExercise.set(name, nextVal);
+        if (nextVal > prev.topValue) {
+          prev.topValue = nextVal;
+          prev.topExercise = name;
+        }
+      }
+      details.set(key, prev);
     }
-    return { start, days, map };
+    return { start, days, map, details };
   }, [sessions]);
 
   const consistencyKPIs = useMemo(() => {
@@ -692,7 +759,7 @@ export default function WeightEvolution() {
 
           {tab === 'volumen' ? (
             <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <Card title={t('Total hoy').toUpperCase()} icon={BarChart3}>
+              <Card title={t('Total hoy').toUpperCase()} icon={BarChart3} onClick={() => setRangeAndScroll('dia')}>
                 <StatValue value={formatTonnage(volumeKPIs.day)} suffix={volumeKPIs.day >= 1000 ? 'T' : 'KG'} />
                 <div className="mt-2 text-[12px] text-white/55">
                   {t('Top')}: <span className="text-white/75">{volumeKPIs.topDay?.name || '--'}</span>
@@ -701,13 +768,13 @@ export default function WeightEvolution() {
                   Volumen = repeticiones × peso (por set). <Hint text="El 'volumen' (tonnage) es la suma de repeticiones x carga de todos tus sets. Es útil para ver cuánto trabajo total haces." />
                 </div>
               </Card>
-              <Card title={t('Esta semana').toUpperCase()} icon={TrendingUp}>
+              <Card title={t('Esta semana').toUpperCase()} icon={TrendingUp} onClick={() => setRangeAndScroll('semana')}>
                 <StatValue value={formatTonnage(volumeKPIs.week)} suffix={volumeKPIs.week >= 1000 ? 'T' : 'KG'} />
                 <div className="mt-2 text-[12px] text-white/55">
                   {t('Top')}: <span className="text-white/75">{volumeKPIs.topWeek?.name || '--'}</span>
                 </div>
               </Card>
-              <Card title={t('Este mes').toUpperCase()} icon={Calendar}>
+              <Card title={t('Este mes').toUpperCase()} icon={Calendar} onClick={() => setRangeAndScroll('mes')}>
                 <StatValue value={formatTonnage(volumeKPIs.month)} suffix={volumeKPIs.month >= 1000 ? 'T' : 'KG'} />
                 <div className="mt-2 text-[12px] text-white/55">
                   {t('Top')}: <span className="text-white/75">{volumeKPIs.topMonth?.name || '--'}</span>
@@ -723,7 +790,12 @@ export default function WeightEvolution() {
                     {t('Streak')}: <span className="text-white/80 font-semibold">{consistencyKPIs.streak}</span> • {t('Días activos (7d)')}: <span className="text-white/80 font-semibold">{consistencyKPIs.activeDays7}</span>
                   </div>
                   <div className="mt-5">
-                    <Heatmap startDate={heatmapData.start} days={heatmapData.days} valueByDay={heatmapData.map} />
+                    <Heatmap
+                      startDate={heatmapData.start}
+                      days={heatmapData.days}
+                      valueByDay={heatmapData.map}
+                      detailsByDay={heatmapData.details}
+                    />
                   </div>
                 </div>
                 <div className="rounded-2xl border border-white/15 bg-white/[0.02] p-6">
@@ -741,12 +813,12 @@ export default function WeightEvolution() {
                 </div>
               </div>
 
-                <div className="lg:col-span-3 rounded-2xl border border-white/15 bg-white/[0.02] p-6">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-[12px] font-bold tracking-[0.22em] text-white/70">
+              <div ref={chartRef} className="lg:col-span-3 rounded-2xl border border-white/15 bg-white/[0.02] p-6 scroll-mt-24">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[12px] font-bold tracking-[0.22em] text-white/70">
                     {t('Pesos levantados').toUpperCase()} ({range.toUpperCase()}){' '}
                     <Hint text="Esto NO es tu peso corporal. Es el volumen total levantado: sumamos reps × kg en todos tus sets (sentadilla, press banca, etc.)." />
-                    </div>
+                  </div>
                     {sessionsLoading ? <div className="text-[12px] text-white/55">{t('Cargando...')}</div> : null}
                   </div>
                 {sessionsError ? <div className="mt-3 text-[13px] text-[#ff7849]/90">{sessionsError}</div> : null}
