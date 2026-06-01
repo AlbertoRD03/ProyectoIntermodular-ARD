@@ -30,6 +30,7 @@ const userSchema = new mongoose.Schema(
 
     fecha_nacimiento: { type: Date },
     genero: { type: String, trim: true },
+    photo_url: { type: String, trim: true },
 
     physicalProfile: { type: physicalProfileSchema, default: undefined },
     onboardingCompleted: { type: Boolean, default: false },

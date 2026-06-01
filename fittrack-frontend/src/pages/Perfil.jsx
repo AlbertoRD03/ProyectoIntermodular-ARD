@@ -131,6 +131,8 @@ export default function Perfil() {
       return '';
     }
   });
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoUploadError, setPhotoUploadError] = useState('');
 
   const [userLoading, setUserLoading] = useState(false);
   const [userError, setUserError] = useState('');
@@ -746,13 +748,77 @@ export default function Perfil() {
     const file = event.target.files?.[0];
     if (!file) return;
     if (!file.type?.startsWith('image/')) return;
+    setPhotoUploadError('');
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : '';
-      if (result) setPhotoDataUrl(result);
-    };
-    reader.readAsDataURL(file);
+    const token = getAuthToken();
+    if (!token) {
+      navigate('/login', { replace: true });
+      return;
+    }
+
+    setPhotoUploading(true);
+    try {
+      const publicId = `profile_${Date.now()}`;
+      const sigRes = await fetch(
+        `${API_BASE}/uploads/cloudinary-signature?public_id=${encodeURIComponent(publicId)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const sig = await sigRes.json().catch(() => ({}));
+      if (!sigRes.ok) {
+        setPhotoUploadError(sig?.error || sig?.message || t('No se pudo preparar la subida.'));
+        return;
+      }
+
+      const uploadUrl = `https://api.cloudinary.com/v1_1/${encodeURIComponent(sig.cloudName)}/image/upload`;
+      const form = new FormData();
+      form.append('file', file);
+      form.append('api_key', sig.apiKey);
+      form.append('timestamp', String(sig.timestamp));
+      form.append('signature', sig.signature);
+      if (sig.folder) form.append('folder', sig.folder);
+      if (sig.publicId) form.append('public_id', sig.publicId);
+
+      const upRes = await fetch(uploadUrl, { method: 'POST', body: form });
+      const upData = await upRes.json().catch(() => ({}));
+      if (!upRes.ok) {
+        setPhotoUploadError(upData?.error?.message || t('No se pudo subir la imagen.'));
+        return;
+      }
+
+      const url = String(upData?.secure_url || upData?.url || '').trim();
+      if (!url) {
+        setPhotoUploadError(t('La subida no devolvió una URL válida.'));
+        return;
+      }
+
+      setPhotoDataUrl(url);
+
+      // Persist in user profile so it can be reused anywhere.
+      const saveRes = await fetch(`${API_BASE}/users/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ photo_url: url }),
+      });
+      const saveData = await saveRes.json().catch(() => ({}));
+      if (saveRes.ok) {
+        const u = saveData?.user || saveData?.data?.user;
+        if (u) {
+          try {
+            window.localStorage.setItem('fittrack_user', JSON.stringify(u));
+          } catch {
+            // ignore
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setPhotoUploadError(t('Error de conexión. Inténtalo de nuevo.'));
+    } finally {
+      setPhotoUploading(false);
+    }
   };
 
   const doLogout = () => {
@@ -822,9 +888,15 @@ export default function Perfil() {
                     <div className="mt-4 text-center text-[10px] uppercase tracking-[0.25em] text-white/35">
                       {t('profile_photo').toUpperCase()}
                     </div>
-                    <div className="mt-3 flex justify-center">
-                      <ActionButton onClick={handleChangePhotoClick}>{t('profile_change_photo').toUpperCase()}</ActionButton>
-                    </div>
+                  <div className="mt-3 flex justify-center">
+                    <ActionButton onClick={handleChangePhotoClick}>{t('profile_change_photo').toUpperCase()}</ActionButton>
+                  </div>
+                  {photoUploading ? (
+                    <div className="mt-3 text-center text-[12px] text-white/55">{t('Guardando...')}</div>
+                  ) : null}
+                  {photoUploadError ? (
+                    <div className="mt-3 text-center text-[12px] text-[#ff7849]/90">{photoUploadError}</div>
+                  ) : null}
                     <div className="mt-6 text-center text-[10px] uppercase tracking-[0.25em] text-white/35">
                       {t('profile_language').toUpperCase()}
                     </div>

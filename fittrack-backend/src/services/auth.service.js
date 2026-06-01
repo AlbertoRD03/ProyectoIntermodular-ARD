@@ -143,6 +143,7 @@ export const requestPasswordReset = async ({ email }) => {
     if (user) userId = String(user._id);
   }
 
+  // Avoid leaking whether the user exists.
   if (!user) return { exists: false };
 
   const token = createResetToken();

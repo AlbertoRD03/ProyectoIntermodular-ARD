@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ArrowLeft, Check, ClipboardCopy, Image as ImageIcon, Plus, Save, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import { uploadImageToCloudinary } from '../services/cloudinaryUpload';
 import { useI18n, tr } from '../i18n/I18nProvider';
 
 function cx(...classes) {
@@ -299,27 +300,54 @@ export default function CreateFitGramPost() {
     if (!canPublish) return;
 
     const currentUsername = 'NEW_USER';
-    const newPost = {
-      id: `new_${Date.now()}`,
-      type: postType,
-      avatarLabel: currentUsername.slice(0, 1).toUpperCase(),
-      username: currentUsername,
-      timeAgo: tr(lang, 'AHORA', 'NOW'),
-      caption: caption.trim(),
-      tags,
-      imagePreviewUrl,
-      metrics: { likes: 0, comments: 0 },
-      ...(postType === 'workout'
-        ? {
-            title: selectedWorkout?.title || tr(lang, 'Entreno del día', "Today's workout"),
-            stats: selectedWorkout?.stats,
-            workoutId: selectedWorkout?.id,
-            workoutDate: selectedWorkout?.dateLabel,
-          }
-        : null),
-    };
+    (async () => {
+      try {
+        const { url } = await uploadImageToCloudinary({ file: imageFile, publicIdPrefix: 'fitgram', folderHint: 'fittrack/fitgram' });
+        const newPost = {
+          id: `new_${Date.now()}`,
+          type: postType,
+          avatarLabel: currentUsername.slice(0, 1).toUpperCase(),
+          username: currentUsername,
+          timeAgo: tr(lang, 'AHORA', 'NOW'),
+          caption: caption.trim(),
+          tags,
+          imagePreviewUrl: url,
+          metrics: { likes: 0, comments: 0 },
+          ...(postType === 'workout'
+            ? {
+                title: selectedWorkout?.title || tr(lang, 'Entreno del día', "Today's workout"),
+                stats: selectedWorkout?.stats,
+                workoutId: selectedWorkout?.id,
+                workoutDate: selectedWorkout?.dateLabel,
+              }
+            : null),
+        };
 
-    navigate('/fitgram', { state: { newPost } });
+        navigate('/fitgram', { state: { newPost } });
+      } catch (e) {
+        // Keep it minimal: FitGram is still mock, so just fallback to local preview if upload fails.
+        const newPost = {
+          id: `new_${Date.now()}`,
+          type: postType,
+          avatarLabel: currentUsername.slice(0, 1).toUpperCase(),
+          username: currentUsername,
+          timeAgo: tr(lang, 'AHORA', 'NOW'),
+          caption: caption.trim(),
+          tags,
+          imagePreviewUrl,
+          metrics: { likes: 0, comments: 0 },
+          ...(postType === 'workout'
+            ? {
+                title: selectedWorkout?.title || tr(lang, 'Entreno del día', "Today's workout"),
+                stats: selectedWorkout?.stats,
+                workoutId: selectedWorkout?.id,
+                workoutDate: selectedWorkout?.dateLabel,
+              }
+            : null),
+        };
+        navigate('/fitgram', { state: { newPost } });
+      }
+    })();
   };
 
   return (

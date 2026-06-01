@@ -75,7 +75,8 @@ export const sendPasswordResetEmail = async ({ to, resetUrl }) => {
       console.error(
         `[email] Brevo error status=${res.status} body=${String(body || '').slice(0, 800)}`
       );
-      throw createHttpError(502, 'No se pudo enviar el email', { expose: false });
+      // Map provider failures to 503 (dependency), keep details hidden from clients.
+      throw createHttpError(503, 'Servicio de email no disponible', { expose: false });
     }
     return;
   }

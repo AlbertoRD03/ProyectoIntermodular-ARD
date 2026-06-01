@@ -42,6 +42,7 @@ export const updateUserProfile = async (userId, updateData) => {
   if (typeof updateData?.email === 'string') allowed.email = updateData.email.trim().toLowerCase();
   if (typeof updateData?.genero === 'string') allowed.genero = updateData.genero.trim();
   if (updateData?.fecha_nacimiento) allowed.fecha_nacimiento = toDateOrUndef(updateData.fecha_nacimiento);
+  if (typeof updateData?.photo_url === 'string') allowed.photo_url = updateData.photo_url.trim();
 
   const user = await User.findByIdAndUpdate(String(userId), { $set: allowed }, { new: true });
   return user ? user.toJSON() : null;

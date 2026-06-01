@@ -8,6 +8,7 @@ import sessionRoutes from './session.routes.js';
 import exerciseRoutes from './exercise.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
 import catalogRoutes from './catalog.routes.js';
+import uploadRoutes from './upload.routes.js';
 import swaggerSpec from '../config/swagger.js';
 
 const registerRoutes = (app) => {
@@ -60,6 +61,7 @@ const registerRoutes = (app) => {
   app.use('/api/ejercicios', exerciseRoutes);
   app.use('/api/catalog', catalogRoutes);
   app.use('/api/dashboard', dashboardRoutes);
+  app.use('/api/uploads', uploadRoutes);
   app.use(
     '/api/docs',
     swaggerUi.serve,
