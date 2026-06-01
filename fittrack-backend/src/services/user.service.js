@@ -15,6 +15,12 @@ export const getUserProfile = async (userId) => {
 };
 
 export const updateUserProfile = async (userId, updateData) => {
+  const toDateOrUndef = (value) => {
+    if (!value) return undefined;
+    const date = value instanceof Date ? value : new Date(String(value));
+    return Number.isFinite(date.getTime()) ? date : undefined;
+  };
+
   if (isMySQLEnabled()) {
     const { default: User } = await import('../models/mysql/User.js');
     const [updatedRows] = await User.update(updateData, {
@@ -34,6 +40,8 @@ export const updateUserProfile = async (userId, updateData) => {
   if (typeof updateData?.apodo === 'string') allowed.apodo = updateData.apodo.trim();
   if (typeof updateData?.telefono === 'string') allowed.telefono = updateData.telefono.trim();
   if (typeof updateData?.email === 'string') allowed.email = updateData.email.trim().toLowerCase();
+  if (typeof updateData?.genero === 'string') allowed.genero = updateData.genero.trim();
+  if (updateData?.fecha_nacimiento) allowed.fecha_nacimiento = toDateOrUndef(updateData.fecha_nacimiento);
 
   const user = await User.findByIdAndUpdate(String(userId), { $set: allowed }, { new: true });
   return user ? user.toJSON() : null;

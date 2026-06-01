@@ -139,6 +139,8 @@ export default function Perfil() {
     apodo: '',
     email: '',
     telefono: '',
+    fecha_nacimiento: '',
+    genero: '',
   }));
 
 	  const [physical, setPhysical] = useState(() => {
@@ -208,6 +210,16 @@ export default function Perfil() {
           apodo: String(u?.apodo || u?.nickname || ''),
           email: String(u?.email || ''),
           telefono: String(u?.telefono || ''),
+          fecha_nacimiento: (() => {
+            const raw = u?.fecha_nacimiento || u?.fechaNacimiento || '';
+            const date = new Date(String(raw || ''));
+            if (!Number.isFinite(date.getTime())) return '';
+            const yyyy = String(date.getFullYear()).padStart(4, '0');
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+          })(),
+          genero: String(u?.genero || ''),
         });
       } catch {
         if (!cancelled) setUserError(t('Error de conexión. Inténtalo de nuevo.'));
@@ -616,6 +628,8 @@ export default function Perfil() {
           apodo: user.apodo,
           email: user.email,
           telefono: user.telefono,
+          fecha_nacimiento: user.fecha_nacimiento || undefined,
+          genero: user.genero || undefined,
         };
         const res = await fetch(`${API_BASE}/users/profile`, {
           method: 'PUT',
@@ -631,7 +645,7 @@ export default function Perfil() {
           return;
         }
 
-        const u = data?.user || data?.data?.user || data?.user;
+        const u = data?.user || data?.data?.user;
         if (u) {
           try {
             window.localStorage.setItem('fittrack_user', JSON.stringify(u));
@@ -643,6 +657,16 @@ export default function Perfil() {
             apodo: String(u?.apodo || ''),
             email: String(u?.email || ''),
             telefono: String(u?.telefono || ''),
+            fecha_nacimiento: (() => {
+              const raw = u?.fecha_nacimiento || u?.fechaNacimiento || '';
+              const date = new Date(String(raw || ''));
+              if (!Number.isFinite(date.getTime())) return '';
+              const yyyy = String(date.getFullYear()).padStart(4, '0');
+              const mm = String(date.getMonth() + 1).padStart(2, '0');
+              const dd = String(date.getDate()).padStart(2, '0');
+              return `${yyyy}-${mm}-${dd}`;
+            })(),
+            genero: String(u?.genero || ''),
           });
         }
 
@@ -794,6 +818,34 @@ export default function Perfil() {
                           onChange={(e) => setUser((p) => ({ ...p, apodo: e.target.value }))}
                         />
                       </div>
+                      <div>
+                        <Label>{t('profile_birthdate').toUpperCase()}</Label>
+                        <Input
+                          value={user.fecha_nacimiento}
+                          type="date"
+                          readOnly={!isEditingUser}
+                          onChange={(e) => setUser((p) => ({ ...p, fecha_nacimiento: e.target.value }))}
+                          className={isEditingUser ? 'border-white/15 bg-[#1e1e1e] text-white/85 focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15' : ''}
+                        />
+                      </div>
+                      <div>
+                        <Label>{t('profile_gender').toUpperCase()}</Label>
+                        {isEditingUser ? (
+                          <Select
+                            value={user.genero}
+                            onChange={(e) => setUser((p) => ({ ...p, genero: e.target.value }))}
+                          >
+                            <option value="" disabled>
+                              {t('Selecciona tu género')}
+                            </option>
+                            <option value="Masculino">{t('Masculino')}</option>
+                            <option value="Femenino">{t('Femenino')}</option>
+                            <option value="Otro">{t('Otro')}</option>
+                          </Select>
+                        ) : (
+                          <Input value={user.genero || '--'} readOnly />
+                        )}
+                      </div>
                       <div className="sm:col-span-2">
                         <Label>{t('profile_email').toUpperCase()}</Label>
                         <Input value={user.email} readOnly={!isEditingUser} onChange={(e) => setUser((p) => ({ ...p, email: e.target.value }))} type="email" />
@@ -813,14 +865,14 @@ export default function Perfil() {
                     <div className="text-center text-[12px] font-bold tracking-wide text-white/80">
                       {t('profile_account_config').toUpperCase()}
                     </div>
-                    <div className="mt-5 flex flex-wrap items-center justify-center gap-4">
-                      <ActionButton>{t('profile_change_password').toUpperCase()}</ActionButton>
-                      <ActionButton>{t('profile_privacy_settings').toUpperCase()}</ActionButton>
-                      <ActionButton variant="danger">{t('profile_delete_account').toUpperCase()}</ActionButton>
-                    </div>
+                  <div className="mt-5 flex flex-wrap items-center justify-center gap-4">
+                    <ActionButton>{t('profile_change_password').toUpperCase()}</ActionButton>
+                    <ActionButton onClick={() => navigate('/privacy-settings')}>{t('profile_privacy_settings').toUpperCase()}</ActionButton>
+                    <ActionButton variant="danger">{t('profile_delete_account').toUpperCase()}</ActionButton>
                   </div>
                 </div>
               </div>
+            </div>
             ) : (
               <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <Section title={t('physical_current_metrics').toUpperCase()}>

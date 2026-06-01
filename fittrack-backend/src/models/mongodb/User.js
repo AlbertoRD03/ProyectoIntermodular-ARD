@@ -28,6 +28,9 @@ const userSchema = new mongoose.Schema(
     apodo: { type: String, trim: true, default: '' },
     telefono: { type: String, trim: true, default: '' },
 
+    fecha_nacimiento: { type: Date },
+    genero: { type: String, trim: true },
+
     physicalProfile: { type: physicalProfileSchema, default: undefined },
     onboardingCompleted: { type: Boolean, default: false },
   },

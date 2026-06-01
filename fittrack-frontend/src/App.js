@@ -19,6 +19,7 @@ import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import OnboardingEnforcer from './components/OnboardingEnforcer';
 import WeightEvolution from './pages/WeightEvolution';
+import PrivacySettings from './pages/PrivacySettings';
 
 const App = () => {
   return (
@@ -33,6 +34,7 @@ const App = () => {
         <Route path="/physical-data" element={<PhysicalData />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
+        <Route path="/privacy-settings" element={<PrivacySettings />} />
         <Route path="/evolucion-peso" element={<WeightEvolution />} />
         <Route path="/dashboard" element={<Main />} />
         <Route path="/entrenamientos" element={<Entrenamientos />} />
