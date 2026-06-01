@@ -69,6 +69,19 @@ export const deleteUserFull = async (userId) => {
 
 export const completeOnboardingMongo = async (userId, onboardingData) => {
   const { default: User } = await import('../models/mongodb/User.js');
+
+  const toNumberOrUndef = (value) => {
+    if (value === null || value === undefined || value === '') return undefined;
+    const num = Number(value);
+    return Number.isFinite(num) ? num : undefined;
+  };
+
+  const toDateOrUndef = (value) => {
+    if (!value) return undefined;
+    const date = value instanceof Date ? value : new Date(String(value));
+    return Number.isFinite(date.getTime()) ? date : undefined;
+  };
+
   const patch = {
     physicalProfile: {
       edad: onboardingData?.edad ?? undefined,
@@ -77,6 +90,12 @@ export const completeOnboardingMongo = async (userId, onboardingData) => {
       peso_kg: onboardingData?.peso_kg ?? undefined,
       nivel_actividad: onboardingData?.nivel_actividad ?? undefined,
       objetivo_principal: onboardingData?.objetivo_principal ?? undefined,
+      peso_objetivo_kg: toNumberOrUndef(onboardingData?.peso_objetivo_kg ?? onboardingData?.peso_objetivo),
+      fecha_objetivo: toDateOrUndef(onboardingData?.fecha_objetivo),
+      meta_semanal: onboardingData?.meta_semanal ?? undefined,
+      actividad_preferida: onboardingData?.actividad_preferida ?? undefined,
+      grasa_pct: toNumberOrUndef(onboardingData?.grasa_pct),
+      masa_muscular_kg: toNumberOrUndef(onboardingData?.masa_muscular_kg),
     },
     onboardingCompleted: true,
   };

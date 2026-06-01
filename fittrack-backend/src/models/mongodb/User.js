@@ -8,6 +8,13 @@ const physicalProfileSchema = new mongoose.Schema(
     peso_kg: { type: Number, min: 0 },
     nivel_actividad: { type: String, trim: true },
     objetivo_principal: { type: String, trim: true },
+    // Optional extended fields (editable from the physical profile screen)
+    peso_objetivo_kg: { type: Number, min: 0 },
+    fecha_objetivo: { type: Date },
+    meta_semanal: { type: String, trim: true },
+    actividad_preferida: { type: String, trim: true },
+    grasa_pct: { type: Number, min: 0 },
+    masa_muscular_kg: { type: Number, min: 0 },
   },
   { _id: false }
 );
@@ -40,4 +47,3 @@ userSchema.set('toJSON', {
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 export default User;
-
