@@ -218,6 +218,11 @@ export default function Perfil() {
           }
         }
 
+        const photoUrl = String(u?.photo_url || u?.photoUrl || '').trim();
+        if (photoUrl) {
+          setPhotoDataUrl(photoUrl);
+        }
+
         setUser({
           nombre: String(u?.nombre || ''),
           apodo: String(u?.apodo || u?.nickname || ''),
@@ -756,6 +761,10 @@ export default function Perfil() {
       return;
     }
 
+    // Instant preview while uploading
+    const previewUrl = URL.createObjectURL(file);
+    setPhotoDataUrl(previewUrl);
+
     setPhotoUploading(true);
     try {
       const publicId = `profile_${Date.now()}`;
@@ -817,6 +826,18 @@ export default function Perfil() {
       console.error(err);
       setPhotoUploadError(t('Error de conexión. Inténtalo de nuevo.'));
     } finally {
+      // Allow selecting the same file again
+      try {
+        event.target.value = '';
+      } catch {
+        // ignore
+      }
+      // Cleanup preview object URL if it was used
+      try {
+        URL.revokeObjectURL(previewUrl);
+      } catch {
+        // ignore
+      }
       setPhotoUploading(false);
     }
   };
@@ -889,7 +910,9 @@ export default function Perfil() {
                       {t('profile_photo').toUpperCase()}
                     </div>
                   <div className="mt-3 flex justify-center">
-                    <ActionButton onClick={handleChangePhotoClick}>{t('profile_change_photo').toUpperCase()}</ActionButton>
+                    <ActionButton onClick={handleChangePhotoClick}>
+                      {photoUploading ? t('Subiendo...') : t('profile_change_photo').toUpperCase()}
+                    </ActionButton>
                   </div>
                   {photoUploading ? (
                     <div className="mt-3 text-center text-[12px] text-white/55">{t('Guardando...')}</div>
