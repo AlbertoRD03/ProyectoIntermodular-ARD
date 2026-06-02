@@ -59,6 +59,7 @@ function AchievementCard({
   fillClass,
   surfaceClass,
   progressLabel = 'PROGRESO',
+  onPublish,
 }) {
   const hasDate = Boolean(unlockedDate);
   const safeMax = Number(max) || 1;
@@ -120,6 +121,18 @@ function AchievementCard({
           <span>Meta: {safeMax}{unitLabel}</span>
         </div>
       </div>
+
+      {completed && onPublish ? (
+        <div className="relative mt-4 flex justify-end">
+          <button
+            type="button"
+            onClick={() => onPublish({ title, subtitle, value: safeValue, max: safeMax, unit })}
+            className="rounded-lg border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-emerald-100 transition hover:bg-emerald-400/20"
+          >
+            Publicar logro
+          </button>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -228,6 +241,22 @@ function readCurrentUser() {
   }
 }
 
+function readCustomAchievements() {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem('fittrack_custom_achievements');
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCustomAchievements(items) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem('fittrack_custom_achievements', JSON.stringify(items));
+}
+
 function getSessionDate(session) {
   const date = new Date(session?.fecha || session?.date || session?.createdAt || Date.now());
   return Number.isFinite(date.getTime()) ? date : null;
@@ -316,6 +345,7 @@ export default function Logros() {
   const [goalDescription, setGoalDescription] = useState('');
   const [goalTarget, setGoalTarget] = useState('10');
   const [goalUnit, setGoalUnit] = useState('');
+  const [customAchievements, setCustomAchievements] = useState(() => readCustomAchievements());
 
   const demoEmpty = params.get('empty') === '1';
   const [sessions, setSessions] = useState([]);
@@ -454,7 +484,7 @@ export default function Logros() {
   const myAchievements = useMemo(() => {
     if (demoEmpty) return [];
     const m = achievementMetrics;
-    return [
+    const baseAchievements = [
       {
         emoji: '🥇',
         title: tr(lang, 'Primer Paso', 'First Step'),
@@ -528,15 +558,56 @@ export default function Logros() {
         style: ACHIEVEMENT_STYLE.cardio,
       },
     ];
-  }, [achievementMetrics, demoEmpty, lang]);
+    const custom = customAchievements.map((goal) => {
+      const target = Math.max(1, Number(goal.target || 1));
+      const unit = goal.unit || '';
+      let value = 0;
+      if (unit === 'kg') value = goal.type === 'fuerza' ? Math.round(m.totalVolume) : Math.round(m.maxVolume);
+      else if (unit === 'min') value = m.maxDuration;
+      else if (unit === 'sesiones') value = m.sessionsCount;
+      else if (unit === 'reps') value = m.sessionsCount;
+      else if (goal.type === 'racha') value = m.streak;
+      else if (goal.type === 'cardio') value = m.maxDuration;
+      else if (goal.type === 'fuerza') value = Math.round(m.totalVolume);
+      else value = m.sessionsCount;
+
+      const style = goal.type === 'cardio'
+        ? ACHIEVEMENT_STYLE.cardio
+        : goal.type === 'racha'
+          ? ACHIEVEMENT_STYLE.constancia
+          : goal.type === 'fuerza'
+            ? ACHIEVEMENT_STYLE.fuerza
+            : ACHIEVEMENT_STYLE.elite;
+
+      return {
+        emoji: goal.type === 'cardio' ? '❤️' : goal.type === 'racha' ? '🔥' : goal.type === 'fuerza' ? '💪' : '⭐',
+        title: goal.title,
+        subtitle: goal.description || tr(lang, 'Logro personalizado con seguimiento automático', 'Custom achievement with automatic tracking'),
+        value,
+        max: target,
+        unit,
+        style,
+        custom: true,
+      };
+    });
+    return [...baseAchievements, ...custom];
+  }, [achievementMetrics, customAchievements, demoEmpty, lang]);
 
   const completedCount = useMemo(
     () => myAchievements.filter((a) => Number(a.value || 0) >= Number(a.max || 1)).length,
     [myAchievements]
   );
   const completedAchievements = useMemo(
-    () => myAchievements.filter((a) => Number(a.value || 0) >= Number(a.max || 1)),
+    () => [...myAchievements, ...fitgramAchievements].filter((a) => Number(a.value || 0) >= Number(a.max || 1)),
+    [fitgramAchievements, myAchievements]
+  );
+  const activeMyAchievements = useMemo(
+    () => myAchievements.filter((a) => Number(a.value || 0) < Number(a.max || 1)),
     [myAchievements]
+  );
+  const activeFitgramAchievements = useMemo(
+    () => fitgramAchievements.filter((a) => Number(a.value || 0) < Number(a.max || 1)),
+    [fitgramAchievements]
   );
 
   const firstUnlocks = useMemo(() => {
@@ -570,8 +641,39 @@ export default function Logros() {
   };
 
   const handleCreate = () => {
-    // UI-only for now (no backend wiring requested)
+    const title = goalTitle.trim();
+    const target = Number(goalTarget);
+    if (!title || !Number.isFinite(target) || target <= 0) return;
+
+    const nextGoal = {
+      id: `custom_${Date.now().toString(16)}`,
+      title,
+      type: goalType,
+      description: goalDescription.trim(),
+      target,
+      unit: goalUnit,
+      createdAt: new Date().toISOString(),
+    };
+    const next = [nextGoal, ...customAchievements];
+    setCustomAchievements(next);
+    writeCustomAchievements(next);
+    setGoalTitle('');
+    setGoalType('fuerza');
+    setGoalDescription('');
+    setGoalTarget('10');
+    setGoalUnit('');
     setTab('mis');
+  };
+
+  const handlePublishAchievement = (achievement) => {
+    const unitLabel = achievement.unit ? ` ${achievement.unit}` : '';
+    navigate('/fitgram/create', {
+      state: {
+        presetPostType: 'info',
+        presetCaption: `He completado el logro "${achievement.title}" en FitTrack: ${achievement.value}/${achievement.max}${unitLabel}.`,
+        presetTags: ['LOGRO', 'FITTRACK', String(achievement.title || '').replace(/\s+/g, '_').toUpperCase()].filter(Boolean),
+      },
+    });
   };
 
   return (
@@ -590,11 +692,6 @@ export default function Logros() {
             <TabButton active={tab === 'crear'} onClick={() => setTab('crear')}>
               {t('ach_tab_create').toUpperCase()}
             </TabButton>
-            {tab === 'completados' ? (
-              <TabButton active onClick={() => setTab('completados')}>
-                {tr(lang, 'Completados', 'Completed').toUpperCase()}
-              </TabButton>
-            ) : null}
           </div>
 
           <div className="mt-10 sm:mt-12">
@@ -734,6 +831,7 @@ export default function Logros() {
                         surfaceClass={a.style?.surfaceClass}
                         accent={a.style?.accent}
                         progressLabel={t('ach_progress').toUpperCase()}
+                        onPublish={handlePublishAchievement}
                       />
                     ))}
                   </div>
@@ -819,7 +917,7 @@ export default function Logros() {
                     </div>
 
                     <div className="grid grid-cols-1 gap-4">
-                      {myAchievements.map((a) => (
+                      {activeMyAchievements.length ? activeMyAchievements.map((a) => (
                         <AchievementCard
                           key={a.title}
                           emoji={a.emoji}
@@ -835,7 +933,11 @@ export default function Logros() {
                           accent={a.style?.accent}
                           progressLabel={t('ach_progress').toUpperCase()}
                         />
-                      ))}
+                      )) : (
+                        <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-8 text-center text-[13px] text-white/55">
+                          {tr(lang, 'No tienes logros pendientes. Revisa la sección de completados.', 'No pending achievements. Check the completed section.')}
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -866,7 +968,7 @@ export default function Logros() {
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-4">
-                  {fitgramAchievements.map((a) => (
+                  {activeFitgramAchievements.length ? activeFitgramAchievements.map((a) => (
                     <AchievementCard
                       key={a.title}
                       emoji={a.emoji}
@@ -881,7 +983,11 @@ export default function Logros() {
                       accent={a.style?.accent}
                       progressLabel={t('ach_progress').toUpperCase()}
                     />
-                  ))}
+                  )) : (
+                    <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-8 text-center text-[13px] text-white/55">
+                      {tr(lang, 'Todos los logros de FitGram disponibles están completados.', 'All available FitGram achievements are completed.')}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

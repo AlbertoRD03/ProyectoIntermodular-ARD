@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check, ClipboardCopy, Image as ImageIcon, Plus, Save, Search, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { uploadImageToCloudinary } from '../services/cloudinaryUpload';
 import { useI18n, tr } from '../i18n/I18nProvider';
@@ -231,10 +231,12 @@ function TagEditor({ value, onChange }) {
 
 export default function CreateFitGramPost() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { lang } = useI18n();
-  const [postType, setPostType] = useState('workout'); // workout | info
-  const [caption, setCaption] = useState('');
-  const [tags, setTags] = useState([]);
+  const preset = location.state || {};
+  const [postType, setPostType] = useState(preset.presetPostType === 'info' ? 'info' : 'workout'); // workout | info
+  const [caption, setCaption] = useState(String(preset.presetCaption || ''));
+  const [tags, setTags] = useState(Array.isArray(preset.presetTags) ? preset.presetTags : []);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState('');
   const [error, setError] = useState('');
