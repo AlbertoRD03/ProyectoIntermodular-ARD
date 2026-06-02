@@ -54,6 +54,7 @@ skinparam activity {
 
 start
 
+
 partition "Usuario" {
   :Abre la pantalla de registro;
 }

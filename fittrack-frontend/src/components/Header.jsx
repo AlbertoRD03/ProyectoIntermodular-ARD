@@ -126,12 +126,16 @@ export default function Header() {
     <div className="h-[56px] sm:h-[64px] border-b border-white/10 sticky top-0 z-50 bg-[#1e1e1e]">
       <div className="grid h-full w-full items-center gap-2 px-3 sm:px-4 md:px-6 lg:px-8 grid-cols-[auto,1fr,auto] md:grid-cols-[auto,1fr,auto,1fr,auto]">
         <div className="flex min-w-0 items-center gap-3">
-          <div
-            className="text-[18px] sm:text-[22px] font-bold tracking-wide text-[#ff7849]"
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard')}
+            className="text-[18px] sm:text-[22px] font-bold tracking-wide text-[#ff7849] transition hover:text-[#ff8d66]"
             style={{ fontFamily: 'Arimo, Poppins, system-ui' }}
+            aria-label={t('nav_home')}
+            title={t('nav_home')}
           >
             FitTrack
-          </div>
+          </button>
         </div>
 
         {userNickname ? (
