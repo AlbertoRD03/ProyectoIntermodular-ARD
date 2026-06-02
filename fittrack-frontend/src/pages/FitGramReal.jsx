@@ -99,13 +99,14 @@ function Avatar({ label, src, onClick }) {
   );
 }
 
-function PostImage({ src, tags = [] }) {
+function PostImage({ src, tags = [], expanded = false }) {
   const { lang } = useI18n();
   const hasTags = tags.length > 0;
+  const frameClass = expanded ? 'flex-1 min-h-[400px]' : 'h-[220px] sm:h-[240px]';
 
   if (!src) {
     return (
-      <div className="group relative h-[220px] sm:h-[240px] w-full bg-black/10 border-y border-white/10 flex items-center justify-center">
+      <div className={cx('group relative w-full bg-black/10 border-y border-white/10 flex items-center justify-center', frameClass)}>
         <div className="h-24 w-24 border border-white/15 bg-white/[0.02] flex items-center justify-center text-white/35 text-[11px] uppercase tracking-widest">
           {tr(lang, 'IMG', 'IMG')}
         </div>
@@ -120,8 +121,8 @@ function PostImage({ src, tags = [] }) {
     );
   }
   return (
-    <div className="group relative w-full bg-black/10 border-y border-white/10">
-      <img src={src} alt="" className="w-full h-[220px] sm:h-[240px] object-cover" loading="lazy" />
+    <div className={cx('group relative w-full bg-black/10 border-y border-white/10', frameClass)}>
+      <img src={src} alt="" className="h-full w-full object-cover" loading="lazy" />
       {hasTags ? (
         <div className="pointer-events-none absolute inset-x-3 bottom-3 rounded-xl border border-white/10 bg-black/45 p-3 opacity-0 backdrop-blur-md transition group-hover:opacity-100">
           <div className="flex flex-wrap gap-2">
@@ -272,7 +273,7 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
         </div>
       </div>
 
-      <PostImage src={post.image_url} tags={post.tags || []} />
+      <PostImage src={post.image_url} tags={post.tags || []} expanded={!isWorkout} />
 
       <div className="h-[88px] px-4 py-3 border-b border-white/10 overflow-hidden">
         <div className="text-[12px] text-white/80 line-clamp-2">
@@ -286,18 +287,11 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
         </div>
       </div>
 
+      {isWorkout ? (
       <div className="flex-1 border-b border-white/10">
-        {isWorkout ? (
-          <WorkoutSharePanel post={post} state={state} onSaveWorkout={onCopyWorkout} lang={lang} />
-        ) : (
-          <div className="h-full px-4 py-3 bg-white/[0.02] flex items-center">
-            <div>
-              <div className="text-[10px] uppercase tracking-widest text-white/45">{tr(lang, 'Publicación', 'Post')}</div>
-              <div className="mt-2 text-[12px] text-white/55">{tr(lang, 'Foto compartida con la comunidad', 'Photo shared with the community')}</div>
-            </div>
-          </div>
-        )}
+        <WorkoutSharePanel post={post} state={state} onSaveWorkout={onCopyWorkout} lang={lang} />
       </div>
+      ) : null}
 
       <div className="grid grid-cols-3">
         <IconMetric
