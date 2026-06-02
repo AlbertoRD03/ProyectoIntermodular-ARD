@@ -40,8 +40,8 @@ export const getExplore = async ({ limit = 60 } = {}) =>
 export const getUserPosts = async (userId, { limit = 60, signal } = {}) =>
   apiFetch(`/fitgram/users/${encodeURIComponent(userId)}/posts?limit=${encodeURIComponent(String(limit))}`, { signal });
 
-export const createPost = async ({ image_url, caption, tags }) =>
-  apiFetch('/fitgram/posts', { method: 'POST', body: { image_url, caption, tags } });
+export const createPost = async ({ image_url, caption, tags, type, workoutSnapshot }) =>
+  apiFetch('/fitgram/posts', { method: 'POST', body: { image_url, caption, tags, type, workoutSnapshot } });
 
 export const updatePost = async (postId, { caption, tags }) =>
   apiFetch(`/fitgram/posts/${encodeURIComponent(postId)}`, { method: 'PATCH', body: { caption, tags } });
@@ -51,3 +51,6 @@ export const deletePost = async (postId) =>
 
 export const addComment = async (postId, { text }) =>
   apiFetch(`/fitgram/posts/${encodeURIComponent(postId)}/comments`, { method: 'POST', body: { text } });
+
+export const copyWorkoutPost = async (postId) =>
+  apiFetch(`/fitgram/posts/${encodeURIComponent(postId)}/copy-workout`, { method: 'POST' });

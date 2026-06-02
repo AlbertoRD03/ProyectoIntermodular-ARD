@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check, ClipboardCopy, Image as ImageIcon, Plus, Save, Search, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { uploadImageToCloudinary } from '../services/cloudinaryUpload';
 import { useI18n, tr } from '../i18n/I18nProvider';
 import { createPost as apiCreatePost } from '../services/fitgramApi';
+import { API_BASE } from '../config/apiBase';
+import { getAuthToken } from '../services/authToken';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -72,7 +74,7 @@ function PrimaryButton({ children, className, ...props }) {
       {...props}
       type={props.type || 'button'}
       className={cx(
-        'inline-flex items-center justify-center gap-2 rounded-lg border border-[#2c4c73] bg-[#1e3a5f] px-5 py-3 text-[12px] sm:text-[13px] font-semibold text-white/90 hover:bg-[#24466f] transition',
+        'inline-flex items-center justify-center gap-2 rounded-lg border border-[#2c4c73] bg-[#1e3a5f] px-5 py-3 text-[12px] sm:text-[13px] font-semibold text-white/90 hover:bg-[#24466f] transition disabled:cursor-not-allowed disabled:opacity-60',
         className
       )}
     >
@@ -236,36 +238,77 @@ export default function CreateFitGramPost() {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState('');
   const [error, setError] = useState('');
+  const [isPublishing, setIsPublishing] = useState(false);
 
   const [savedWorkoutQuery, setSavedWorkoutQuery] = useState('');
   const [selectedWorkoutId, setSelectedWorkoutId] = useState('');
+  const [savedWorkouts, setSavedWorkouts] = useState([]);
+  const [workoutsLoading, setWorkoutsLoading] = useState(false);
 
-  const savedWorkouts = useMemo(
-    () => [
-      {
-        id: 'w_2026_05_01',
-        title: tr(lang, 'Pecho + tríceps', 'Chest + triceps'),
-        dateLabel: tr(lang, 'viernes, 01 may 2026', 'Friday, May 01, 2026'),
-        stats: { exercises: 7, duration: '55m', calories: 410 },
-        tags: ['PECHO', 'TRICEPS', 'FUERZA'],
-      },
-      {
-        id: 'w_2026_05_03',
-        title: tr(lang, 'HIIT rápido', 'Quick HIIT'),
-        dateLabel: tr(lang, 'domingo, 03 may 2026', 'Sunday, May 03, 2026'),
-        stats: { exercises: 6, duration: '30m', calories: 420 },
-        tags: ['CARDIO', 'HIIT'],
-      },
-      {
-        id: 'w_2026_05_04',
-        title: tr(lang, 'Pierna completo', 'Full legs'),
-        dateLabel: tr(lang, 'lunes, 04 may 2026', 'Monday, May 04, 2026'),
-        stats: { exercises: 8, duration: '65m', calories: 520 },
-        tags: ['PIERNA', 'FUERZA'],
-      },
-    ],
-    [lang]
-  );
+  useEffect(() => {
+    let mounted = true;
+    const mapSession = (session) => {
+      const exercisesRaw = Array.isArray(session?.ejercicios_realizados) ? session.ejercicios_realizados : [];
+      const exercises = exercisesRaw.map((exercise) => {
+        const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
+        const volumeKg = sets.reduce((sum, set) => {
+          const reps = Number(set?.reps || 0);
+          const weight = Number(set?.peso || 0);
+          return sum + (Number.isFinite(reps) && Number.isFinite(weight) ? reps * weight : 0);
+        }, 0);
+        return {
+          name: exercise?.nombre_ejercicio || tr(lang, 'Ejercicio', 'Exercise'),
+          sets: sets.length,
+          setDetails: sets.map((set) => ({
+            reps: Number(set?.reps || 0) || 0,
+            peso: Number(set?.peso || 0) || 0,
+            rpe: Number(set?.rpe || 0) || undefined,
+          })),
+          volumeKg,
+        };
+      });
+      const volumeKg = exercises.reduce((sum, exercise) => sum + (Number(exercise.volumeKg) || 0), 0);
+      const date = session?.fecha ? new Date(session.fecha) : null;
+      const dateLabel = date && Number.isFinite(date.getTime())
+        ? date.toLocaleDateString(lang === 'en' ? 'en-US' : 'es-ES', { weekday: 'short', day: '2-digit', month: 'short' })
+        : '';
+      const title = session?.tipo_rutina || tr(lang, 'Entreno', 'Workout');
+      return {
+        id: String(session?._id || session?.id || `${title}-${dateLabel}`),
+        title,
+        dateLabel,
+        stats: {
+          exercises: exercises.length,
+          duration: session?.duracion_minutos ? `${session.duracion_minutos}m` : '--',
+          calories: volumeKg ? `${Math.round(volumeKg / 10)} kcal` : '--',
+          volumeKg,
+        },
+        tags: [title, ...exercises.slice(0, 3).map((exercise) => exercise.name)].filter(Boolean).map((tag) => String(tag).toUpperCase()),
+        exercises,
+      };
+    };
+
+    (async () => {
+      try {
+        setWorkoutsLoading(true);
+        const token = getAuthToken();
+        const res = await fetch(`${API_BASE}/sesiones/historial`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.message || data?.error || 'Error');
+        if (mounted) setSavedWorkouts((data?.items || []).map(mapSession));
+      } catch {
+        if (mounted) setSavedWorkouts([]);
+      } finally {
+        if (mounted) setWorkoutsLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [lang]);
 
   const filteredSavedWorkouts = useMemo(() => {
     const q = savedWorkoutQuery.trim().toLowerCase();
@@ -281,15 +324,17 @@ export default function CreateFitGramPost() {
   }, [savedWorkouts, selectedWorkoutId]);
 
   const canPublish = useMemo(() => {
+    if (isPublishing) return false;
     if (!imageFile) return false;
     if (!caption.trim()) return false;
     if (postType === 'workout') {
       return Boolean(selectedWorkout);
     }
     return true;
-  }, [caption, imageFile, postType, selectedWorkout]);
+  }, [caption, imageFile, isPublishing, postType, selectedWorkout]);
 
   const handlePickImage = (file) => {
+    if (isPublishing) return;
     if (!file) return;
     if (!file.type.startsWith('image/')) return;
 
@@ -299,9 +344,10 @@ export default function CreateFitGramPost() {
   };
 
   const handlePublish = () => {
-    if (!canPublish) return;
+    if (!canPublish || isPublishing) return;
 
     setError('');
+    setIsPublishing(true);
 
     let currentUsername = 'USER';
     let currentUserId = '';
@@ -321,10 +367,25 @@ export default function CreateFitGramPost() {
     (async () => {
       try {
         const { url } = await uploadImageToCloudinary({ file: imageFile, publicIdPrefix: 'fitgram', folderHint: 'fittrack/fitgram' });
-        const created = await apiCreatePost({ image_url: url, caption: caption.trim(), tags });
+        const workoutSnapshot = selectedWorkout
+          ? {
+              workoutId: selectedWorkout.id,
+              title: selectedWorkout.title,
+              dateLabel: selectedWorkout.dateLabel,
+              stats: selectedWorkout.stats,
+              exercises: selectedWorkout.exercises,
+            }
+          : undefined;
+        const created = await apiCreatePost({
+          image_url: url,
+          caption: caption.trim(),
+          tags,
+          type: postType === 'workout' ? 'workout' : 'photo',
+          workoutSnapshot,
+        });
         const createdPost = {
           id: created?.post?.id || `new_${Date.now()}`,
-          type: postType,
+          type: postType === 'workout' ? 'workout' : 'photo',
           image_url: url,
           avatarLabel: (currentUsername[0] || 'U').toUpperCase(),
           authorPhotoUrl: currentPhotoUrl,
@@ -333,12 +394,16 @@ export default function CreateFitGramPost() {
           timeAgo: tr(lang, 'AHORA', 'NOW'),
           caption: caption.trim(),
           tags,
+          workoutSnapshot,
+          stats: workoutSnapshot?.stats,
+          comments: [],
           metrics: { likes: 0, comments: 0 },
         };
 
         navigate('/fitgram?tab=profile', { state: { createdPost } });
       } catch (e) {
         setError(tr(lang, 'No se pudo publicar. Inténtalo de nuevo más tarde.', 'Could not publish. Please try again later.'));
+        setIsPublishing(false);
       }
     })();
   };
@@ -360,7 +425,7 @@ export default function CreateFitGramPost() {
             </button>
 
             <div className="flex items-center gap-2">
-              <OutlineButton onClick={() => navigate('/fitgram')} className="px-4 py-2.5 text-[11px]">
+              <OutlineButton disabled={isPublishing} onClick={() => navigate('/fitgram')} className="px-4 py-2.5 text-[11px]">
                 {tr(lang, 'Cancelar', 'Cancel')}
               </OutlineButton>
               <PrimaryButton
@@ -369,7 +434,7 @@ export default function CreateFitGramPost() {
                 disabled={!canPublish}
               >
                 <Save className="h-4 w-4" />
-                {tr(lang, 'Publicar', 'Publish')}
+                {isPublishing ? tr(lang, 'Publicando...', 'Publishing...') : tr(lang, 'Publicar', 'Publish')}
               </PrimaryButton>
             </div>
           </div>
@@ -387,6 +452,7 @@ export default function CreateFitGramPost() {
               <Pill
                 active={postType === 'workout'}
                 onClick={() => {
+                  if (isPublishing) return;
                   setPostType('workout');
                 }}
               >
@@ -395,6 +461,7 @@ export default function CreateFitGramPost() {
               <Pill
                 active={postType === 'info'}
                 onClick={() => {
+                  if (isPublishing) return;
                   setPostType('info');
                 }}
               >
@@ -422,6 +489,7 @@ export default function CreateFitGramPost() {
                   <input
                     type="file"
                     accept="image/*"
+                    disabled={isPublishing}
                     className="hidden"
                     onChange={(e) => handlePickImage(e.target.files?.[0])}
                   />
@@ -463,6 +531,7 @@ export default function CreateFitGramPost() {
               <Textarea
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
+                disabled={isPublishing}
                 placeholder={
                   postType === 'workout'
                     ? tr(lang, 'Cuenta cómo ha ido el entreno, sensaciones, PRs...', 'Tell how the workout went, feelings, PRs...')
@@ -471,7 +540,7 @@ export default function CreateFitGramPost() {
               />
             </div>
 
-                  <TagEditor value={tags} onChange={setTags} />
+                  <TagEditor value={tags} onChange={isPublishing ? () => {} : setTags} />
                 </div>
               </Card>
 
@@ -486,18 +555,26 @@ export default function CreateFitGramPost() {
               <Input
                 value={savedWorkoutQuery}
                 onChange={(e) => setSavedWorkoutQuery(e.target.value)}
+                disabled={isPublishing}
                 placeholder={tr(lang, 'Busca un entreno por nombre o tag...', 'Search a workout by name or tag...')}
                 className="pl-11"
               />
             </div>
 
                     <div className="mt-4 space-y-3">
-                      {filteredSavedWorkouts.map((workout) => (
+                      {workoutsLoading ? (
+                        <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.02] p-4 text-[12px] text-white/55">
+                          {tr(lang, 'Cargando entrenos realizados...', 'Loading completed workouts...')}
+                        </div>
+                      ) : null}
+
+                      {!workoutsLoading && filteredSavedWorkouts.map((workout) => (
                         <SavedWorkoutPickerCard
                           key={workout.id}
                           workout={workout}
                           selected={workout.id === selectedWorkoutId}
                           onSelect={() => {
+                            if (isPublishing) return;
                             setSelectedWorkoutId(workout.id);
                             if (tags.length === 0 && workout.tags?.length) {
                               setTags(workout.tags.map((t) => String(t).toUpperCase()));
@@ -506,7 +583,7 @@ export default function CreateFitGramPost() {
                         />
                       ))}
 
-                      {filteredSavedWorkouts.length === 0 ? (
+                      {!workoutsLoading && filteredSavedWorkouts.length === 0 ? (
                     <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.02] p-4 text-[12px] text-white/55">
                       {tr(lang, 'No tienes entrenos guardados que coincidan.', "You don't have matching saved workouts.")}
                     </div>
@@ -532,6 +609,21 @@ export default function CreateFitGramPost() {
       </div>
         </div>
       </div>
+      {isPublishing ? (
+        <div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="rounded-xl border border-white/15 bg-[#242424] px-6 py-5 text-center shadow-xl">
+            <div className="mx-auto h-10 w-10 rounded-lg border border-[#ff7849]/40 bg-[#ff7849]/10 flex items-center justify-center">
+              <Save className="h-5 w-5 text-[#ff7849]" />
+            </div>
+            <div className="mt-3 text-[13px] font-semibold text-white/90">
+              {tr(lang, 'Publicando...', 'Publishing...')}
+            </div>
+            <div className="mt-1 text-[11px] text-white/45">
+              {tr(lang, 'Subiendo imagen y guardando publicación.', 'Uploading image and saving post.')}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

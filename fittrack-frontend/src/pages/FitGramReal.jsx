@@ -18,7 +18,15 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { useI18n, tr } from '../i18n/I18nProvider';
-import { addComment as apiAddComment, deletePost as apiDeletePost, getExplore, getFeed, getUserPosts, updatePost as apiUpdatePost } from '../services/fitgramApi';
+import {
+  addComment as apiAddComment,
+  copyWorkoutPost as apiCopyWorkoutPost,
+  deletePost as apiDeletePost,
+  getExplore,
+  getFeed,
+  getUserPosts,
+  updatePost as apiUpdatePost,
+} from '../services/fitgramApi';
 import { getPublicProfile, searchUsers as apiSearchUsers } from '../services/socialApi';
 
 function cx(...classes) {
@@ -135,7 +143,7 @@ function CommentComposer({ value, onChange, onSend }) {
 }
 
 function CommentList({ comments = [], compact = false }) {
-  const visible = compact ? comments.slice(-2) : comments;
+  const visible = compact ? comments.slice(-3) : comments;
   if (!visible.length) return null;
 
   return (
@@ -153,12 +161,34 @@ function CommentList({ comments = [], compact = false }) {
   );
 }
 
+function FixedCommentPreview({ comments = [] }) {
+  const visible = comments.slice(-3);
+  return (
+    <div className="h-[104px] px-4 py-3 border-t border-white/10 bg-white/[0.02] space-y-2 overflow-hidden">
+      {Array.from({ length: 3 }).map((_, index) => {
+        const comment = visible[index];
+        const handle = comment?.author?.apodo || comment?.author?.nombre || 'usuario';
+        return comment ? (
+          <div key={comment.id || `${handle}-${comment.createdAt}`} className="truncate text-[12px] leading-relaxed text-white/70">
+            <span className="font-semibold text-white/85">@{handle}</span>{' '}
+            <span>{comment.text}</span>
+          </div>
+        ) : (
+          <div key={`empty-comment-${index}`} className="h-[18px] text-[12px] leading-relaxed text-white/20">
+            &nbsp;
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments, onAddComment, onCopyWorkout, onOpenProfile }) {
   const { lang } = useI18n();
   const isWorkout = post.type === 'workout';
 
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-white/10">
         <div className="flex items-start gap-3">
           <Avatar label={post.avatarLabel} src={post.authorPhotoUrl} onClick={onOpenProfile} />
@@ -181,8 +211,8 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
 
       <PostImage src={post.image_url} />
 
-      <div className="px-4 py-3 border-b border-white/10">
-        <div className="text-[12px] text-white/80">
+      <div className="h-[136px] px-4 py-3 border-b border-white/10 overflow-hidden">
+        <div className="text-[12px] text-white/80 line-clamp-2">
           <span className="font-bold text-white/85">@{post.username}</span>{' '}
           <span className="text-white/75">{post.caption}</span>
         </div>
@@ -200,31 +230,39 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
         </div>
       </div>
 
-      {isWorkout ? (
-        <div className="grid grid-cols-3 divide-x divide-white/10 border-b border-white/10">
-          <Stat label={tr(lang, 'Ejer', 'Ex')} value={post.stats.exercises} />
-          <Stat label={tr(lang, 'Dur', 'Dur')} value={post.stats.duration} />
-          <Stat label={tr(lang, 'Cal', 'Cal')} value={post.stats.calories} />
-        </div>
-      ) : null}
-
-      {isWorkout ? (
-        <div className="px-4 py-3 border-b border-white/10 bg-white/[0.02] flex items-center justify-between gap-3">
-          <div className="text-[10px] uppercase tracking-widest text-white/45">
-            {tr(lang, 'Entreno del día', "Today's workout")}
+      <div className="h-[112px] border-b border-white/10">
+        {isWorkout ? (
+          <>
+            <div className="grid grid-cols-3 divide-x divide-white/10 border-b border-white/10">
+              <Stat label={tr(lang, 'Ejer', 'Ex')} value={post.stats?.exercises ?? 0} />
+              <Stat label={tr(lang, 'Dur', 'Dur')} value={post.stats?.duration || '--'} />
+              <Stat label={tr(lang, 'Vol', 'Vol')} value={post.stats?.volumeKg ? `${Math.round(post.stats.volumeKg)}kg` : '--'} />
+            </div>
+            <div className="px-4 py-2 bg-white/[0.02] flex items-center justify-between gap-3">
+              <div className="text-[10px] uppercase tracking-widest text-white/45">
+                {post.workoutSnapshot?.title || tr(lang, 'Entreno del día', "Today's workout")}
+              </div>
+              <button
+                type="button"
+                onClick={() => onCopyWorkout(post)}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/[0.03] px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.08] hover:text-white/90 transition"
+                aria-label={tr(lang, 'Copiar entreno', 'Copy workout')}
+                title={tr(lang, 'Copiar entreno', 'Copy workout')}
+              >
+                {state.copied ? <Check className="h-4 w-4 text-[#ff7849]" /> : <ClipboardCopy className="h-4 w-4" />}
+                {state.copied ? tr(lang, 'Copiado', 'Copied') : tr(lang, 'Copiar', 'Copy')}
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="h-full px-4 py-3 bg-white/[0.02] flex items-center">
+            <div>
+              <div className="text-[10px] uppercase tracking-widest text-white/45">{tr(lang, 'Publicación', 'Post')}</div>
+              <div className="mt-2 text-[12px] text-white/55">{tr(lang, 'Foto compartida con la comunidad', 'Photo shared with the community')}</div>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => onCopyWorkout(post)}
-            className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/[0.03] px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.08] hover:text-white/90 transition"
-            aria-label={tr(lang, 'Copiar entreno', 'Copy workout')}
-            title={tr(lang, 'Copiar entreno', 'Copy workout')}
-          >
-            {state.copied ? <Check className="h-4 w-4 text-[#ff7849]" /> : <ClipboardCopy className="h-4 w-4" />}
-            {state.copied ? tr(lang, 'Copiado', 'Copied') : tr(lang, 'Copiar entreno', 'Copy workout')}
-          </button>
-        </div>
-      ) : null}
+        )}
+      </div>
 
       <div className="grid grid-cols-3">
         <IconMetric
@@ -258,7 +296,7 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
         </button>
       </div>
 
-      {!state.showComments ? <CommentList comments={post.comments} compact /> : null}
+      {!state.showComments ? <FixedCommentPreview comments={post.comments} /> : null}
 
       {state.showComments ? (
         <>
@@ -450,6 +488,7 @@ export default function FitGramReal({ forceEmpty = false }) {
   const [ownStats, setOwnStats] = useState({ followers: 0, following: 0, posts: 0 });
   const [selectedOwnPost, setSelectedOwnPost] = useState(null);
   const [editingPost, setEditingPost] = useState(false);
+  const [ownPostOptionsOpen, setOwnPostOptionsOpen] = useState(false);
   const [editCaption, setEditCaption] = useState('');
   const [editTags, setEditTags] = useState('');
 
@@ -482,7 +521,7 @@ export default function FitGramReal({ forceEmpty = false }) {
     const username = base.toUpperCase();
     return {
       id: p.id,
-      type: 'photo',
+      type: p.type || 'photo',
       image_url: p.image_url,
       avatarLabel: (base[0] || 'U').toUpperCase(),
       authorPhotoUrl: p?.author?.photo_url || currentUser?.photo_url || '',
@@ -492,6 +531,8 @@ export default function FitGramReal({ forceEmpty = false }) {
       createdLabel: formatDate(p.createdAt),
       caption: p.caption || '',
       tags: p.tags || [],
+      workoutSnapshot: p.workoutSnapshot,
+      stats: p.workoutSnapshot?.stats,
       comments: p.comments || [],
       metrics: { likes: 0, comments: p.commentsCount ?? p.comments?.length ?? 0 },
     };
@@ -704,25 +745,12 @@ export default function FitGramReal({ forceEmpty = false }) {
   const handleCopyWorkout = async (post) => {
     if (post.type !== 'workout') return;
 
-    const isEn = lang === 'en';
-    const workoutText = [
-      `@${post.username}`,
-      post.caption ? `\\n${post.caption}` : '',
-      `\\n${isEn ? 'Exercises' : 'Ejercicios'}: ${post.stats.exercises}`,
-      `\\n${isEn ? 'Duration' : 'Duración'}: ${post.stats.duration}`,
-      `\\n${isEn ? 'Calories' : 'Calorías'}: ${post.stats.calories}`,
-      post.tags?.length ? `\\n${isEn ? 'Tags' : 'Tags'}: ${post.tags.map((t) => `#${t}`).join(' ')}` : '',
-    ]
-      .filter(Boolean)
-      .join('');
-
     try {
-      await navigator.clipboard.writeText(workoutText);
+      await apiCopyWorkoutPost(post.id);
       updatePostState(post.id, (prev) => ({ ...prev, copied: true }));
       window.setTimeout(() => updatePostState(post.id, (prev) => ({ ...prev, copied: false })), 1500);
     } catch {
-      updatePostState(post.id, (prev) => ({ ...prev, copied: true }));
-      window.setTimeout(() => updatePostState(post.id, (prev) => ({ ...prev, copied: false })), 1500);
+      updatePostState(post.id, (prev) => ({ ...prev, copied: false }));
     }
   };
 
@@ -736,6 +764,7 @@ export default function FitGramReal({ forceEmpty = false }) {
   const handleOpenOwnPost = (post) => {
     setSelectedOwnPost(post);
     setEditingPost(false);
+    setOwnPostOptionsOpen(false);
     setEditCaption(post.caption || '');
     setEditTags((post.tags || []).join(', '));
   };
@@ -749,6 +778,7 @@ export default function FitGramReal({ forceEmpty = false }) {
       setOwnStats((prev) => ({ ...prev, posts: Math.max(0, (prev.posts || 0) - 1) }));
       setSelectedOwnPost(null);
       setEditingPost(false);
+      setOwnPostOptionsOpen(false);
     } catch {
       // keep modal open so the user can retry
     }
@@ -764,6 +794,7 @@ export default function FitGramReal({ forceEmpty = false }) {
       const data = await apiUpdatePost(selectedOwnPost.id, { caption: editCaption, tags });
       if (data?.post) replacePost(selectedOwnPost.id, data.post);
       setEditingPost(false);
+      setOwnPostOptionsOpen(false);
     } catch {
       // keep edit mode open so the user can retry
     }
@@ -1014,19 +1045,24 @@ export default function FitGramReal({ forceEmpty = false }) {
               </div>
 
               <div className="flex items-center gap-2">
-                <div className="relative group">
+                <div className="relative">
                   <button
                     type="button"
+                    onClick={() => setOwnPostOptionsOpen((prev) => !prev)}
                     className="h-9 w-9 rounded-lg border border-white/15 bg-white/[0.03] hover:bg-white/[0.08] transition flex items-center justify-center"
                     aria-label={tr(lang, 'Opciones', 'Options')}
                     title={tr(lang, 'Opciones', 'Options')}
                   >
                     <MoreVertical className="h-4 w-4 text-white/70" />
                   </button>
-                  <div className="pointer-events-none absolute right-0 top-full z-10 mt-2 w-44 rounded-lg border border-white/15 bg-[#242424] p-1 opacity-0 shadow-xl transition group-hover:pointer-events-auto group-hover:opacity-100">
+                  {ownPostOptionsOpen ? (
+                  <div className="absolute right-0 top-full z-10 mt-2 w-44 rounded-lg border border-white/15 bg-[#242424] p-1 shadow-xl">
                     <button
                       type="button"
-                      onClick={() => setEditingPost(true)}
+                      onClick={() => {
+                        setEditingPost(true);
+                        setOwnPostOptionsOpen(false);
+                      }}
                       className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[12px] text-white/80 hover:bg-white/[0.08]"
                     >
                       <Edit3 className="h-4 w-4 text-white/55" />
@@ -1041,11 +1077,15 @@ export default function FitGramReal({ forceEmpty = false }) {
                       {tr(lang, 'Eliminar foto', 'Delete photo')}
                     </button>
                   </div>
+                  ) : null}
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => setSelectedOwnPost(null)}
+                  onClick={() => {
+                    setSelectedOwnPost(null);
+                    setOwnPostOptionsOpen(false);
+                  }}
                   className="h-9 w-9 rounded-lg border border-white/15 bg-white/[0.03] hover:bg-white/[0.08] transition flex items-center justify-center"
                   aria-label={tr(lang, 'Cerrar', 'Close')}
                   title={tr(lang, 'Cerrar', 'Close')}

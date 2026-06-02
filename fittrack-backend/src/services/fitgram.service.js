@@ -23,6 +23,48 @@ const normalizeTags = (value) => {
   return Array.from(new Set(tags));
 };
 
+const normalizePostType = (value) => {
+  const type = String(value || '').trim();
+  return ['photo', 'workout', 'info'].includes(type) ? type : 'photo';
+};
+
+const normalizeWorkoutSnapshot = (value) => {
+  if (!value || typeof value !== 'object') return undefined;
+  const title = String(value.title || '').trim().slice(0, 120);
+  const workoutId = String(value.workoutId || value.id || '').trim().slice(0, 80);
+  const dateLabel = String(value.dateLabel || '').trim().slice(0, 80);
+  const stats = value.stats && typeof value.stats === 'object' ? value.stats : {};
+  const exercises = Array.isArray(value.exercises)
+    ? value.exercises.slice(0, 30).map((exercise) => ({
+        name: String(exercise.name || exercise.nombre || '').trim().slice(0, 120),
+        sets: Number(exercise.sets || 0) || 0,
+        setDetails: Array.isArray(exercise.setDetails)
+          ? exercise.setDetails.slice(0, 20).map((set) => ({
+              reps: Number(set.reps || 0) || 0,
+              peso: Number(set.peso || set.weight || 0) || 0,
+              rpe: Number(set.rpe || 0) || undefined,
+            })).filter((set) => set.reps > 0 && set.peso >= 0)
+          : [],
+        volumeKg: Number(exercise.volumeKg || 0) || 0,
+      })).filter((exercise) => exercise.name)
+    : [];
+
+  if (!title && !workoutId && !exercises.length) return undefined;
+
+  return {
+    workoutId,
+    title: title || 'Entreno',
+    dateLabel,
+    stats: {
+      exercises: Number(stats.exercises || exercises.length || 0) || 0,
+      duration: String(stats.duration || '').trim().slice(0, 40),
+      calories: String(stats.calories || '').trim().slice(0, 40),
+      volumeKg: Number(stats.volumeKg || 0) || 0,
+    },
+    exercises,
+  };
+};
+
 const toPublicUser = (userDoc) => {
   if (!userDoc) return null;
   return {
@@ -54,9 +96,11 @@ const attachAuthors = async (posts) => {
 const normalizePost = (p) => ({
   id: String(p._id),
   authorId: String(p.authorId),
+  type: p.type || 'photo',
   image_url: p.image_url,
   caption: p.caption || '',
   tags: p.tags || [],
+  workoutSnapshot: p.workoutSnapshot,
   comments: (p.comments || []).map((c) => ({
     id: String(c._id),
     authorId: String(c.authorId),
@@ -69,7 +113,7 @@ const normalizePost = (p) => ({
   updatedAt: p.updatedAt,
 });
 
-export const createPost = async ({ authorId, image_url, caption, tags }) => {
+export const createPost = async ({ authorId, image_url, caption, tags, type, workoutSnapshot }) => {
   assertMongoReady();
   const authorObjectId = assertObjectId(authorId, 'Autor inválido');
 
@@ -79,13 +123,17 @@ export const createPost = async ({ authorId, image_url, caption, tags }) => {
 
   const safeCaption = String(caption || '').trim().slice(0, 500);
   const safeTags = normalizeTags(tags);
+  const safeType = normalizePostType(type);
+  const safeWorkoutSnapshot = safeType === 'workout' ? normalizeWorkoutSnapshot(workoutSnapshot) : undefined;
 
   const { default: FitGramPost } = await import('../models/mongodb/FitGramPost.js');
   const post = await FitGramPost.create({
     authorId: authorObjectId,
+    type: safeType,
     image_url: url,
     caption: safeCaption,
     tags: safeTags,
+    workoutSnapshot: safeWorkoutSnapshot,
     visibility: 'public',
   });
 
@@ -191,4 +239,48 @@ export const addComment = async ({ viewerUserId, postId, text }) => {
   if (!post) throw createHttpError(404, 'Publicación no encontrada');
   const [withAuthor] = await attachAuthors([normalizePost(post)]);
   return withAuthor;
+};
+
+export const copyWorkoutFromPost = async ({ viewerUserId, postId }) => {
+  assertMongoReady();
+  const viewerId = assertObjectId(viewerUserId, 'Usuario inválido');
+  const id = assertObjectId(postId, 'Publicación inválida');
+
+  const { default: FitGramPost } = await import('../models/mongodb/FitGramPost.js');
+  const { default: Session } = await import('../models/mongodb/Session.js');
+  const post = await FitGramPost.findOne({ _id: id, type: 'workout', visibility: 'public' }).lean();
+  if (!post?.workoutSnapshot) throw createHttpError(404, 'Entreno no encontrado');
+
+  const snapshot = normalizeWorkoutSnapshot(post.workoutSnapshot);
+  if (!snapshot?.exercises?.length) throw createHttpError(400, 'La publicación no tiene ejercicios copiables');
+
+  const exercises = snapshot.exercises.map((exercise, index) => {
+    const setDetails = Array.isArray(exercise.setDetails) ? exercise.setDetails : [];
+    const fallbackWeight = exercise.volumeKg > 0 ? exercise.volumeKg : 0;
+    const sets = setDetails.length
+      ? setDetails.map((set) => ({
+          reps: Number(set.reps || 0) || 1,
+          peso: Number(set.peso || 0) || 0,
+          ...(set.rpe ? { rpe: Number(set.rpe) } : {}),
+        }))
+      : [{ reps: 1, peso: fallbackWeight }];
+
+    return {
+      ejercicio_id: `fitgram-${String(post._id)}-${index}`,
+      nombre_ejercicio: exercise.name,
+      sets,
+    };
+  });
+
+  const durationMatch = String(snapshot.stats?.duration || '').match(/\d+/);
+  const session = await Session.create({
+    usuario_id: viewerId,
+    fecha: new Date(),
+    tipo_rutina: snapshot.title || 'Entreno copiado de FitGram',
+    ejercicios_realizados: exercises,
+    notas: post.caption ? `Copiada desde FitGram: ${String(post.caption).slice(0, 250)}` : 'Copiada desde FitGram',
+    duracion_minutos: durationMatch ? Number(durationMatch[0]) : undefined,
+  });
+
+  return session.toJSON();
 };

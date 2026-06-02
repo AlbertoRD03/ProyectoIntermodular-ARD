@@ -11,9 +11,11 @@ const fitGramCommentSchema = new mongoose.Schema(
 const fitGramPostSchema = new mongoose.Schema(
   {
     authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    type: { type: String, enum: ['photo', 'workout', 'info'], default: 'photo' },
     image_url: { type: String, required: true, trim: true },
     caption: { type: String, trim: true, default: '' },
     tags: { type: [String], default: [] },
+    workoutSnapshot: { type: mongoose.Schema.Types.Mixed, default: undefined },
     comments: { type: [fitGramCommentSchema], default: [] },
     visibility: { type: String, enum: ['public'], default: 'public' },
   },

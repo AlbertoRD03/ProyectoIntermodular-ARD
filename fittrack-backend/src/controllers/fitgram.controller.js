@@ -1,5 +1,6 @@
 import {
   addComment,
+  copyWorkoutFromPost,
   createPost,
   deletePost,
   listExplore,
@@ -20,8 +21,8 @@ export const createPostController = async (req, res) => {
   try {
     if (isMySQLEnabled()) return res.status(501).json({ message: 'Funcionalidad no disponible en MySQL.' });
     const authorId = req.user?.id;
-    const { image_url, caption, tags } = req.body || {};
-    const post = await createPost({ authorId, image_url, caption, tags });
+    const { image_url, caption, tags, type, workoutSnapshot } = req.body || {};
+    const post = await createPost({ authorId, image_url, caption, tags, type, workoutSnapshot });
     return res.status(201).json({ post });
   } catch (error) {
     return fail(res, error, 'Error al crear la publicación');
@@ -98,5 +99,17 @@ export const addCommentController = async (req, res) => {
     return res.status(201).json({ post });
   } catch (error) {
     return fail(res, error, 'Error al crear el comentario');
+  }
+};
+
+export const copyWorkoutPostController = async (req, res) => {
+  try {
+    if (isMySQLEnabled()) return res.status(501).json({ message: 'Funcionalidad no disponible en MySQL.' });
+    const viewerUserId = req.user?.id;
+    const postId = req.params?.id;
+    const session = await copyWorkoutFromPost({ viewerUserId, postId });
+    return res.status(201).json({ session });
+  } catch (error) {
+    return fail(res, error, 'Error al copiar el entreno');
   }
 };

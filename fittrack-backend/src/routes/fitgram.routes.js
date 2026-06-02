@@ -2,6 +2,7 @@ import express from 'express';
 import verifyToken from '../middlewares/auth.middleware.js';
 import {
   addCommentController,
+  copyWorkoutPostController,
   createPostController,
   deletePostController,
   listExploreController,
@@ -19,5 +20,6 @@ router.post('/posts', verifyToken, createPostController);
 router.patch('/posts/:id', verifyToken, updatePostController);
 router.delete('/posts/:id', verifyToken, deletePostController);
 router.post('/posts/:id/comments', verifyToken, addCommentController);
+router.post('/posts/:id/copy-workout', verifyToken, copyWorkoutPostController);
 
 export default router;
