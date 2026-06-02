@@ -1,11 +1,20 @@
 import mongoose from 'mongoose';
 
+const fitGramCommentSchema = new mongoose.Schema(
+  {
+    authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    text: { type: String, required: true, trim: true, maxlength: 300 },
+  },
+  { timestamps: true, _id: true }
+);
+
 const fitGramPostSchema = new mongoose.Schema(
   {
     authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     image_url: { type: String, required: true, trim: true },
     caption: { type: String, trim: true, default: '' },
     tags: { type: [String], default: [] },
+    comments: { type: [fitGramCommentSchema], default: [] },
     visibility: { type: String, enum: ['public'], default: 'public' },
   },
   { timestamps: true }
@@ -25,4 +34,3 @@ fitGramPostSchema.set('toJSON', {
 const FitGramPost = mongoose.models.FitGramPost || mongoose.model('FitGramPost', fitGramPostSchema);
 
 export default FitGramPost;
-

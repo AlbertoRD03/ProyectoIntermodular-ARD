@@ -3,18 +3,23 @@ import {
   Bookmark,
   Check,
   ClipboardCopy,
+  Edit3,
   Heart,
   Image as ImageIcon,
   MessageCircle,
+  MoreVertical,
   Plus,
   Search,
   SendHorizontal,
+  Settings,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { useI18n, tr } from '../i18n/I18nProvider';
-import { getExplore, getFeed, getUserPosts } from '../services/fitgramApi';
-import { searchUsers as apiSearchUsers } from '../services/socialApi';
+import { addComment as apiAddComment, deletePost as apiDeletePost, getExplore, getFeed, getUserPosts, updatePost as apiUpdatePost } from '../services/fitgramApi';
+import { getPublicProfile, searchUsers as apiSearchUsers } from '../services/socialApi';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -129,6 +134,25 @@ function CommentComposer({ value, onChange, onSend }) {
   );
 }
 
+function CommentList({ comments = [], compact = false }) {
+  const visible = compact ? comments.slice(-2) : comments;
+  if (!visible.length) return null;
+
+  return (
+    <div className="px-4 py-3 border-t border-white/10 bg-white/[0.02] space-y-2">
+      {visible.map((comment) => {
+        const handle = comment?.author?.apodo || comment?.author?.nombre || 'usuario';
+        return (
+          <div key={comment.id || `${handle}-${comment.createdAt}`} className="text-[12px] leading-relaxed text-white/70">
+            <span className="font-semibold text-white/85">@{handle}</span>{' '}
+            <span>{comment.text}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments, onAddComment, onCopyWorkout, onOpenProfile }) {
   const { lang } = useI18n();
   const isWorkout = post.type === 'workout';
@@ -147,7 +171,10 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
             >
               @{post.username}
             </button>
-            <div className="text-[10px] uppercase tracking-widest text-white/35">{post.timeAgo}</div>
+            <div className="text-[10px] uppercase tracking-widest text-white/35">
+              {post.timeAgo}
+              {post.createdLabel ? ` · ${post.createdLabel}` : ''}
+            </div>
           </div>
         </div>
       </div>
@@ -167,6 +194,10 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
             ))}
           </div>
         ) : null}
+        <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] uppercase tracking-widest text-white/40">
+          <div>{post.comments?.length || 0} {tr(lang, 'comentarios', 'comments')}</div>
+          <div className="text-right">{post.tags?.length || 0} tags</div>
+        </div>
       </div>
 
       {isWorkout ? (
@@ -227,12 +258,17 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
         </button>
       </div>
 
+      {!state.showComments ? <CommentList comments={post.comments} compact /> : null}
+
       {state.showComments ? (
-        <CommentComposer
-          value={state.commentDraft}
-          onChange={(v) => onAddComment(post.id, { type: 'draft', value: v })}
-          onSend={() => onAddComment(post.id, { type: 'send' })}
-        />
+        <>
+          <CommentList comments={post.comments} />
+          <CommentComposer
+            value={state.commentDraft}
+            onChange={(v) => onAddComment(post.id, { type: 'draft', value: v })}
+            onSend={() => onAddComment(post.id, { type: 'send' })}
+          />
+        </>
       ) : null}
     </Card>
   );
@@ -302,29 +338,48 @@ function readCurrentUser() {
   }
 }
 
-function OwnProfileHeader({ user, postsCount, onCreate, lang }) {
+function OwnProfileHeader({ user, postsCount, stats, onCreate, onBack, lang }) {
   const displayName = user?.apodo || user?.nombre || 'user';
   const fullName = user?.nombre || '';
   const avatarLabel = (displayName[0] || 'U').toUpperCase();
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.04] p-5 sm:p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+    <>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="h-10 w-10 rounded-lg border border-white/15 bg-white/[0.03] hover:bg-white/[0.08] transition flex items-center justify-center"
+          aria-label={tr(lang, 'Volver', 'Back')}
+          title={tr(lang, 'Volver', 'Back')}
+        >
+          <span className="text-[22px] text-white/70 leading-none">←</span>
+        </button>
+        <h2 className="text-[26px] sm:text-[34px] font-bold tracking-wide text-white/95 uppercase">
+          {tr(lang, 'Perfil', 'Profile')}
+        </h2>
+      </div>
+
+      <div className="rounded-xl border border-white/10 bg-white/[0.04] p-5 sm:p-7">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-6">
         <div className="flex items-center gap-4 min-w-0">
           {user?.photo_url ? (
-            <img src={user.photo_url} alt={displayName} className="h-20 w-20 rounded-2xl border border-white/15 object-cover" />
+            <img src={user.photo_url} alt={displayName} className="h-24 w-24 rounded-2xl border border-white/15 object-cover" />
           ) : (
-            <div className="h-20 w-20 rounded-2xl border border-white/15 bg-white/[0.02] flex items-center justify-center text-[20px] font-bold text-white/80">
+            <div className="h-24 w-24 rounded-2xl border border-white/15 bg-white/[0.02] flex items-center justify-center text-[22px] font-bold text-white/80">
               {avatarLabel}
             </div>
           )}
           <div className="min-w-0">
-            <div className="text-[18px] font-bold text-white/95 truncate">@{displayName}</div>
+            <div className="text-[22px] font-bold text-white/95 truncate">@{displayName}</div>
             {fullName ? <div className="text-[12px] text-white/50 truncate">{fullName}</div> : null}
-            <div className="mt-2 text-[11px] uppercase tracking-widest text-white/40">
-              {postsCount} {tr(lang, 'publicaciones', 'posts')}
-            </div>
           </div>
+        </div>
+
+        <div className="flex-1 grid grid-cols-3 gap-4">
+          <Stat label={tr(lang, 'Publicaciones', 'Posts')} value={postsCount} />
+          <Stat label={tr(lang, 'Seguidores', 'Followers')} value={stats?.followers ?? 0} />
+          <Stat label={tr(lang, 'Seguidos', 'Following')} value={stats?.following ?? 0} />
         </div>
 
         <div className="sm:ml-auto">
@@ -338,26 +393,41 @@ function OwnProfileHeader({ user, postsCount, onCreate, lang }) {
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
-function OwnPostGrid({ posts, onOpen }) {
+function OwnPostGrid({ posts, onOpen, lang }) {
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3">
-      {posts.map((post) => (
-        <button
-          type="button"
-          key={post.id}
-          onClick={() => onOpen(post.userId)}
-          className="aspect-square rounded-lg overflow-hidden border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] transition"
-          title={post.caption || post.username}
-        >
-          {post.image_url ? (
-            <img src={post.image_url} alt={post.caption || post.username} className="h-full w-full object-cover" loading="lazy" />
-          ) : null}
-        </button>
-      ))}
+    <div className="rounded-xl border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+      <div className="text-[13px] uppercase tracking-widest text-white/45 mb-5">
+        {tr(lang, 'Publicaciones', 'Posts')}
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        {posts.map((post) => (
+          <button
+            type="button"
+            key={post.id}
+            onClick={() => onOpen(post)}
+            className="group relative aspect-square rounded-lg overflow-hidden border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] transition"
+            title={post.caption || post.username}
+          >
+            {post.image_url ? (
+              <img src={post.image_url} alt={post.caption || post.username} className="h-full w-full object-cover" loading="lazy" />
+            ) : null}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/35 transition" />
+            <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition">
+              <div className="rounded-lg border border-white/15 bg-[#1e1e1e]/90 p-2" title={tr(lang, 'Opciones', 'Options')}>
+                <Settings className="h-4 w-4 text-white/80" />
+              </div>
+            </div>
+            <div className="absolute left-2 bottom-2 opacity-0 group-hover:opacity-100 transition text-[11px] text-white/90">
+              {post.comments?.length || 0} {tr(lang, 'comentarios', 'comments')}
+            </div>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -377,6 +447,11 @@ export default function FitGramReal({ forceEmpty = false }) {
   const [feedLoading, setFeedLoading] = useState(true);
   const [feedError, setFeedError] = useState('');
   const [currentUser, setCurrentUser] = useState(() => readCurrentUser());
+  const [ownStats, setOwnStats] = useState({ followers: 0, following: 0, posts: 0 });
+  const [selectedOwnPost, setSelectedOwnPost] = useState(null);
+  const [editingPost, setEditingPost] = useState(false);
+  const [editCaption, setEditCaption] = useState('');
+  const [editTags, setEditTags] = useState('');
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
@@ -394,6 +469,12 @@ export default function FitGramReal({ forceEmpty = false }) {
     return tr(lang, `HACE ${d}D`, `${d}D AGO`);
   };
 
+  const formatDate = (value) => {
+    const date = new Date(value || Date.now());
+    if (!Number.isFinite(date.getTime())) return '';
+    return date.toLocaleDateString(lang === 'en' ? 'en-US' : 'es-ES', { day: '2-digit', month: 'short' });
+  };
+
   const mapPost = (p) => {
     const base = (p?.author?.apodo || p?.author?.nombre || currentUser?.apodo || currentUser?.nombre || 'user')
       .toString()
@@ -408,9 +489,11 @@ export default function FitGramReal({ forceEmpty = false }) {
       username,
       userId: p?.author?.id || p.authorId || currentUser?.id,
       timeAgo: formatTimeAgo(p.createdAt),
+      createdLabel: formatDate(p.createdAt),
       caption: p.caption || '',
       tags: p.tags || [],
-      metrics: { likes: 0, comments: 0 },
+      comments: p.comments || [],
+      metrics: { likes: 0, comments: p.commentsCount ?? p.comments?.length ?? 0 },
     };
   };
 
@@ -447,7 +530,17 @@ export default function FitGramReal({ forceEmpty = false }) {
         let data;
         if (activeTab === 'profile') {
           const ownId = latestUser?.id || latestUser?._id;
-          data = ownId ? await getUserPosts(ownId, { limit: 120 }) : { posts: [] };
+          if (ownId) {
+            const [postsData, profileData] = await Promise.all([
+              getUserPosts(ownId, { limit: 120 }),
+              getPublicProfile(ownId).catch(() => null),
+            ]);
+            data = postsData;
+            setOwnStats(profileData?.stats || { followers: 0, following: 0, posts: postsData?.posts?.length || 0 });
+          } else {
+            data = { posts: [] };
+            setOwnStats({ followers: 0, following: 0, posts: 0 });
+          }
         } else if (activeTab === 'community') {
           data = await getFeed({ limit: 60 });
         } else {
@@ -469,7 +562,7 @@ export default function FitGramReal({ forceEmpty = false }) {
               showComments: false,
               commentDraft: '',
               likes: 0,
-              comments: 0,
+              comments: post.comments?.length || 0,
             };
           });
           return initial;
@@ -507,7 +600,7 @@ export default function FitGramReal({ forceEmpty = false }) {
               showComments: false,
               commentDraft: '',
               likes: 0,
-              comments: 0,
+              comments: created.comments?.length || 0,
             },
           }
     );
@@ -577,17 +670,35 @@ export default function FitGramReal({ forceEmpty = false }) {
     updatePostState(postId, (prev) => ({ ...prev, showComments: !prev.showComments }));
   };
 
-  const handleAddComment = (postId, action) => {
+  const replacePost = (postId, nextPost) => {
+    const mapped = mapPost(nextPost);
+    setPosts((prev) => prev.map((post) => (post.id === postId ? mapped : post)));
+    if (selectedOwnPost?.id === postId) setSelectedOwnPost(mapped);
+    setPostState((prev) => ({
+      ...prev,
+      [postId]: {
+        ...(prev[postId] || {}),
+        comments: mapped.comments?.length || 0,
+      },
+    }));
+  };
+
+  const handleAddComment = async (postId, action) => {
     if (action.type === 'draft') {
       updatePostState(postId, (prev) => ({ ...prev, commentDraft: action.value }));
       return;
     }
 
-    updatePostState(postId, (prev) => {
-      const text = prev.commentDraft.trim();
-      if (!text) return prev;
-      return { ...prev, commentDraft: '', comments: prev.comments + 1 };
-    });
+    const draft = (postState[postId]?.commentDraft || '').trim();
+    if (!draft) return;
+
+    updatePostState(postId, (prev) => ({ ...prev, commentDraft: '' }));
+    try {
+      const data = await apiAddComment(postId, { text: draft });
+      if (data?.post) replacePost(postId, data.post);
+    } catch {
+      updatePostState(postId, (prev) => ({ ...prev, commentDraft: draft }));
+    }
   };
 
   const handleCopyWorkout = async (post) => {
@@ -620,6 +731,42 @@ export default function FitGramReal({ forceEmpty = false }) {
   const handleOpenProfile = (userId) => {
     if (!userId) return;
     navigate(`/fitgram/usuarios/${userId}`);
+  };
+
+  const handleOpenOwnPost = (post) => {
+    setSelectedOwnPost(post);
+    setEditingPost(false);
+    setEditCaption(post.caption || '');
+    setEditTags((post.tags || []).join(', '));
+  };
+
+  const handleDeleteOwnPost = async () => {
+    if (!selectedOwnPost?.id) return;
+    const postId = selectedOwnPost.id;
+    try {
+      await apiDeletePost(postId);
+      setPosts((prev) => prev.filter((post) => post.id !== postId));
+      setOwnStats((prev) => ({ ...prev, posts: Math.max(0, (prev.posts || 0) - 1) }));
+      setSelectedOwnPost(null);
+      setEditingPost(false);
+    } catch {
+      // keep modal open so the user can retry
+    }
+  };
+
+  const handleSaveOwnPost = async () => {
+    if (!selectedOwnPost?.id) return;
+    try {
+      const tags = editTags
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+      const data = await apiUpdatePost(selectedOwnPost.id, { caption: editCaption, tags });
+      if (data?.post) replacePost(selectedOwnPost.id, data.post);
+      setEditingPost(false);
+    } catch {
+      // keep edit mode open so the user can retry
+    }
   };
 
   return (
@@ -727,7 +874,9 @@ export default function FitGramReal({ forceEmpty = false }) {
             <OwnProfileHeader
               user={currentUser}
               postsCount={posts.length}
+              stats={ownStats}
               onCreate={() => navigate('/fitgram/create')}
+              onBack={() => handleSetTab('for-you')}
               lang={lang}
             />
           ) : null}
@@ -827,7 +976,7 @@ export default function FitGramReal({ forceEmpty = false }) {
               ) : null}
 
               {activeTab === 'profile' ? (
-                <OwnPostGrid posts={filtered} onOpen={handleOpenProfile} />
+                <OwnPostGrid posts={filtered} onOpen={handleOpenOwnPost} lang={lang} />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
                   {filtered.map((post) => (
@@ -849,6 +998,149 @@ export default function FitGramReal({ forceEmpty = false }) {
           )}
         </div>
       </div>
+
+      {selectedOwnPost ? (
+        <div className="fixed inset-0 z-[60] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedOwnPost(null)}>
+          <div
+            className="w-full max-w-5xl max-h-[88vh] overflow-hidden rounded-xl border border-white/15 bg-[#1e1e1e]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+              <div className="min-w-0">
+                <div className="text-[12px] font-bold text-white/90 truncate">@{selectedOwnPost.username}</div>
+                <div className="text-[10px] uppercase tracking-widest text-white/35">
+                  {selectedOwnPost.timeAgo} {selectedOwnPost.createdLabel ? `· ${selectedOwnPost.createdLabel}` : ''}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="relative group">
+                  <button
+                    type="button"
+                    className="h-9 w-9 rounded-lg border border-white/15 bg-white/[0.03] hover:bg-white/[0.08] transition flex items-center justify-center"
+                    aria-label={tr(lang, 'Opciones', 'Options')}
+                    title={tr(lang, 'Opciones', 'Options')}
+                  >
+                    <MoreVertical className="h-4 w-4 text-white/70" />
+                  </button>
+                  <div className="pointer-events-none absolute right-0 top-full z-10 mt-2 w-44 rounded-lg border border-white/15 bg-[#242424] p-1 opacity-0 shadow-xl transition group-hover:pointer-events-auto group-hover:opacity-100">
+                    <button
+                      type="button"
+                      onClick={() => setEditingPost(true)}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[12px] text-white/80 hover:bg-white/[0.08]"
+                    >
+                      <Edit3 className="h-4 w-4 text-white/55" />
+                      {tr(lang, 'Editar publicación', 'Edit post')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDeleteOwnPost}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-[12px] text-red-200 hover:bg-red-500/10"
+                    >
+                      <Trash2 className="h-4 w-4 text-red-300" />
+                      {tr(lang, 'Eliminar foto', 'Delete photo')}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedOwnPost(null)}
+                  className="h-9 w-9 rounded-lg border border-white/15 bg-white/[0.03] hover:bg-white/[0.08] transition flex items-center justify-center"
+                  aria-label={tr(lang, 'Cerrar', 'Close')}
+                  title={tr(lang, 'Cerrar', 'Close')}
+                >
+                  <X className="h-4 w-4 text-white/70" />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid max-h-[calc(88vh-58px)] grid-cols-1 lg:grid-cols-[minmax(0,1.2fr),minmax(320px,0.8fr)] overflow-y-auto">
+              <div className="bg-black/30 flex items-center justify-center">
+                <img
+                  src={selectedOwnPost.image_url}
+                  alt={selectedOwnPost.caption || selectedOwnPost.username}
+                  className="max-h-[70vh] w-full object-contain"
+                />
+              </div>
+
+              <div className="border-t border-white/10 lg:border-l lg:border-t-0 border-white/10">
+                <div className="p-4 border-b border-white/10">
+                  {editingPost ? (
+                    <div className="space-y-3">
+                      <textarea
+                        value={editCaption}
+                        onChange={(event) => setEditCaption(event.target.value)}
+                        className="min-h-24 w-full rounded-lg border border-white/15 bg-white/[0.03] px-3 py-2 text-[13px] text-white/85 outline-none focus:border-white/30"
+                        placeholder={tr(lang, 'Texto de la publicación', 'Post caption')}
+                      />
+                      <input
+                        value={editTags}
+                        onChange={(event) => setEditTags(event.target.value)}
+                        className="w-full rounded-lg border border-white/15 bg-white/[0.03] px-3 py-2 text-[12px] text-white/85 outline-none focus:border-white/30"
+                        placeholder={tr(lang, 'Tags separados por coma', 'Comma-separated tags')}
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingPost(false)}
+                          className="rounded-lg border border-white/15 bg-white/[0.03] px-3 py-2 text-[12px] text-white/75 hover:bg-white/[0.08]"
+                        >
+                          {tr(lang, 'Cancelar', 'Cancel')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveOwnPost}
+                          className="rounded-lg border border-[#ff7849]/70 bg-[#ff7849]/10 px-3 py-2 text-[12px] font-semibold text-[#ff7849] hover:bg-[#ff7849]/20"
+                        >
+                          {tr(lang, 'Guardar', 'Save')}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-[13px] leading-relaxed text-white/80">
+                        <span className="font-semibold text-white/90">@{selectedOwnPost.username}</span>{' '}
+                        {selectedOwnPost.caption || tr(lang, 'Sin descripción.', 'No caption.')}
+                      </div>
+                      {selectedOwnPost.tags?.length ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {selectedOwnPost.tags.map((tag) => (
+                            <Tag key={tag}>#{tag}</Tag>
+                          ))}
+                        </div>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+
+                <div className="p-4 border-b border-white/10">
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <Stat label={tr(lang, 'Likes', 'Likes')} value={postState[selectedOwnPost.id]?.likes || 0} />
+                    <Stat label={tr(lang, 'Comentarios', 'Comments')} value={selectedOwnPost.comments?.length || 0} />
+                    <Stat label="Tags" value={selectedOwnPost.tags?.length || 0} />
+                  </div>
+                </div>
+
+                <div className="max-h-60 overflow-y-auto">
+                  <CommentList comments={selectedOwnPost.comments} />
+                  {!selectedOwnPost.comments?.length ? (
+                    <div className="p-4 text-[12px] text-white/45">
+                      {tr(lang, 'Todavía no hay comentarios.', 'No comments yet.')}
+                    </div>
+                  ) : null}
+                </div>
+
+                <CommentComposer
+                  value={postState[selectedOwnPost.id]?.commentDraft || ''}
+                  onChange={(value) => handleAddComment(selectedOwnPost.id, { type: 'draft', value })}
+                  onSend={() => handleAddComment(selectedOwnPost.id, { type: 'send' })}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

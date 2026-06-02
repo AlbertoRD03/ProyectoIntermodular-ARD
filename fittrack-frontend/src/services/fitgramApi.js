@@ -42,3 +42,12 @@ export const getUserPosts = async (userId, { limit = 60, signal } = {}) =>
 
 export const createPost = async ({ image_url, caption, tags }) =>
   apiFetch('/fitgram/posts', { method: 'POST', body: { image_url, caption, tags } });
+
+export const updatePost = async (postId, { caption, tags }) =>
+  apiFetch(`/fitgram/posts/${encodeURIComponent(postId)}`, { method: 'PATCH', body: { caption, tags } });
+
+export const deletePost = async (postId) =>
+  apiFetch(`/fitgram/posts/${encodeURIComponent(postId)}`, { method: 'DELETE' });
+
+export const addComment = async (postId, { text }) =>
+  apiFetch(`/fitgram/posts/${encodeURIComponent(postId)}/comments`, { method: 'POST', body: { text } });

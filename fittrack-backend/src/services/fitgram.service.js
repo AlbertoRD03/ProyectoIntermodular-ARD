@@ -35,13 +35,39 @@ const toPublicUser = (userDoc) => {
 
 const attachAuthors = async (posts) => {
   const { default: User } = await import('../models/mongodb/User.js');
-  const ids = Array.from(new Set(posts.map((p) => String(p.authorId)).filter(Boolean)));
+  const commentAuthorIds = posts.flatMap((p) => (p.comments || []).map((c) => String(c.authorId)).filter(Boolean));
+  const ids = Array.from(new Set([...posts.map((p) => String(p.authorId)).filter(Boolean), ...commentAuthorIds]));
   if (!ids.length) return posts.map((p) => ({ ...p, author: null }));
 
   const users = await User.find({ _id: { $in: ids } }).select('_id nombre apodo photo_url').lean();
   const map = new Map(users.map((u) => [String(u._id), toPublicUser(u)]));
-  return posts.map((p) => ({ ...p, author: map.get(String(p.authorId)) || null }));
+  return posts.map((p) => ({
+    ...p,
+    author: map.get(String(p.authorId)) || null,
+    comments: (p.comments || []).map((c) => ({
+      ...c,
+      author: map.get(String(c.authorId)) || null,
+    })),
+  }));
 };
+
+const normalizePost = (p) => ({
+  id: String(p._id),
+  authorId: String(p.authorId),
+  image_url: p.image_url,
+  caption: p.caption || '',
+  tags: p.tags || [],
+  comments: (p.comments || []).map((c) => ({
+    id: String(c._id),
+    authorId: String(c.authorId),
+    text: c.text || '',
+    createdAt: c.createdAt,
+  })),
+  commentsCount: Array.isArray(p.comments) ? p.comments.length : 0,
+  visibility: p.visibility,
+  createdAt: p.createdAt,
+  updatedAt: p.updatedAt,
+});
 
 export const createPost = async ({ authorId, image_url, caption, tags }) => {
   assertMongoReady();
@@ -77,15 +103,7 @@ export const listUserPosts = async ({ userId, limit = 60 } = {}) => {
     .limit(safeLimit)
     .lean();
 
-  const normalized = posts.map((p) => ({
-    id: String(p._id),
-    authorId: String(p.authorId),
-    image_url: p.image_url,
-    caption: p.caption || '',
-    tags: p.tags || [],
-    visibility: p.visibility,
-    createdAt: p.createdAt,
-  }));
+  const normalized = posts.map(normalizePost);
   return attachAuthors(normalized);
 };
 
@@ -97,15 +115,7 @@ export const listExplore = async ({ limit = 60 } = {}) => {
     .sort({ createdAt: -1 })
     .limit(safeLimit)
     .lean();
-  const normalized = posts.map((p) => ({
-    id: String(p._id),
-    authorId: String(p.authorId),
-    image_url: p.image_url,
-    caption: p.caption || '',
-    tags: p.tags || [],
-    visibility: p.visibility,
-    createdAt: p.createdAt,
-  }));
+  const normalized = posts.map(normalizePost);
   return attachAuthors(normalized);
 };
 
@@ -127,14 +137,58 @@ export const listFeed = async ({ viewerUserId, limit = 60 } = {}) => {
     .limit(safeLimit)
     .lean();
 
-  const normalized = posts.map((p) => ({
-    id: String(p._id),
-    authorId: String(p.authorId),
-    image_url: p.image_url,
-    caption: p.caption || '',
-    tags: p.tags || [],
-    visibility: p.visibility,
-    createdAt: p.createdAt,
-  }));
+  const normalized = posts.map(normalizePost);
   return attachAuthors(normalized);
+};
+
+export const updatePost = async ({ viewerUserId, postId, caption, tags }) => {
+  assertMongoReady();
+  const viewerId = assertObjectId(viewerUserId, 'Usuario inválido');
+  const id = assertObjectId(postId, 'Publicación inválida');
+
+  const { default: FitGramPost } = await import('../models/mongodb/FitGramPost.js');
+  const post = await FitGramPost.findOneAndUpdate(
+    { _id: id, authorId: viewerId },
+    {
+      $set: {
+        caption: String(caption || '').trim().slice(0, 500),
+        tags: normalizeTags(tags),
+      },
+    },
+    { new: true }
+  ).lean();
+
+  if (!post) throw createHttpError(404, 'Publicación no encontrada');
+  const [withAuthor] = await attachAuthors([normalizePost(post)]);
+  return withAuthor;
+};
+
+export const deletePost = async ({ viewerUserId, postId }) => {
+  assertMongoReady();
+  const viewerId = assertObjectId(viewerUserId, 'Usuario inválido');
+  const id = assertObjectId(postId, 'Publicación inválida');
+
+  const { default: FitGramPost } = await import('../models/mongodb/FitGramPost.js');
+  const post = await FitGramPost.findOneAndDelete({ _id: id, authorId: viewerId }).lean();
+  if (!post) throw createHttpError(404, 'Publicación no encontrada');
+  return { deletedPost: String(post._id) };
+};
+
+export const addComment = async ({ viewerUserId, postId, text }) => {
+  assertMongoReady();
+  const viewerId = assertObjectId(viewerUserId, 'Usuario inválido');
+  const id = assertObjectId(postId, 'Publicación inválida');
+  const safeText = String(text || '').trim().slice(0, 300);
+  if (!safeText) throw createHttpError(400, 'El comentario no puede estar vacío');
+
+  const { default: FitGramPost } = await import('../models/mongodb/FitGramPost.js');
+  const post = await FitGramPost.findOneAndUpdate(
+    { _id: id, visibility: 'public' },
+    { $push: { comments: { authorId: viewerId, text: safeText } } },
+    { new: true }
+  ).lean();
+
+  if (!post) throw createHttpError(404, 'Publicación no encontrada');
+  const [withAuthor] = await attachAuthors([normalizePost(post)]);
+  return withAuthor;
 };
