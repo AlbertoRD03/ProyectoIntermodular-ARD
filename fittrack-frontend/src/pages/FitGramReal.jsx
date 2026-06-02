@@ -103,7 +103,7 @@ function PostImage({ src }) {
   const { lang } = useI18n();
   if (!src) {
     return (
-      <div className="h-[170px] sm:h-[190px] md:h-[210px] w-full bg-black/10 border-y border-white/10 flex items-center justify-center">
+      <div className="h-[220px] sm:h-[240px] w-full bg-black/10 border-y border-white/10 flex items-center justify-center">
         <div className="h-24 w-24 border border-white/15 bg-white/[0.02] flex items-center justify-center text-white/35 text-[11px] uppercase tracking-widest">
           {tr(lang, 'IMG', 'IMG')}
         </div>
@@ -112,7 +112,7 @@ function PostImage({ src }) {
   }
   return (
     <div className="w-full bg-black/10 border-y border-white/10">
-      <img src={src} alt="" className="w-full h-[260px] sm:h-[300px] object-cover" loading="lazy" />
+      <img src={src} alt="" className="w-full h-[220px] sm:h-[240px] object-cover" loading="lazy" />
     </div>
   );
 }
@@ -188,45 +188,52 @@ function WorkoutSharePanel({ post, state, onSaveWorkout, lang }) {
   const exercises = Array.isArray(workout.exercises) ? workout.exercises.slice(0, 3) : [];
 
   return (
-    <div className="h-full border-b border-white/10 bg-white/[0.02]">
-      <div className="grid grid-cols-3 divide-x divide-white/10 border-b border-white/10">
-        <Stat label={tr(lang, 'Ejer', 'Ex')} value={post.stats?.exercises ?? exercises.length} />
-        <Stat label={tr(lang, 'Dur', 'Dur')} value={post.stats?.duration || '--'} />
-        <Stat label={tr(lang, 'Vol', 'Vol')} value={post.stats?.volumeKg ? `${Math.round(post.stats.volumeKg)}kg` : '--'} />
-      </div>
+    <div className="h-full bg-white/[0.02] p-3">
+      <div className="relative h-full rounded-xl border border-[#ff7849]/25 bg-gradient-to-br from-[#ff7849]/12 via-white/[0.035] to-black/10 p-3 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => onSaveWorkout(post)}
+          className="absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-lg border border-[#ff7849]/55 bg-[#1e1e1e]/90 px-2.5 py-1.5 text-[10px] font-bold text-[#ff7849] hover:bg-[#ff7849]/20 transition"
+          aria-label={tr(lang, 'Guardar entreno', 'Save workout')}
+          title={tr(lang, 'Guardar entreno', 'Save workout')}
+        >
+          {state.copied ? <Check className="h-3.5 w-3.5" /> : <ClipboardCopy className="h-3.5 w-3.5" />}
+          {state.copied ? tr(lang, 'Guardado', 'Saved') : tr(lang, 'Guardar', 'Save')}
+        </button>
 
-      <div className="px-4 py-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-[10px] uppercase tracking-widest text-[#ff7849]/90">
-              {tr(lang, 'Entreno compartido', 'Shared workout')}
-            </div>
-            <div className="mt-1 truncate text-[13px] font-bold text-white/90">
-              {workout.title || tr(lang, 'Entreno del día', "Today's workout")}
-            </div>
-            {workout.dateLabel ? <div className="mt-0.5 text-[10px] uppercase tracking-widest text-white/35">{workout.dateLabel}</div> : null}
+        <div className="pr-24">
+          <div className="text-[9px] uppercase tracking-widest text-[#ff7849]/90">
+            {tr(lang, 'Entreno compartido', 'Shared workout')}
           </div>
+          <div className="mt-1 truncate text-[13px] font-bold text-white/90">
+            {workout.title || tr(lang, 'Entreno del día', "Today's workout")}
+          </div>
+          {workout.dateLabel ? <div className="mt-0.5 text-[10px] uppercase tracking-widest text-white/35">{workout.dateLabel}</div> : null}
+        </div>
 
-          <button
-            type="button"
-            onClick={() => onSaveWorkout(post)}
-            className="shrink-0 inline-flex items-center gap-2 rounded-lg border border-[#ff7849]/55 bg-[#ff7849]/10 px-3 py-2 text-[11px] font-semibold text-[#ff7849] hover:bg-[#ff7849]/20 transition"
-            aria-label={tr(lang, 'Guardar entreno', 'Save workout')}
-            title={tr(lang, 'Guardar entreno', 'Save workout')}
-          >
-            {state.copied ? <Check className="h-4 w-4" /> : <ClipboardCopy className="h-4 w-4" />}
-            {state.copied ? tr(lang, 'Guardado', 'Saved') : tr(lang, 'Guardar entreno', 'Save workout')}
-          </button>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="rounded-lg border border-white/10 bg-black/15 px-2 py-2 text-center">
+            <div className="text-[12px] font-bold text-white/90">{post.stats?.exercises ?? exercises.length}</div>
+            <div className="mt-0.5 text-[8px] uppercase tracking-widest text-white/35">{tr(lang, 'Ejer', 'Ex')}</div>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-black/15 px-2 py-2 text-center">
+            <div className="text-[12px] font-bold text-white/90">{post.stats?.duration || '--'}</div>
+            <div className="mt-0.5 text-[8px] uppercase tracking-widest text-white/35">{tr(lang, 'Dur', 'Dur')}</div>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-black/15 px-2 py-2 text-center">
+            <div className="text-[12px] font-bold text-white/90">{post.stats?.volumeKg ? `${Math.round(post.stats.volumeKg)}kg` : '--'}</div>
+            <div className="mt-0.5 text-[8px] uppercase tracking-widest text-white/35">{tr(lang, 'Vol', 'Vol')}</div>
+          </div>
         </div>
 
         <div className="mt-3 grid gap-1">
           {exercises.length ? exercises.map((exercise) => (
-            <div key={exercise.name} className="flex items-center justify-between gap-3 rounded-md bg-black/10 px-3 py-1.5 text-[11px]">
+            <div key={exercise.name} className="flex items-center justify-between gap-3 rounded-md bg-black/15 px-2.5 py-1 text-[10px]">
               <span className="truncate text-white/75">{exercise.name}</span>
               <span className="shrink-0 text-white/40">{exercise.sets || 0} sets</span>
             </div>
           )) : (
-            <div className="rounded-md bg-black/10 px-3 py-2 text-[11px] text-white/45">
+            <div className="rounded-md bg-black/15 px-2.5 py-2 text-[10px] text-white/45">
               {tr(lang, 'Ejercicios incluidos al guardar el entreno.', 'Exercises included when saving the workout.')}
             </div>
           )}
@@ -241,7 +248,7 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
   const isWorkout = post.type === 'workout';
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-[736px] flex flex-col">
       <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-white/10">
         <div className="flex items-start gap-3">
           <Avatar label={post.avatarLabel} src={post.authorPhotoUrl} onClick={onOpenProfile} />
@@ -264,7 +271,7 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
 
       <PostImage src={post.image_url} />
 
-      <div className="h-[136px] px-4 py-3 border-b border-white/10 overflow-hidden">
+      <div className="h-[104px] px-4 py-3 border-b border-white/10 overflow-hidden">
         <div className="text-[12px] text-white/80 line-clamp-2">
           <span className="font-bold text-white/85">@{post.username}</span>{' '}
           <span className="text-white/75">{post.caption}</span>
@@ -283,7 +290,7 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
         </div>
       </div>
 
-      <div className="h-[232px] border-b border-white/10">
+      <div className="h-[184px] border-b border-white/10">
         {isWorkout ? (
           <WorkoutSharePanel post={post} state={state} onSaveWorkout={onCopyWorkout} lang={lang} />
         ) : (
