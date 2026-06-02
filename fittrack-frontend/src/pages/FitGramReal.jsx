@@ -99,20 +99,36 @@ function Avatar({ label, src, onClick }) {
   );
 }
 
-function PostImage({ src }) {
+function PostImage({ src, tags = [] }) {
   const { lang } = useI18n();
+  const hasTags = tags.length > 0;
+
   if (!src) {
     return (
-      <div className="h-[220px] sm:h-[240px] w-full bg-black/10 border-y border-white/10 flex items-center justify-center">
+      <div className="group relative h-[220px] sm:h-[240px] w-full bg-black/10 border-y border-white/10 flex items-center justify-center">
         <div className="h-24 w-24 border border-white/15 bg-white/[0.02] flex items-center justify-center text-white/35 text-[11px] uppercase tracking-widest">
           {tr(lang, 'IMG', 'IMG')}
         </div>
+        {hasTags ? (
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 rounded-xl border border-white/10 bg-black/45 p-3 opacity-0 backdrop-blur-md transition group-hover:opacity-100">
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag) => <Tag key={tag}>#{tag}</Tag>)}
+            </div>
+          </div>
+        ) : null}
       </div>
     );
   }
   return (
-    <div className="w-full bg-black/10 border-y border-white/10">
+    <div className="group relative w-full bg-black/10 border-y border-white/10">
       <img src={src} alt="" className="w-full h-[220px] sm:h-[240px] object-cover" loading="lazy" />
+      {hasTags ? (
+        <div className="pointer-events-none absolute inset-x-3 bottom-3 rounded-xl border border-white/10 bg-black/45 p-3 opacity-0 backdrop-blur-md transition group-hover:opacity-100">
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tag) => <Tag key={tag}>#{tag}</Tag>)}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -185,11 +201,11 @@ function FixedCommentPreview({ comments = [] }) {
 
 function WorkoutSharePanel({ post, state, onSaveWorkout, lang }) {
   const workout = post.workoutSnapshot || {};
-  const exercises = Array.isArray(workout.exercises) ? workout.exercises.slice(0, 3) : [];
+  const exerciseCount = Array.isArray(workout.exercises) ? workout.exercises.length : 0;
 
   return (
     <div className="h-full bg-white/[0.02] p-3">
-      <div className="relative h-full rounded-xl border border-[#ff7849]/25 bg-gradient-to-br from-[#ff7849]/12 via-white/[0.035] to-black/10 p-3 overflow-hidden">
+      <div className="relative flex h-full flex-col justify-center rounded-xl border border-[#ff7849]/25 bg-gradient-to-br from-[#ff7849]/12 via-white/[0.035] to-black/10 p-3 overflow-hidden">
         <button
           type="button"
           onClick={() => onSaveWorkout(post)}
@@ -213,7 +229,7 @@ function WorkoutSharePanel({ post, state, onSaveWorkout, lang }) {
 
         <div className="mt-3 grid grid-cols-3 gap-2">
           <div className="rounded-lg border border-white/10 bg-black/15 px-2 py-2 text-center">
-            <div className="text-[12px] font-bold text-white/90">{post.stats?.exercises ?? exercises.length}</div>
+            <div className="text-[12px] font-bold text-white/90">{post.stats?.exercises ?? exerciseCount}</div>
             <div className="mt-0.5 text-[8px] uppercase tracking-widest text-white/35">{tr(lang, 'Ejer', 'Ex')}</div>
           </div>
           <div className="rounded-lg border border-white/10 bg-black/15 px-2 py-2 text-center">
@@ -224,19 +240,6 @@ function WorkoutSharePanel({ post, state, onSaveWorkout, lang }) {
             <div className="text-[12px] font-bold text-white/90">{post.stats?.volumeKg ? `${Math.round(post.stats.volumeKg)}kg` : '--'}</div>
             <div className="mt-0.5 text-[8px] uppercase tracking-widest text-white/35">{tr(lang, 'Vol', 'Vol')}</div>
           </div>
-        </div>
-
-        <div className="mt-3 grid gap-1">
-          {exercises.length ? exercises.map((exercise) => (
-            <div key={exercise.name} className="flex items-center justify-between gap-3 rounded-md bg-black/15 px-2.5 py-1 text-[10px]">
-              <span className="truncate text-white/75">{exercise.name}</span>
-              <span className="shrink-0 text-white/40">{exercise.sets || 0} sets</span>
-            </div>
-          )) : (
-            <div className="rounded-md bg-black/15 px-2.5 py-2 text-[10px] text-white/45">
-              {tr(lang, 'Ejercicios incluidos al guardar el entreno.', 'Exercises included when saving the workout.')}
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -269,28 +272,21 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
         </div>
       </div>
 
-      <PostImage src={post.image_url} />
+      <PostImage src={post.image_url} tags={post.tags || []} />
 
-      <div className="h-[104px] px-4 py-3 border-b border-white/10 overflow-hidden">
+      <div className="h-[88px] px-4 py-3 border-b border-white/10 overflow-hidden">
         <div className="text-[12px] text-white/80 line-clamp-2">
           <span className="font-bold text-white/85">@{post.username}</span>{' '}
           <span className="text-white/75">{post.caption}</span>
         </div>
 
-        {post.tags?.length ? (
-          <div className="flex flex-wrap gap-2 mt-3">
-            {post.tags.map((tag) => (
-              <Tag key={tag}>#{tag}</Tag>
-            ))}
-          </div>
-        ) : null}
         <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] uppercase tracking-widest text-white/40">
           <div>{post.comments?.length || 0} {tr(lang, 'comentarios', 'comments')}</div>
           <div className="text-right">{post.tags?.length || 0} tags</div>
         </div>
       </div>
 
-      <div className="h-[184px] border-b border-white/10">
+      <div className="flex-1 border-b border-white/10">
         {isWorkout ? (
           <WorkoutSharePanel post={post} state={state} onSaveWorkout={onCopyWorkout} lang={lang} />
         ) : (
@@ -335,7 +331,7 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
         </button>
       </div>
 
-      {!state.showComments ? <FixedCommentPreview comments={post.comments} /> : null}
+      {!state.showComments && post.comments?.length ? <FixedCommentPreview comments={post.comments} /> : null}
 
       {state.showComments ? (
         <>
