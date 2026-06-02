@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { createHttpError } from '../utils/httpError.js';
 import { createMongoUnavailableError, isMongoConfigured, isMongoConnected } from '../utils/mongodb.js';
+import { createNotification } from './notification.service.js';
 
 const assertMongoReady = () => {
   if (!isMongoConfigured() || !isMongoConnected()) throw createMongoUnavailableError();
@@ -96,7 +97,18 @@ export const followUser = async ({ viewerUserId, targetUserId }) => {
   if (!exists) throw createHttpError(404, 'Usuario no encontrado');
 
   try {
-    await Follow.create({ followerId: viewerId, followingId: targetId });
+    const follow = await Follow.create({ followerId: viewerId, followingId: targetId });
+    const viewer = await User.findById(viewerId).select('_id nombre apodo').lean();
+    const handle = viewer?.apodo || viewer?.nombre || 'Un usuario';
+    await createNotification({
+      userId: targetId,
+      actorId: viewerId,
+      type: 'new_follower',
+      title: 'Nuevo seguidor',
+      message: `@${handle} ha empezado a seguirte.`,
+      link: `/fitgram/usuarios/${viewerId}`,
+      dedupeKey: `follow:${String(follow._id)}`,
+    });
   } catch (err) {
     // Duplicate follow is OK (idempotent).
     if (err?.code !== 11000) throw err;
@@ -157,4 +169,3 @@ export const listFollowing = async ({ targetUserId, limit = 50 } = {}) => {
 
   return follows.map((f) => map.get(String(f.followingId))).filter(Boolean);
 };
-

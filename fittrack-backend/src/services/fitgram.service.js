@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { createHttpError } from '../utils/httpError.js';
 import { createMongoUnavailableError, isMongoConfigured, isMongoConnected } from '../utils/mongodb.js';
+import { createNotification } from './notification.service.js';
 
 const assertMongoReady = () => {
   if (!isMongoConfigured() || !isMongoConnected()) throw createMongoUnavailableError();
@@ -237,6 +238,19 @@ export const addComment = async ({ viewerUserId, postId, text }) => {
   ).lean();
 
   if (!post) throw createHttpError(404, 'Publicación no encontrada');
+  const { default: User } = await import('../models/mongodb/User.js');
+  const actor = await User.findById(viewerId).select('_id nombre apodo').lean();
+  const actorName = actor?.apodo || actor?.nombre || 'Un usuario';
+  await createNotification({
+    userId: String(post.authorId),
+    actorId: viewerId,
+    type: 'post_comment',
+    title: 'Nuevo comentario',
+    message: `@${actorName} comentó tu publicación: "${safeText.slice(0, 80)}"`,
+    link: '/fitgram?tab=profile',
+    metadata: { postId: id },
+    dedupeKey: `comment:${String(post.comments?.[post.comments.length - 1]?._id || Date.now())}`,
+  });
   const [withAuthor] = await attachAuthors([normalizePost(post)]);
   return withAuthor;
 };
@@ -251,8 +265,12 @@ export const copyWorkoutFromPost = async ({ viewerUserId, postId }) => {
   const { default: User } = await import('../models/mongodb/User.js');
   const post = await FitGramPost.findOne({ _id: id, type: 'workout', visibility: 'public' }).lean();
   if (!post?.workoutSnapshot) throw createHttpError(404, 'Entreno no encontrado');
-  const sourceUser = await User.findById(post.authorId).select('_id nombre apodo').lean();
+  const [sourceUser, viewerUser] = await Promise.all([
+    User.findById(post.authorId).select('_id nombre apodo').lean(),
+    User.findById(viewerId).select('_id nombre apodo').lean(),
+  ]);
   const sourceUsername = sourceUser?.apodo || sourceUser?.nombre || 'usuario';
+  const viewerUsername = viewerUser?.apodo || viewerUser?.nombre || 'Un usuario';
 
   const snapshot = normalizeWorkoutSnapshot(post.workoutSnapshot);
   if (!snapshot?.exercises?.length) throw createHttpError(400, 'La publicación no tiene ejercicios copiables');
@@ -290,6 +308,17 @@ export const copyWorkoutFromPost = async ({ viewerUserId, postId }) => {
       userId: post.authorId,
       username: sourceUsername,
     },
+  });
+
+  await createNotification({
+    userId: String(post.authorId),
+    actorId: viewerId,
+    type: 'workout_copied',
+    title: 'Entreno guardado',
+    message: `@${viewerUsername} ha guardado tu entreno "${snapshot.title || 'Entreno'}".`,
+    link: '/fitgram?tab=profile',
+    metadata: { postId: id, sessionId: String(session._id) },
+    dedupeKey: `workout-copied:${String(session._id)}`,
   });
 
   return session.toJSON();

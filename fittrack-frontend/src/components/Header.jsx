@@ -7,9 +7,11 @@ import {
   Trophy,
   UserRound,
   ChevronDown,
+  Bell,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../i18n/I18nProvider';
+import { listNotifications } from '../services/notificationApi';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -90,6 +92,7 @@ export default function Header() {
   const { t } = useI18n();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [userNickname, setUserNickname] = useState('');
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const handleDropdownSelect = (path) => {
     navigate(path);
@@ -120,6 +123,23 @@ export default function Header() {
     readUserNickname();
     window.addEventListener('storage', readUserNickname);
     return () => window.removeEventListener('storage', readUserNickname);
+  }, [pathname]);
+
+  useEffect(() => {
+    let alive = true;
+    const loadUnreadCount = async () => {
+      try {
+        const data = await listNotifications({ limit: 1, unread: true });
+        if (alive) setUnreadNotifications(Number(data?.unreadCount || 0));
+      } catch {
+        if (alive) setUnreadNotifications(0);
+      }
+    };
+
+    loadUnreadCount();
+    return () => {
+      alive = false;
+    };
   }, [pathname]);
 
   return (
@@ -165,14 +185,34 @@ export default function Header() {
 
         <div className="hidden md:block" />
 
-        <button
-          type="button"
-          onClick={() => navigate('/perfil')}
-          className="justify-self-end inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 sm:px-4 py-1.5 sm:py-2 text-[12px] sm:text-[14px] font-medium text-white/90 transition hover:bg-white/15"
-        >
-          <UserRound className="h-4 w-4" />
-          <span className="hidden sm:inline">{t('nav_profile')}</span>
-        </button>
+        <div className="justify-self-end flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate('/notificaciones')}
+            className={cx(
+              'relative inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] transition hover:bg-white/[0.08]',
+              isActive('/notificaciones') ? 'text-[#ff7849]' : 'text-white/80'
+            )}
+            aria-label="Notificaciones"
+            title="Notificaciones"
+          >
+            <Bell className="h-4 w-4" />
+            {unreadNotifications > 0 ? (
+              <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-[#ff7849] px-1 text-[9px] font-bold leading-4 text-white">
+                {unreadNotifications > 9 ? '9+' : unreadNotifications}
+              </span>
+            ) : null}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/perfil')}
+            className="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 sm:px-4 py-1.5 sm:py-2 text-[12px] sm:text-[14px] font-medium text-white/90 transition hover:bg-white/15"
+          >
+            <UserRound className="h-4 w-4" />
+            <span className="hidden sm:inline">{t('nav_profile')}</span>
+          </button>
+        </div>
       </div>
     </div>
   );
