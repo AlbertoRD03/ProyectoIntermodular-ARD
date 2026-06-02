@@ -183,6 +183,59 @@ function FixedCommentPreview({ comments = [] }) {
   );
 }
 
+function WorkoutSharePanel({ post, state, onSaveWorkout, lang }) {
+  const workout = post.workoutSnapshot || {};
+  const exercises = Array.isArray(workout.exercises) ? workout.exercises.slice(0, 3) : [];
+
+  return (
+    <div className="h-full border-b border-white/10 bg-white/[0.02]">
+      <div className="grid grid-cols-3 divide-x divide-white/10 border-b border-white/10">
+        <Stat label={tr(lang, 'Ejer', 'Ex')} value={post.stats?.exercises ?? exercises.length} />
+        <Stat label={tr(lang, 'Dur', 'Dur')} value={post.stats?.duration || '--'} />
+        <Stat label={tr(lang, 'Vol', 'Vol')} value={post.stats?.volumeKg ? `${Math.round(post.stats.volumeKg)}kg` : '--'} />
+      </div>
+
+      <div className="px-4 py-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-widest text-[#ff7849]/90">
+              {tr(lang, 'Entreno compartido', 'Shared workout')}
+            </div>
+            <div className="mt-1 truncate text-[13px] font-bold text-white/90">
+              {workout.title || tr(lang, 'Entreno del día', "Today's workout")}
+            </div>
+            {workout.dateLabel ? <div className="mt-0.5 text-[10px] uppercase tracking-widest text-white/35">{workout.dateLabel}</div> : null}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onSaveWorkout(post)}
+            className="shrink-0 inline-flex items-center gap-2 rounded-lg border border-[#ff7849]/55 bg-[#ff7849]/10 px-3 py-2 text-[11px] font-semibold text-[#ff7849] hover:bg-[#ff7849]/20 transition"
+            aria-label={tr(lang, 'Guardar entreno', 'Save workout')}
+            title={tr(lang, 'Guardar entreno', 'Save workout')}
+          >
+            {state.copied ? <Check className="h-4 w-4" /> : <ClipboardCopy className="h-4 w-4" />}
+            {state.copied ? tr(lang, 'Guardado', 'Saved') : tr(lang, 'Guardar entreno', 'Save workout')}
+          </button>
+        </div>
+
+        <div className="mt-3 grid gap-1">
+          {exercises.length ? exercises.map((exercise) => (
+            <div key={exercise.name} className="flex items-center justify-between gap-3 rounded-md bg-black/10 px-3 py-1.5 text-[11px]">
+              <span className="truncate text-white/75">{exercise.name}</span>
+              <span className="shrink-0 text-white/40">{exercise.sets || 0} sets</span>
+            </div>
+          )) : (
+            <div className="rounded-md bg-black/10 px-3 py-2 text-[11px] text-white/45">
+              {tr(lang, 'Ejercicios incluidos al guardar el entreno.', 'Exercises included when saving the workout.')}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments, onAddComment, onCopyWorkout, onOpenProfile }) {
   const { lang } = useI18n();
   const isWorkout = post.type === 'workout';
@@ -230,30 +283,9 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
         </div>
       </div>
 
-      <div className="h-[112px] border-b border-white/10">
+      <div className="h-[232px] border-b border-white/10">
         {isWorkout ? (
-          <>
-            <div className="grid grid-cols-3 divide-x divide-white/10 border-b border-white/10">
-              <Stat label={tr(lang, 'Ejer', 'Ex')} value={post.stats?.exercises ?? 0} />
-              <Stat label={tr(lang, 'Dur', 'Dur')} value={post.stats?.duration || '--'} />
-              <Stat label={tr(lang, 'Vol', 'Vol')} value={post.stats?.volumeKg ? `${Math.round(post.stats.volumeKg)}kg` : '--'} />
-            </div>
-            <div className="px-4 py-2 bg-white/[0.02] flex items-center justify-between gap-3">
-              <div className="text-[10px] uppercase tracking-widest text-white/45">
-                {post.workoutSnapshot?.title || tr(lang, 'Entreno del día', "Today's workout")}
-              </div>
-              <button
-                type="button"
-                onClick={() => onCopyWorkout(post)}
-                className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/[0.03] px-3 py-2 text-[11px] font-semibold text-white/75 hover:bg-white/[0.08] hover:text-white/90 transition"
-                aria-label={tr(lang, 'Copiar entreno', 'Copy workout')}
-                title={tr(lang, 'Copiar entreno', 'Copy workout')}
-              >
-                {state.copied ? <Check className="h-4 w-4 text-[#ff7849]" /> : <ClipboardCopy className="h-4 w-4" />}
-                {state.copied ? tr(lang, 'Copiado', 'Copied') : tr(lang, 'Copiar', 'Copy')}
-              </button>
-            </div>
-          </>
+          <WorkoutSharePanel post={post} state={state} onSaveWorkout={onCopyWorkout} lang={lang} />
         ) : (
           <div className="h-full px-4 py-3 bg-white/[0.02] flex items-center">
             <div>
