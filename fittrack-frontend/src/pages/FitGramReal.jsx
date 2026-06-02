@@ -13,7 +13,7 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { useI18n, tr } from '../i18n/I18nProvider';
-import { getFeed } from '../services/fitgramApi';
+import { getExplore, getFeed, getUserPosts } from '../services/fitgramApi';
 import { searchUsers as apiSearchUsers } from '../services/socialApi';
 
 function cx(...classes) {
@@ -275,16 +275,108 @@ function PopularUserCard({ user, onFollow }) {
   );
 }
 
+function TabButton({ active, children, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cx(
+        'rounded-lg px-4 py-2.5 text-[11px] sm:text-[12px] font-bold uppercase tracking-wide transition border',
+        active
+          ? 'border-[#ff7849] bg-[#ff7849] text-white'
+          : 'border-white/10 bg-white/[0.03] text-white/65 hover:bg-white/[0.07] hover:text-white/85'
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function readCurrentUser() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem('fittrack_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function OwnProfileHeader({ user, postsCount, onCreate, lang }) {
+  const displayName = user?.apodo || user?.nombre || 'user';
+  const fullName = user?.nombre || '';
+  const avatarLabel = (displayName[0] || 'U').toUpperCase();
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.04] p-5 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+        <div className="flex items-center gap-4 min-w-0">
+          {user?.photo_url ? (
+            <img src={user.photo_url} alt={displayName} className="h-20 w-20 rounded-2xl border border-white/15 object-cover" />
+          ) : (
+            <div className="h-20 w-20 rounded-2xl border border-white/15 bg-white/[0.02] flex items-center justify-center text-[20px] font-bold text-white/80">
+              {avatarLabel}
+            </div>
+          )}
+          <div className="min-w-0">
+            <div className="text-[18px] font-bold text-white/95 truncate">@{displayName}</div>
+            {fullName ? <div className="text-[12px] text-white/50 truncate">{fullName}</div> : null}
+            <div className="mt-2 text-[11px] uppercase tracking-widest text-white/40">
+              {postsCount} {tr(lang, 'publicaciones', 'posts')}
+            </div>
+          </div>
+        </div>
+
+        <div className="sm:ml-auto">
+          <button
+            type="button"
+            onClick={onCreate}
+            className="inline-flex items-center gap-2 rounded-lg border border-[#ff7849]/70 bg-[#ff7849]/10 px-4 py-2.5 text-[12px] font-semibold text-[#ff7849] hover:bg-[#ff7849]/20 transition"
+          >
+            <Plus className="h-4 w-4" />
+            {tr(lang, 'Nueva publicación', 'New post')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OwnPostGrid({ posts, onOpen }) {
+  return (
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3">
+      {posts.map((post) => (
+        <button
+          type="button"
+          key={post.id}
+          onClick={() => onOpen(post.userId)}
+          className="aspect-square rounded-lg overflow-hidden border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] transition"
+          title={post.caption || post.username}
+        >
+          {post.image_url ? (
+            <img src={post.image_url} alt={post.caption || post.username} className="h-full w-full object-cover" loading="lazy" />
+          ) : null}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function FitGramReal({ forceEmpty = false }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { lang } = useI18n();
   const [query, setQuery] = useState('');
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = new URLSearchParams(location.search || '').get('tab');
+    return ['for-you', 'community', 'profile'].includes(tab) ? tab : 'for-you';
+  });
 
   const [posts, setPosts] = useState([]);
   const [postState, setPostState] = useState({});
   const [feedLoading, setFeedLoading] = useState(true);
   const [feedError, setFeedError] = useState('');
+  const [currentUser, setCurrentUser] = useState(() => readCurrentUser());
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
@@ -302,6 +394,38 @@ export default function FitGramReal({ forceEmpty = false }) {
     return tr(lang, `HACE ${d}D`, `${d}D AGO`);
   };
 
+  const mapPost = (p) => {
+    const base = (p?.author?.apodo || p?.author?.nombre || currentUser?.apodo || currentUser?.nombre || 'user')
+      .toString()
+      .trim();
+    const username = base.toUpperCase();
+    return {
+      id: p.id,
+      type: 'photo',
+      image_url: p.image_url,
+      avatarLabel: (base[0] || 'U').toUpperCase(),
+      authorPhotoUrl: p?.author?.photo_url || currentUser?.photo_url || '',
+      username,
+      userId: p?.author?.id || p.authorId || currentUser?.id,
+      timeAgo: formatTimeAgo(p.createdAt),
+      caption: p.caption || '',
+      tags: p.tags || [],
+      metrics: { likes: 0, comments: 0 },
+    };
+  };
+
+  const handleSetTab = (tab) => {
+    setActiveTab(tab);
+    navigate(`/fitgram?tab=${tab}`, { replace: true });
+  };
+
+  React.useEffect(() => {
+    const tab = new URLSearchParams(location.search || '').get('tab');
+    if (['for-you', 'community', 'profile'].includes(tab) && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [location.search, activeTab]);
+
   React.useEffect(() => {
     const shouldForceEmpty = forceEmpty || location.state?.empty === true;
     if (shouldForceEmpty) {
@@ -317,25 +441,21 @@ export default function FitGramReal({ forceEmpty = false }) {
       try {
         setFeedLoading(true);
         setFeedError('');
-        const data = await getFeed({ limit: 60 });
+        const latestUser = readCurrentUser();
+        setCurrentUser(latestUser);
+
+        let data;
+        if (activeTab === 'profile') {
+          const ownId = latestUser?.id || latestUser?._id;
+          data = ownId ? await getUserPosts(ownId, { limit: 120 }) : { posts: [] };
+        } else if (activeTab === 'community') {
+          data = await getFeed({ limit: 60 });
+        } else {
+          data = await getExplore({ limit: 60 });
+        }
+
         const raw = data?.posts || [];
-        const mapped = raw.map((p) => {
-          const base = (p?.author?.apodo || p?.author?.nombre || 'user').toString().trim();
-          const username = base.toUpperCase();
-          return {
-            id: p.id,
-            type: 'photo',
-            image_url: p.image_url,
-            avatarLabel: (base[0] || 'U').toUpperCase(),
-            authorPhotoUrl: p?.author?.photo_url || '',
-            username,
-            userId: p?.author?.id || p.authorId,
-            timeAgo: formatTimeAgo(p.createdAt),
-            caption: p.caption || '',
-            tags: p.tags || [],
-            metrics: { likes: 0, comments: 0 },
-          };
-        });
+        const mapped = raw.map(mapPost);
 
         if (!mounted) return;
         setPosts(mapped);
@@ -356,7 +476,7 @@ export default function FitGramReal({ forceEmpty = false }) {
         });
       } catch {
         if (!mounted) return;
-        setFeedError(tr(lang, 'No se pudo cargar el feed.', 'Could not load feed.'));
+        setFeedError(tr(lang, 'No se pudieron cargar las publicaciones.', 'Could not load posts.'));
         setPosts([]);
         setPostState({});
       } finally {
@@ -367,12 +487,13 @@ export default function FitGramReal({ forceEmpty = false }) {
     return () => {
       mounted = false;
     };
-  }, [forceEmpty, location.state, lang]);
+  }, [forceEmpty, location.state, lang, activeTab]);
 
   React.useEffect(() => {
     const created = location.state?.createdPost;
     if (!created) return;
     if (forceEmpty) return;
+    if (activeTab !== 'profile') return;
     setPosts((prev) => (prev.some((p) => p.id === created.id) ? prev : [created, ...prev]));
     setPostState((prev) =>
       prev[created.id]
@@ -390,7 +511,7 @@ export default function FitGramReal({ forceEmpty = false }) {
             },
           }
     );
-  }, [location.state, forceEmpty]);
+  }, [location.state, forceEmpty, activeTab]);
 
   React.useEffect(() => {
     let mounted = true;
@@ -498,7 +619,7 @@ export default function FitGramReal({ forceEmpty = false }) {
 
   const handleOpenProfile = (userId) => {
     if (!userId) return;
-    navigate(`/usuarios/${userId}`);
+    navigate(`/fitgram/usuarios/${userId}`);
   };
 
   return (
@@ -513,6 +634,7 @@ export default function FitGramReal({ forceEmpty = false }) {
             </h1>
 
             <div className="flex-1 flex items-center gap-3">
+              {activeTab !== 'profile' ? (
               <div className="flex-1 relative">
                 <Search className="h-4 w-4 text-white/35 absolute left-4 top-1/2 -translate-y-1/2" />
                 <input
@@ -536,7 +658,7 @@ export default function FitGramReal({ forceEmpty = false }) {
                               onClick={() => {
                                 setSearchOpen(false);
                                 setQuery('');
-                                navigate(`/usuarios/${u.id}`);
+                                navigate(`/fitgram/usuarios/${u.id}`);
                               }}
                               className="w-full px-4 py-3 text-left hover:bg-white/[0.06] transition flex items-center gap-3"
                             >
@@ -569,24 +691,50 @@ export default function FitGramReal({ forceEmpty = false }) {
                   </div>
                 ) : null}
               </div>
+              ) : (
+                <div className="flex-1" />
+              )}
 
-              <button
-                type="button"
-                onClick={() => navigate('/fitgram/create')}
-                className="h-[46px] w-[46px] rounded-lg border border-white/15 bg-white/[0.03] hover:bg-white/[0.08] transition flex items-center justify-center"
-                aria-label={tr(lang, 'Crear publicación', 'Create post')}
-                title={tr(lang, 'Crear publicación', 'Create post')}
-              >
-                <Plus className="h-5 w-5 text-white/70" />
-              </button>
+              {activeTab === 'profile' ? (
+                <button
+                  type="button"
+                  onClick={() => navigate('/fitgram/create')}
+                  className="h-[46px] w-[46px] rounded-lg border border-white/15 bg-white/[0.03] hover:bg-white/[0.08] transition flex items-center justify-center"
+                  aria-label={tr(lang, 'Crear publicación', 'Create post')}
+                  title={tr(lang, 'Crear publicación', 'Create post')}
+                >
+                  <Plus className="h-5 w-5 text-white/70" />
+                </button>
+              ) : null}
             </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <TabButton active={activeTab === 'for-you'} onClick={() => handleSetTab('for-you')}>
+              {tr(lang, 'Para ti', 'For you')}
+            </TabButton>
+            <TabButton active={activeTab === 'community'} onClick={() => handleSetTab('community')}>
+              {tr(lang, 'Mi comunidad', 'My community')}
+            </TabButton>
+            <TabButton active={activeTab === 'profile'} onClick={() => handleSetTab('profile')}>
+              {tr(lang, 'Mi perfil', 'My profile')}
+            </TabButton>
           </div>
 
           <div className="h-px w-full bg-white/10" />
 
+          {activeTab === 'profile' ? (
+            <OwnProfileHeader
+              user={currentUser}
+              postsCount={posts.length}
+              onCreate={() => navigate('/fitgram/create')}
+              lang={lang}
+            />
+          ) : null}
+
           {feedLoading ? (
             <div className="rounded-xl border border-white/10 bg-white/[0.04] p-10 text-center text-white/60">
-              {tr(lang, 'Cargando feed...', 'Loading feed...')}
+              {tr(lang, 'Cargando publicaciones...', 'Loading posts...')}
             </div>
           ) : posts.length === 0 ? (
             <div className="py-10 sm:py-14">
@@ -598,13 +746,14 @@ export default function FitGramReal({ forceEmpty = false }) {
                   {tr(lang, 'NO HAY PUBLICACIONES', 'NO POSTS')}
                 </h2>
                 <p className="mt-2 text-[12px] sm:text-[13px] text-white/45 leading-relaxed">
-                  {tr(
-                    lang,
-                    'Todavía no sigues a ningún usuario. Utiliza el buscador o visita Comunidad para empezar.',
-                    "You're not following anyone yet. Use search or visit Community to get started."
-                  )}
+                  {activeTab === 'profile'
+                    ? tr(lang, 'Todavía no has subido publicaciones. Crea la primera desde tu perfil.', "You haven't uploaded posts yet. Create your first one from your profile.")
+                    : activeTab === 'community'
+                      ? tr(lang, 'Todavía no hay publicaciones de usuarios que sigues. Busca perfiles y empieza a crear tu comunidad.', 'There are no posts from followed users yet. Search profiles and start building your community.')
+                      : tr(lang, 'Todavía no hay publicaciones disponibles.', 'There are no posts available yet.')}
                 </p>
 
+                {activeTab !== 'profile' ? (
                 <div className="mt-7 space-y-4">
                   <EmptyStateCard className="p-5 sm:p-6 text-left">
                     <div className="text-center text-[11px] font-semibold uppercase tracking-widest text-white/55">
@@ -647,14 +796,26 @@ export default function FitGramReal({ forceEmpty = false }) {
                     <div className="mt-4 text-center">
                       <button
                         type="button"
-                        onClick={() => navigate('/comunidad')}
+                        onClick={() => handleSetTab('for-you')}
                         className="rounded-lg border border-white/15 bg-white/[0.03] hover:bg-white/[0.08] transition px-4 py-2 text-[12px] font-semibold text-white/80"
                       >
-                        {tr(lang, 'Ver comunidad', 'Browse community')}
+                        {tr(lang, 'Ver Para ti', 'Open For you')}
                       </button>
                     </div>
                   </EmptyStateCard>
                 </div>
+                ) : (
+                  <div className="mt-7">
+                    <button
+                      type="button"
+                      onClick={() => navigate('/fitgram/create')}
+                      className="inline-flex items-center gap-2 rounded-lg border border-[#ff7849]/70 bg-[#ff7849]/10 px-4 py-2.5 text-[12px] font-semibold text-[#ff7849] hover:bg-[#ff7849]/20 transition"
+                    >
+                      <Plus className="h-4 w-4" />
+                      {tr(lang, 'Crear publicación', 'Create post')}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -665,21 +826,25 @@ export default function FitGramReal({ forceEmpty = false }) {
                 </div>
               ) : null}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
-                {filtered.map((post) => (
-                  <FitGramPost
-                    key={post.id}
-                    post={post}
-                    state={postState[post.id] || { liked: false, saved: false, copied: false, showComments: false, commentDraft: '', likes: 0, comments: 0 }}
-                    onToggleLike={handleToggleLike}
-                    onToggleSave={handleToggleSave}
-                    onToggleComments={handleToggleComments}
-                    onAddComment={handleAddComment}
-                    onCopyWorkout={handleCopyWorkout}
-                    onOpenProfile={() => handleOpenProfile(post.userId)}
-                  />
-                ))}
-              </div>
+              {activeTab === 'profile' ? (
+                <OwnPostGrid posts={filtered} onOpen={handleOpenProfile} />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
+                  {filtered.map((post) => (
+                    <FitGramPost
+                      key={post.id}
+                      post={post}
+                      state={postState[post.id] || { liked: false, saved: false, copied: false, showComments: false, commentDraft: '', likes: 0, comments: 0 }}
+                      onToggleLike={handleToggleLike}
+                      onToggleSave={handleToggleSave}
+                      onToggleComments={handleToggleComments}
+                      onAddComment={handleAddComment}
+                      onCopyWorkout={handleCopyWorkout}
+                      onOpenProfile={() => handleOpenProfile(post.userId)}
+                    />
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>

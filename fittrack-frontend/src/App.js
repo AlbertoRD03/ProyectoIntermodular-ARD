@@ -20,7 +20,6 @@ import Privacy from './pages/Privacy';
 import OnboardingEnforcer from './components/OnboardingEnforcer';
 import WeightEvolution from './pages/WeightEvolution';
 import PrivacySettings from './pages/PrivacySettings';
-import Community from './pages/Community';
 import UserPublicProfile from './pages/UserPublicProfile';
 
 const App = () => {
@@ -43,8 +42,9 @@ const App = () => {
         <Route path="/calendario" element={<Calendario />} />
         <Route path="/fitgram/empty" element={<FitGramReal forceEmpty />} />
         <Route path="/fitgram/create" element={<CreateFitGramPost />} />
+        <Route path="/fitgram/usuarios/:id" element={<UserPublicProfile />} />
         <Route path="/fitgram" element={<FitGramReal />} />
-        <Route path="/comunidad" element={<Community />} />
+        <Route path="/comunidad" element={<Navigate to="/fitgram?tab=community" replace />} />
         <Route path="/usuarios/:id" element={<UserPublicProfile />} />
         <Route path="/logros" element={<Logros />} />
         <Route path="/fitia" element={<FitIA />} />

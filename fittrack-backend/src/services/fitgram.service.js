@@ -120,8 +120,8 @@ export const listFeed = async ({ viewerUserId, limit = 60 } = {}) => {
   const follows = await Follow.find({ followerId: viewerId }).select('followingId').lean();
   const followingIds = follows.map((f) => f.followingId);
 
-  // Feed = posts from following + self.
-  const authorIds = [new mongoose.Types.ObjectId(viewerId), ...followingIds];
+  // Community feed = posts from followed users only.
+  const authorIds = followingIds;
   const posts = await FitGramPost.find({ authorId: { $in: authorIds }, visibility: 'public' })
     .sort({ createdAt: -1 })
     .limit(safeLimit)

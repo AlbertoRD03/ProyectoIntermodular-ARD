@@ -6,7 +6,6 @@ import {
   MessageSquareText,
   Trophy,
   UserRound,
-  Users,
   ChevronDown,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -156,7 +155,6 @@ export default function Header() {
             itemWorkoutsLabel={t('nav_calendar_workouts')}
           />
           <NavItem active={isActive('/fitgram')} icon={LayoutGrid} label={t('nav_fitgram')} onClick={() => navigate('/fitgram')} />
-          <NavItem active={isActive('/comunidad')} icon={Users} label={t('nav_community')} onClick={() => navigate('/comunidad')} />
           <NavItem active={isActive('/logros')} icon={Trophy} label={t('nav_achievements')} onClick={() => navigate('/logros')} />
           <NavItem active={isActive('/fitia')} icon={MessageSquareText} label={t('nav_ai_chat')} onClick={() => navigate('/fitia')} />
         </nav>

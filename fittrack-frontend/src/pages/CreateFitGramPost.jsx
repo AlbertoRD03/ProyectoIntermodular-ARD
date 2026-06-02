@@ -336,7 +336,7 @@ export default function CreateFitGramPost() {
           metrics: { likes: 0, comments: 0 },
         };
 
-        navigate('/fitgram', { state: { createdPost } });
+        navigate('/fitgram?tab=profile', { state: { createdPost } });
       } catch (e) {
         setError(tr(lang, 'No se pudo publicar. Inténtalo de nuevo más tarde.', 'Could not publish. Please try again later.'));
       }
