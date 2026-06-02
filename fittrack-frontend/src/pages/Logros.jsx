@@ -27,7 +27,7 @@ function TabButton({ active, children, onClick }) {
   );
 }
 
-function ProgressBar({ value, max, gradient = 'from-white to-white', completed = false }) {
+function ProgressBar({ value, max, fillClass = 'bg-white/80', completed = false }) {
   const safeMax = Number(max) || 0;
   const safeValue = Math.max(0, Number(value) || 0);
   const percent = safeMax > 0 ? Math.min(100, (safeValue / safeMax) * 100) : 0;
@@ -36,8 +36,8 @@ function ProgressBar({ value, max, gradient = 'from-white to-white', completed =
     <div className="h-full w-full overflow-hidden rounded-2xl border border-white/10 bg-black/25">
       <div
         className={cx(
-          'h-full rounded-2xl bg-gradient-to-r shadow-[0_0_28px_rgba(255,120,73,0.35)] transition-all duration-700',
-          gradient,
+          'h-full rounded-2xl transition-all duration-700',
+          fillClass,
           completed ? 'opacity-100' : 'opacity-90'
         )}
         style={{ width: `${completed ? 100 : percent}%` }}
@@ -55,8 +55,9 @@ function AchievementCard({
   unit,
   unlockedDate,
   type,
-  gradient,
   accent,
+  fillClass,
+  surfaceClass,
   progressLabel = 'PROGRESO',
 }) {
   const hasDate = Boolean(unlockedDate);
@@ -77,17 +78,17 @@ function AchievementCard({
         completed ? 'border-white/25' : 'border-white/10 hover:border-white/20'
       )}
     >
-      <div className={cx('absolute inset-0 opacity-10 bg-gradient-to-r', gradient)} />
-      <div className={cx('absolute inset-y-0 left-0 w-1 bg-gradient-to-b', gradient)} />
+      <div className={cx('absolute inset-0 opacity-15', completed ? 'bg-emerald-500' : surfaceClass)} />
+      <div className={cx('absolute inset-y-0 left-0 w-1', completed ? 'bg-emerald-400' : fillClass)} />
 
       <div className="relative flex items-center gap-4">
-        <div className={cx('grid h-14 w-14 shrink-0 place-items-center rounded-xl border bg-black/20', accent)}>
+        <div className={cx('grid h-14 w-14 shrink-0 place-items-center rounded-xl border bg-black/20', completed ? 'border-emerald-300/35 text-emerald-200 bg-emerald-400/10' : accent)}>
           <span className="text-[26px] leading-none">{emoji}</span>
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={cx('rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest', accent)}>
+            <span className={cx('rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest', completed ? 'border-emerald-300/35 text-emerald-200 bg-emerald-400/10' : accent)}>
               {type}
             </span>
             <span className="text-[10px] uppercase tracking-widest text-white/35">{percent}%</span>
@@ -112,7 +113,7 @@ function AchievementCard({
           <span className="font-semibold text-white/75 sm:hidden">{rightLabel}</span>
         </div>
         <div className="h-4">
-          <ProgressBar value={safeValue} max={safeMax} gradient={gradient} completed={completed} />
+          <ProgressBar value={safeValue} max={safeMax} fillClass={completed ? 'bg-emerald-300' : fillClass} completed={completed} />
         </div>
         <div className="mt-2 flex items-center justify-between text-[11px] text-white/45">
           <span>{completed ? 'Completado' : `Actual: ${safeValue}${unitLabel}`}</span>
@@ -273,28 +274,33 @@ function getCurrentStreak(sessions) {
 const ACHIEVEMENT_STYLE = {
   fuerza: {
     type: 'Fuerza',
-    gradient: 'from-[#00e5ff] via-[#3b82f6] to-[#8b5cf6]',
-    accent: 'border-cyan-300/35 text-cyan-200 bg-cyan-400/10',
+    fillClass: 'bg-blue-400',
+    surfaceClass: 'bg-blue-500',
+    accent: 'border-blue-300/35 text-blue-200 bg-blue-400/10',
   },
   constancia: {
     type: 'Constancia',
-    gradient: 'from-[#f97316] via-[#ff3d81] to-[#facc15]',
+    fillClass: 'bg-orange-400',
+    surfaceClass: 'bg-orange-500',
     accent: 'border-orange-300/35 text-orange-200 bg-orange-400/10',
   },
   cardio: {
     type: 'Cardio',
-    gradient: 'from-[#22c55e] via-[#14b8a6] to-[#84cc16]',
-    accent: 'border-emerald-300/35 text-emerald-200 bg-emerald-400/10',
+    fillClass: 'bg-teal-400',
+    surfaceClass: 'bg-teal-500',
+    accent: 'border-teal-300/35 text-teal-200 bg-teal-400/10',
   },
   social: {
     type: 'Social',
-    gradient: 'from-[#a855f7] via-[#ec4899] to-[#6366f1]',
-    accent: 'border-fuchsia-300/35 text-fuchsia-200 bg-fuchsia-400/10',
+    fillClass: 'bg-purple-400',
+    surfaceClass: 'bg-purple-500',
+    accent: 'border-purple-300/35 text-purple-200 bg-purple-400/10',
   },
   elite: {
     type: 'Élite',
-    gradient: 'from-[#facc15] via-[#fb7185] to-[#a855f7]',
-    accent: 'border-yellow-300/35 text-yellow-100 bg-yellow-400/10',
+    fillClass: 'bg-indigo-400',
+    surfaceClass: 'bg-indigo-500',
+    accent: 'border-indigo-300/35 text-indigo-200 bg-indigo-400/10',
   },
 };
 
@@ -303,7 +309,7 @@ export default function Logros() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const tabParam = params.get('tab');
-  const initialTab = tabParam === 'fitgram' || tabParam === 'crear' || tabParam === 'mis' ? tabParam : 'mis';
+  const initialTab = tabParam === 'fitgram' || tabParam === 'crear' || tabParam === 'mis' || tabParam === 'completados' ? tabParam : 'mis';
   const [tab, setTab] = useState(initialTab); // mis | fitgram | crear
   const [goalTitle, setGoalTitle] = useState('');
   const [goalType, setGoalType] = useState('fuerza'); // fuerza | cardio | racha | otro
@@ -528,6 +534,10 @@ export default function Logros() {
     () => myAchievements.filter((a) => Number(a.value || 0) >= Number(a.max || 1)).length,
     [myAchievements]
   );
+  const completedAchievements = useMemo(
+    () => myAchievements.filter((a) => Number(a.value || 0) >= Number(a.max || 1)),
+    [myAchievements]
+  );
 
   const firstUnlocks = useMemo(() => {
     // Mock UI based on `views/Logros Vacio.png`
@@ -580,6 +590,11 @@ export default function Logros() {
             <TabButton active={tab === 'crear'} onClick={() => setTab('crear')}>
               {t('ach_tab_create').toUpperCase()}
             </TabButton>
+            {tab === 'completados' ? (
+              <TabButton active onClick={() => setTab('completados')}>
+                {tr(lang, 'Completados', 'Completed').toUpperCase()}
+              </TabButton>
+            ) : null}
           </div>
 
           <div className="mt-10 sm:mt-12">
@@ -688,6 +703,52 @@ export default function Logros() {
                   </div>
                 </div>
               </div>
+            ) : tab === 'completados' ? (
+              <div className="space-y-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <div className="text-[24px] font-bold uppercase tracking-wide text-white/95">
+                      {tr(lang, 'Logros completados', 'Completed achievements')}
+                    </div>
+                    <div className="mt-1 text-[13px] text-white/45">
+                      {tr(lang, 'Todos los retos que ya has completado aparecen en verde.', 'All completed challenges are shown in green.')}
+                    </div>
+                  </div>
+                  <SecondaryButton onClick={() => setTab('mis')}>{tr(lang, 'Volver', 'Back').toUpperCase()}</SecondaryButton>
+                </div>
+
+                {completedAchievements.length ? (
+                  <div className="grid grid-cols-1 gap-4">
+                    {completedAchievements.map((a) => (
+                      <AchievementCard
+                        key={a.title}
+                        emoji={a.emoji}
+                        title={a.title}
+                        subtitle={a.subtitle}
+                        value={a.value}
+                        max={a.max}
+                        unit={a.unit}
+                        unlockedDate={a.unlockedDate}
+                        type={a.style?.type}
+                        fillClass={a.style?.fillClass}
+                        surfaceClass={a.style?.surfaceClass}
+                        accent={a.style?.accent}
+                        progressLabel={t('ach_progress').toUpperCase()}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.03] p-8 text-center">
+                    <div className="text-[36px]">🏁</div>
+                    <div className="mt-3 text-[14px] font-bold uppercase tracking-wide text-white/80">
+                      {tr(lang, 'Todavía no hay logros completados', 'No completed achievements yet')}
+                    </div>
+                    <div className="mt-1 text-[12px] text-white/45">
+                      {tr(lang, 'Sigue entrenando para llenar esta página.', 'Keep training to fill this page.')}
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : tab === 'mis' ? (
               <div className="space-y-8 sm:space-y-10">
                 {loadingStats ? (
@@ -739,10 +800,14 @@ export default function Logros() {
                 ) : (
                   <>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+                      <button
+                        type="button"
+                        onClick={() => setTab('completados')}
+                        className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-left transition hover:border-emerald-300/35 hover:bg-emerald-400/10"
+                      >
                         <div className="text-[10px] uppercase tracking-widest text-white/40">{t('ach_summary_completed')}</div>
                         <div className="mt-2 text-[30px] font-bold text-white/95">{completedCount}</div>
-                      </div>
+                      </button>
                       <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
                         <div className="text-[10px] uppercase tracking-widest text-white/40">{t('ach_summary_total')}</div>
                         <div className="mt-2 text-[30px] font-bold text-white/95">{myAchievements.length}</div>
@@ -765,7 +830,8 @@ export default function Logros() {
                           unit={a.unit}
                           unlockedDate={a.unlockedDate}
                           type={a.style?.type}
-                          gradient={a.style?.gradient}
+                          fillClass={a.style?.fillClass}
+                          surfaceClass={a.style?.surfaceClass}
                           accent={a.style?.accent}
                           progressLabel={t('ach_progress').toUpperCase()}
                         />
@@ -810,7 +876,8 @@ export default function Logros() {
                       max={a.max}
                       unit={a.unit}
                       type={a.style?.type}
-                      gradient={a.style?.gradient}
+                      fillClass={a.style?.fillClass}
+                      surfaceClass={a.style?.surfaceClass}
                       accent={a.style?.accent}
                       progressLabel={t('ach_progress').toUpperCase()}
                     />
