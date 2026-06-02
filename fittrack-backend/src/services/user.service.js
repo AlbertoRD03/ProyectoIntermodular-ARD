@@ -59,6 +59,25 @@ export const deleteUserFull = async (userId) => {
     }
   };
 
+  const deleteFitGramData = async (mongoUserId) => {
+    try {
+      const [{ default: Follow }, { default: FitGramPost }] = await Promise.all([
+        import('../models/mongodb/Follow.js'),
+        import('../models/mongodb/FitGramPost.js'),
+      ]);
+      const [follows, posts] = await Promise.all([
+        Follow.deleteMany({ $or: [{ followerId: mongoUserId }, { followingId: mongoUserId }] }),
+        FitGramPost.deleteMany({ authorId: mongoUserId }),
+      ]);
+      return {
+        deletedFollows: follows?.deletedCount ?? 0,
+        deletedFitGramPosts: posts?.deletedCount ?? 0,
+      };
+    } catch {
+      return { deletedFollows: 0, deletedFitGramPosts: 0 };
+    }
+  };
+
   if (isMySQLEnabled()) {
     const { default: User } = await import('../models/mysql/User.js');
     const user = await User.findByPk(userId);
@@ -72,21 +91,26 @@ export const deleteUserFull = async (userId) => {
       deletedUser,
       deletedSessions: deletedSessions?.deletedCount ?? 0,
       deletedWeightEntries,
+      deletedFollows: 0,
+      deletedFitGramPosts: 0,
     };
   }
 
   const { default: User } = await import('../models/mongodb/User.js');
-  const deletedUser = await User.findByIdAndDelete(String(userId));
+  const mongoUserId = String(userId);
+  const deletedUser = await User.findByIdAndDelete(mongoUserId);
   if (!deletedUser) return null;
 
   // Session model currently stores usuario_id as Number in schema; keep best-effort delete.
   const deletedSessions = await Session.deleteMany({ usuario_id: userId });
   const deletedWeightEntries = await deleteWeightEntries({ usuario_id: userId });
+  const fitGram = await deleteFitGramData(mongoUserId);
 
   return {
     deletedUser: 1,
     deletedSessions: deletedSessions?.deletedCount ?? 0,
     deletedWeightEntries,
+    ...fitGram,
   };
 };
 

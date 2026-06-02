@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { uploadImageToCloudinary } from '../services/cloudinaryUpload';
 import { useI18n, tr } from '../i18n/I18nProvider';
+import { createPost as apiCreatePost } from '../services/fitgramApi';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -234,6 +235,7 @@ export default function CreateFitGramPost() {
   const [tags, setTags] = useState([]);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState('');
+  const [error, setError] = useState('');
 
   const [savedWorkoutQuery, setSavedWorkoutQuery] = useState('');
   const [selectedWorkoutId, setSelectedWorkoutId] = useState('');
@@ -299,53 +301,44 @@ export default function CreateFitGramPost() {
   const handlePublish = () => {
     if (!canPublish) return;
 
-    const currentUsername = 'NEW_USER';
+    setError('');
+
+    let currentUsername = 'USER';
+    let currentUserId = '';
+    let currentPhotoUrl = '';
+    try {
+      const raw = window.localStorage.getItem('fittrack_user');
+      const user = raw ? JSON.parse(raw) : null;
+      currentUsername =
+        String(user?.apodo || user?.nickname || user?.nombre || user?.name || 'USER')
+          .trim()
+          .toUpperCase() || 'USER';
+      currentUserId = String(user?.id || user?._id || '').trim();
+      currentPhotoUrl = String(user?.photo_url || '').trim();
+    } catch {
+      // ignore
+    }
     (async () => {
       try {
         const { url } = await uploadImageToCloudinary({ file: imageFile, publicIdPrefix: 'fitgram', folderHint: 'fittrack/fitgram' });
-        const newPost = {
-          id: `new_${Date.now()}`,
+        const created = await apiCreatePost({ image_url: url, caption: caption.trim(), tags });
+        const createdPost = {
+          id: created?.post?.id || `new_${Date.now()}`,
           type: postType,
-          avatarLabel: currentUsername.slice(0, 1).toUpperCase(),
+          image_url: url,
+          avatarLabel: (currentUsername[0] || 'U').toUpperCase(),
+          authorPhotoUrl: currentPhotoUrl,
           username: currentUsername,
+          userId: currentUserId || created?.post?.authorId,
           timeAgo: tr(lang, 'AHORA', 'NOW'),
           caption: caption.trim(),
           tags,
-          imagePreviewUrl: url,
           metrics: { likes: 0, comments: 0 },
-          ...(postType === 'workout'
-            ? {
-                title: selectedWorkout?.title || tr(lang, 'Entreno del día', "Today's workout"),
-                stats: selectedWorkout?.stats,
-                workoutId: selectedWorkout?.id,
-                workoutDate: selectedWorkout?.dateLabel,
-              }
-            : null),
         };
 
-        navigate('/fitgram', { state: { newPost } });
+        navigate('/fitgram', { state: { createdPost } });
       } catch (e) {
-        // Keep it minimal: FitGram is still mock, so just fallback to local preview if upload fails.
-        const newPost = {
-          id: `new_${Date.now()}`,
-          type: postType,
-          avatarLabel: currentUsername.slice(0, 1).toUpperCase(),
-          username: currentUsername,
-          timeAgo: tr(lang, 'AHORA', 'NOW'),
-          caption: caption.trim(),
-          tags,
-          imagePreviewUrl,
-          metrics: { likes: 0, comments: 0 },
-          ...(postType === 'workout'
-            ? {
-                title: selectedWorkout?.title || tr(lang, 'Entreno del día', "Today's workout"),
-                stats: selectedWorkout?.stats,
-                workoutId: selectedWorkout?.id,
-                workoutDate: selectedWorkout?.dateLabel,
-              }
-            : null),
-        };
-        navigate('/fitgram', { state: { newPost } });
+        setError(tr(lang, 'No se pudo publicar. Inténtalo de nuevo más tarde.', 'Could not publish. Please try again later.'));
       }
     })();
   };
@@ -526,8 +519,14 @@ export default function CreateFitGramPost() {
             </Card>
           ) : null}
 
+          {error ? (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-[12px] text-red-200">
+              {error}
+            </div>
+          ) : null}
+
           <div className="text-[11px] text-white/45">
-            {tr(lang, 'Al publicar se añadirá al feed (mock). Cuando conectemos el backend, esto se guardará en BD.', 'Publishing will add it to the feed (mock). When we connect the backend, it will be persisted.')}
+            {tr(lang, 'Al publicar se guardará en FitGram y será visible para otros usuarios.', 'When you publish, it will be saved in FitGram and visible to other users.')}
           </div>
         </div>
       </div>

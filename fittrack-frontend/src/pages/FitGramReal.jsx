@@ -13,6 +13,8 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { useI18n, tr } from '../i18n/I18nProvider';
+import { getFeed } from '../services/fitgramApi';
+import { searchUsers as apiSearchUsers } from '../services/socialApi';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -66,21 +68,38 @@ function IconMetric({ icon: Icon, value, active, onClick, ariaLabel }) {
   );
 }
 
-function Avatar({ label }) {
+function Avatar({ label, src, onClick }) {
   return (
-    <div className="h-8 w-8 rounded-md border border-white/15 bg-white/[0.03] flex items-center justify-center text-[12px] font-bold text-white/80">
-      {label}
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className="h-8 w-8 rounded-md border border-white/15 bg-white/[0.03] flex items-center justify-center overflow-hidden"
+      aria-label={label}
+      title={label}
+    >
+      {src ? (
+        <img src={src} alt={label} className="h-full w-full object-cover" />
+      ) : (
+        <span className="text-[12px] font-bold text-white/80">{label}</span>
+      )}
+    </button>
   );
 }
 
-function PlaceholderImage({ label }) {
+function PostImage({ src }) {
   const { lang } = useI18n();
-  return (
-    <div className="h-[170px] sm:h-[190px] md:h-[210px] w-full bg-black/10 border-y border-white/10 flex items-center justify-center">
-      <div className="h-24 w-24 border border-white/15 bg-white/[0.02] flex items-center justify-center text-white/35 text-[11px] uppercase tracking-widest">
-        {label || tr(lang, 'IMG', 'IMG')}
+  if (!src) {
+    return (
+      <div className="h-[170px] sm:h-[190px] md:h-[210px] w-full bg-black/10 border-y border-white/10 flex items-center justify-center">
+        <div className="h-24 w-24 border border-white/15 bg-white/[0.02] flex items-center justify-center text-white/35 text-[11px] uppercase tracking-widest">
+          {tr(lang, 'IMG', 'IMG')}
+        </div>
       </div>
+    );
+  }
+  return (
+    <div className="w-full bg-black/10 border-y border-white/10">
+      <img src={src} alt="" className="w-full h-[260px] sm:h-[300px] object-cover" loading="lazy" />
     </div>
   );
 }
@@ -110,7 +129,7 @@ function CommentComposer({ value, onChange, onSend }) {
   );
 }
 
-function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments, onAddComment, onCopyWorkout }) {
+function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments, onAddComment, onCopyWorkout, onOpenProfile }) {
   const { lang } = useI18n();
   const isWorkout = post.type === 'workout';
 
@@ -118,15 +137,22 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
     <Card>
       <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-white/10">
         <div className="flex items-start gap-3">
-          <Avatar label={post.avatarLabel} />
+          <Avatar label={post.avatarLabel} src={post.authorPhotoUrl} onClick={onOpenProfile} />
           <div>
-            <div className="text-[12px] font-bold text-white/90">@{post.username}</div>
+            <button
+              type="button"
+              onClick={onOpenProfile}
+              className="text-[12px] font-bold text-white/90 hover:text-white transition"
+              title={`@${post.username}`}
+            >
+              @{post.username}
+            </button>
             <div className="text-[10px] uppercase tracking-widest text-white/35">{post.timeAgo}</div>
           </div>
         </div>
       </div>
 
-      <PlaceholderImage label={tr(lang, 'IMG', 'IMG')} />
+      <PostImage src={post.image_url} />
 
       <div className="px-4 py-3 border-b border-white/10">
         <div className="text-[12px] text-white/80">
@@ -229,8 +255,12 @@ function PopularUserCard({ user, onFollow }) {
   const { lang } = useI18n();
   return (
     <div className="rounded-xl border border-white/15 bg-white/[0.02] p-5 sm:p-6 text-center">
-      <div className="mx-auto h-14 w-14 rounded-xl border border-white/15 bg-white/[0.03] flex items-center justify-center text-[18px] font-bold text-white/80">
-        {user.avatarLabel}
+      <div className="mx-auto h-14 w-14 rounded-xl border border-white/15 bg-white/[0.03] flex items-center justify-center overflow-hidden">
+        {user.photo_url ? (
+          <img src={user.photo_url} alt={user.username} className="h-full w-full object-cover" />
+        ) : (
+          <span className="text-[18px] font-bold text-white/80">{user.avatarLabel}</span>
+        )}
       </div>
       <div className="mt-3 text-[12px] font-bold text-white/90">@{user.username}</div>
       <div className="text-[10px] uppercase tracking-widest text-white/40 mt-1">{user.followers}</div>
@@ -239,163 +269,173 @@ function PopularUserCard({ user, onFollow }) {
         onClick={onFollow}
         className="mt-4 w-full rounded-lg border border-white/20 bg-white/[0.02] px-4 py-2.5 text-[11px] font-semibold text-white/75 hover:text-white/90 hover:border-white/35 hover:bg-white/[0.05] transition"
       >
-        + {tr(lang, 'SEGUIR', 'FOLLOW')}
+        + {tr(lang, 'VER PERFIL', 'VIEW PROFILE')}
       </button>
     </div>
   );
 }
 
-export default function FitGram({ forceEmpty = false }) {
+export default function FitGramReal({ forceEmpty = false }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { lang } = useI18n();
   const [query, setQuery] = useState('');
 
-  const seedPosts = useMemo(
-    () => [
-      {
-        id: 'juan',
-        type: 'workout',
-        avatarLabel: 'J',
-        username: 'JUAN_FITNESS',
-        timeAgo: tr(lang, 'HACE 2H', '2H AGO'),
-        caption: '¡Día de pierna completado! 💪',
-        tags: ['PIERNA', 'FUERZA'],
-        stats: { exercises: 8, duration: '65m', calories: 420 },
-        metrics: { likes: 45, comments: 12 },
-      },
-      {
-        id: 'ana',
-        type: 'workout',
-        avatarLabel: 'A',
-        username: 'ANA_STRONG',
-        timeAgo: tr(lang, 'HACE 5H', '5H AGO'),
-        caption: 'Nueva rutina HIIT 🏃',
-        tags: ['CARDIO', 'HIIT'],
-        stats: { exercises: 6, duration: '30m', calories: 420 },
-        metrics: { likes: 78, comments: 23 },
-      },
-      {
-        id: 'miguel',
-        type: 'info',
-        avatarLabel: 'C',
-        username: 'COACH_MIGUEL',
-        timeAgo: tr(lang, 'HACE 1D', '1D AGO'),
-        caption: 'Nueva rutina de pecho y tríceps: consistente y con progresión.',
-        tags: ['PECHO', 'TRICEPS'],
-        metrics: { likes: 124, comments: 34 },
-      },
-      {
-        id: 'maria',
-        type: 'workout',
-        avatarLabel: 'M',
-        username: 'MARIA_GYM',
-        timeAgo: tr(lang, 'HACE 1D', '1D AGO'),
-        caption: 'PR en sentadillas! 🎉',
-        tags: ['PIERNA', 'PR'],
-        stats: { exercises: 5, duration: '45m', calories: 360 },
-        metrics: { likes: 89, comments: 15 },
-      },
-      {
-        id: 'carlos',
-        type: 'workout',
-        avatarLabel: 'C',
-        username: 'CARLOS_FIT',
-        timeAgo: tr(lang, 'HACE 2D', '2D AGO'),
-        caption: 'Espalda y bíceps ✅',
-        tags: ['ESPALDA'],
-        stats: { exercises: 7, duration: '55m', calories: 410 },
-        metrics: { likes: 62, comments: 8 },
-      },
-      {
-        id: 'laura',
-        type: 'workout',
-        avatarLabel: 'L',
-        username: 'LAURA_SPORT',
-        timeAgo: tr(lang, 'HACE 2D', '2D AGO'),
-        caption: 'Yoga flow matutino 🧘',
-        tags: ['YOGA'],
-        stats: { exercises: 10, duration: '25m', calories: 180 },
-        metrics: { likes: 51, comments: 6 },
-      },
-    ],
-    [lang]
-  );
+  const [posts, setPosts] = useState([]);
+  const [postState, setPostState] = useState({});
+  const [feedLoading, setFeedLoading] = useState(true);
+  const [feedError, setFeedError] = useState('');
 
-  const initialPosts = useMemo(() => {
-    if (forceEmpty || location.state?.empty === true) return [];
-    return seedPosts;
-  }, [forceEmpty, location.state, seedPosts]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [popularUsers, setPopularUsers] = useState([]);
 
-  const [posts, setPosts] = useState(() => initialPosts);
-
-  const [postState, setPostState] = useState(() => {
-    const initial = {};
-    posts.forEach((post) => {
-      initial[post.id] = {
-        liked: false,
-        saved: false,
-        copied: false,
-        showComments: false,
-        commentDraft: '',
-        likes: post.metrics?.likes ?? 0,
-        comments: post.metrics?.comments ?? 0,
-      };
-    });
-    return initial;
-  });
+  const formatTimeAgo = (value) => {
+    const ts = new Date(value || Date.now()).getTime();
+    if (!Number.isFinite(ts)) return '';
+    const diff = Math.max(0, Date.now() - ts);
+    const m = Math.floor(diff / 60000);
+    if (m < 60) return tr(lang, `HACE ${m}M`, `${m}M AGO`);
+    const h = Math.floor(m / 60);
+    if (h < 24) return tr(lang, `HACE ${h}H`, `${h}H AGO`);
+    const d = Math.floor(h / 24);
+    return tr(lang, `HACE ${d}D`, `${d}D AGO`);
+  };
 
   React.useEffect(() => {
-    setPosts(initialPosts);
-    setPostState(() => {
-      const initial = {};
-      initialPosts.forEach((post) => {
-        initial[post.id] = {
-          liked: false,
-          saved: false,
-          copied: false,
-          showComments: false,
-          commentDraft: '',
-          likes: post.metrics?.likes ?? 0,
-          comments: post.metrics?.comments ?? 0,
-        };
-      });
-      return initial;
-    });
-  }, [initialPosts]);
+    const shouldForceEmpty = forceEmpty || location.state?.empty === true;
+    if (shouldForceEmpty) {
+      setPosts([]);
+      setPostState({});
+      setFeedLoading(false);
+      setFeedError('');
+      return;
+    }
 
-  React.useEffect(() => {
-    const newPost = location.state?.newPost;
-    if (!newPost) return;
-    if (forceEmpty) return;
+    let mounted = true;
+    (async () => {
+      try {
+        setFeedLoading(true);
+        setFeedError('');
+        const data = await getFeed({ limit: 60 });
+        const raw = data?.posts || [];
+        const mapped = raw.map((p) => {
+          const base = (p?.author?.apodo || p?.author?.nombre || 'user').toString().trim();
+          const username = base.toUpperCase();
+          return {
+            id: p.id,
+            type: 'photo',
+            image_url: p.image_url,
+            avatarLabel: (base[0] || 'U').toUpperCase(),
+            authorPhotoUrl: p?.author?.photo_url || '',
+            username,
+            userId: p?.author?.id || p.authorId,
+            timeAgo: formatTimeAgo(p.createdAt),
+            caption: p.caption || '',
+            tags: p.tags || [],
+            metrics: { likes: 0, comments: 0 },
+          };
+        });
 
-    setPosts((prev) => (prev.some((p) => p.id === newPost.id) ? prev : [newPost, ...prev]));
-    setPostState((prev) =>
-      prev[newPost.id]
-        ? prev
-        : {
-            ...prev,
-            [newPost.id]: {
+        if (!mounted) return;
+        setPosts(mapped);
+        setPostState(() => {
+          const initial = {};
+          mapped.forEach((post) => {
+            initial[post.id] = {
               liked: false,
               saved: false,
               copied: false,
               showComments: false,
               commentDraft: '',
-              likes: newPost.metrics?.likes ?? 0,
-              comments: newPost.metrics?.comments ?? 0,
+              likes: 0,
+              comments: 0,
+            };
+          });
+          return initial;
+        });
+      } catch {
+        if (!mounted) return;
+        setFeedError(tr(lang, 'No se pudo cargar el feed.', 'Could not load feed.'));
+        setPosts([]);
+        setPostState({});
+      } finally {
+        if (mounted) setFeedLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [forceEmpty, location.state, lang]);
+
+  React.useEffect(() => {
+    const created = location.state?.createdPost;
+    if (!created) return;
+    if (forceEmpty) return;
+    setPosts((prev) => (prev.some((p) => p.id === created.id) ? prev : [created, ...prev]));
+    setPostState((prev) =>
+      prev[created.id]
+        ? prev
+        : {
+            ...prev,
+            [created.id]: {
+              liked: false,
+              saved: false,
+              copied: false,
+              showComments: false,
+              commentDraft: '',
+              likes: 0,
+              comments: 0,
             },
           }
     );
-  }, [forceEmpty, location.state]);
+  }, [location.state, forceEmpty]);
 
-  const popularUsers = useMemo(
-    () => [
-      { id: 'pu_coach', avatarLabel: 'C', username: 'COACH_MIGUEL', followers: tr(lang, '1.2K SEGUIDORES', '1.2K FOLLOWERS') },
-      { id: 'pu_ana', avatarLabel: 'A', username: 'ANA_STRONG', followers: tr(lang, '890 SEGUIDORES', '890 FOLLOWERS') },
-      { id: 'pu_juan', avatarLabel: 'J', username: 'JUAN_FITNESS', followers: tr(lang, '654 SEGUIDORES', '654 FOLLOWERS') },
-    ],
-    [lang]
-  );
+  React.useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await apiSearchUsers({ q: '', limit: 6 });
+        if (!mounted) return;
+        setPopularUsers(data?.users || []);
+      } catch {
+        if (!mounted) return;
+        setPopularUsers([]);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    const q = query.trim();
+    if (!q) {
+      setSearchResults([]);
+      setSearchOpen(false);
+      return;
+    }
+
+    let mounted = true;
+    const t = window.setTimeout(async () => {
+      try {
+        const data = await apiSearchUsers({ q, limit: 8 });
+        if (!mounted) return;
+        setSearchResults(data?.users || []);
+        setSearchOpen(true);
+      } catch {
+        if (!mounted) return;
+        setSearchResults([]);
+        setSearchOpen(true);
+      }
+    }, 250);
+
+    return () => {
+      mounted = false;
+      window.clearTimeout(t);
+    };
+  }, [query]);
 
   const updatePostState = (postId, updater) => {
     setPostState((prev) => ({ ...prev, [postId]: updater(prev[postId]) }));
@@ -435,11 +475,11 @@ export default function FitGram({ forceEmpty = false }) {
     const isEn = lang === 'en';
     const workoutText = [
       `@${post.username}`,
-      post.caption ? `\n${post.caption}` : '',
-      `\n${isEn ? 'Exercises' : 'Ejercicios'}: ${post.stats.exercises}`,
-      `\n${isEn ? 'Duration' : 'Duración'}: ${post.stats.duration}`,
-      `\n${isEn ? 'Calories' : 'Calorías'}: ${post.stats.calories}`,
-      post.tags?.length ? `\n${isEn ? 'Tags' : 'Tags'}: ${post.tags.map((t) => `#${t}`).join(' ')}` : '',
+      post.caption ? `\\n${post.caption}` : '',
+      `\\n${isEn ? 'Exercises' : 'Ejercicios'}: ${post.stats.exercises}`,
+      `\\n${isEn ? 'Duration' : 'Duración'}: ${post.stats.duration}`,
+      `\\n${isEn ? 'Calories' : 'Calorías'}: ${post.stats.calories}`,
+      post.tags?.length ? `\\n${isEn ? 'Tags' : 'Tags'}: ${post.tags.map((t) => `#${t}`).join(' ')}` : '',
     ]
       .filter(Boolean)
       .join('');
@@ -447,22 +487,19 @@ export default function FitGram({ forceEmpty = false }) {
     try {
       await navigator.clipboard.writeText(workoutText);
       updatePostState(post.id, (prev) => ({ ...prev, copied: true }));
-      window.setTimeout(() => {
-        updatePostState(post.id, (prev) => ({ ...prev, copied: false }));
-      }, 1500);
+      window.setTimeout(() => updatePostState(post.id, (prev) => ({ ...prev, copied: false })), 1500);
     } catch {
       updatePostState(post.id, (prev) => ({ ...prev, copied: true }));
-      window.setTimeout(() => {
-        updatePostState(post.id, (prev) => ({ ...prev, copied: false }));
-      }, 1500);
+      window.setTimeout(() => updatePostState(post.id, (prev) => ({ ...prev, copied: false })), 1500);
     }
   };
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return posts;
-    return posts.filter((post) => post.username.toLowerCase().includes(q));
-  }, [posts, query]);
+  const filtered = useMemo(() => posts, [posts]);
+
+  const handleOpenProfile = (userId) => {
+    if (!userId) return;
+    navigate(`/usuarios/${userId}`);
+  };
 
   return (
     <div className="min-h-screen bg-[#1e1e1e] text-[#f5f5f5]">
@@ -482,8 +519,55 @@ export default function FitGram({ forceEmpty = false }) {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={tr(lang, 'BUSCAR USUARIOS...', 'SEARCH USERS...')}
+                  onFocus={() => setSearchOpen(Boolean(query.trim()))}
                   className="w-full rounded-lg border border-white/15 bg-white/[0.03] pl-11 pr-4 py-3 text-[12px] sm:text-[13px] text-white/85 placeholder:text-white/30 outline-none focus:border-white/30 focus:bg-white/[0.06]"
                 />
+                {searchOpen ? (
+                  <div className="absolute left-0 right-0 top-full mt-2 rounded-xl border border-white/10 bg-[#1e1e1e] shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] overflow-hidden z-40">
+                    {searchResults.length ? (
+                      <div className="divide-y divide-white/10">
+                        {searchResults.map((u) => {
+                          const handle = u?.apodo?.trim() || u?.nombre?.trim() || 'user';
+                          const avatar = (handle[0] || 'U').toUpperCase();
+                          return (
+                            <button
+                              key={u.id}
+                              type="button"
+                              onClick={() => {
+                                setSearchOpen(false);
+                                setQuery('');
+                                navigate(`/usuarios/${u.id}`);
+                              }}
+                              className="w-full px-4 py-3 text-left hover:bg-white/[0.06] transition flex items-center gap-3"
+                            >
+                              {u.photo_url ? (
+                                <img
+                                  src={u.photo_url}
+                                  alt={handle}
+                                  className="h-9 w-9 rounded-lg border border-white/15 object-cover"
+                                />
+                              ) : (
+                                <div className="h-9 w-9 rounded-lg border border-white/15 bg-white/[0.02] flex items-center justify-center text-[12px] font-bold text-white/80">
+                                  {avatar}
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <div className="text-[12px] font-semibold text-white/90 truncate">
+                                  {u.apodo ? `@${u.apodo}` : u.nombre}
+                                </div>
+                                <div className="text-[11px] text-white/45 truncate">{u.nombre || ''}</div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="px-4 py-4 text-[12px] text-white/55">
+                        {tr(lang, 'Sin resultados.', 'No results.')}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
 
               <button
@@ -500,7 +584,11 @@ export default function FitGram({ forceEmpty = false }) {
 
           <div className="h-px w-full bg-white/10" />
 
-          {posts.length === 0 ? (
+          {feedLoading ? (
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-10 text-center text-white/60">
+              {tr(lang, 'Cargando feed...', 'Loading feed...')}
+            </div>
+          ) : posts.length === 0 ? (
             <div className="py-10 sm:py-14">
               <div className="max-w-3xl mx-auto text-center">
                 <div className="mx-auto h-28 w-28 rounded-xl border border-white/20 bg-white/[0.02] flex items-center justify-center">
@@ -512,8 +600,8 @@ export default function FitGram({ forceEmpty = false }) {
                 <p className="mt-2 text-[12px] sm:text-[13px] text-white/45 leading-relaxed">
                   {tr(
                     lang,
-                    'Todavía no sigues a ningún usuario. Utiliza el buscador para encontrar usuarios y empezar a seguir sus entrenamientos y publicaciones.',
-                    "You're not following anyone yet. Use search to find users and start following their workouts and posts."
+                    'Todavía no sigues a ningún usuario. Utiliza el buscador o visita Comunidad para empezar.',
+                    "You're not following anyone yet. Use search or visit Community to get started."
                   )}
                 </p>
 
@@ -525,15 +613,15 @@ export default function FitGram({ forceEmpty = false }) {
                     <ol className="mt-4 space-y-3 text-[12px] sm:text-[13px] text-white/75">
                       <li className="flex gap-3">
                         <span className="min-w-6 text-white/70 font-bold">1.</span>
-                        <span>{tr(lang, 'Usa el buscador para encontrar usuarios por nombre o @usuario', 'Use search to find users by name or @handle')}</span>
+                        <span>{tr(lang, 'Busca usuarios por nombre o @usuario', 'Search users by name or @handle')}</span>
                       </li>
                       <li className="flex gap-3">
                         <span className="min-w-6 text-white/70 font-bold">2.</span>
-                        <span>{tr(lang, 'Sigue a otros usuarios para ver sus entrenamientos en tu feed', 'Follow users to see their workouts in your feed')}</span>
+                        <span>{tr(lang, 'Entra en su perfil y síguelos', 'Open their profile and follow')}</span>
                       </li>
                       <li className="flex gap-3">
                         <span className="min-w-6 text-white/70 font-bold">3.</span>
-                        <span>{tr(lang, 'Comparte tus propios entrenamientos usando el botón “+”', 'Share your workouts using the “+” button')}</span>
+                        <span>{tr(lang, 'Comparte tus publicaciones con el botón “+”', 'Share your posts using the “+” button')}</span>
                       </li>
                     </ol>
                   </EmptyStateCard>
@@ -543,9 +631,27 @@ export default function FitGram({ forceEmpty = false }) {
                       {tr(lang, 'USUARIOS POPULARES', 'POPULAR USERS')}
                     </div>
                     <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      {popularUsers.map((user) => (
-                        <PopularUserCard key={user.id} user={user} onFollow={() => {}} />
+                      {popularUsers.map((u) => (
+                        <PopularUserCard
+                          key={u.id}
+                          user={{
+                            ...u,
+                            avatarLabel: ((u?.apodo || u?.nombre || 'U')[0] || 'U').toUpperCase(),
+                            username: u?.apodo || u?.nombre || 'user',
+                            followers: '',
+                          }}
+                          onFollow={() => handleOpenProfile(u.id)}
+                        />
                       ))}
+                    </div>
+                    <div className="mt-4 text-center">
+                      <button
+                        type="button"
+                        onClick={() => navigate('/comunidad')}
+                        className="rounded-lg border border-white/15 bg-white/[0.03] hover:bg-white/[0.08] transition px-4 py-2 text-[12px] font-semibold text-white/80"
+                      >
+                        {tr(lang, 'Ver comunidad', 'Browse community')}
+                      </button>
                     </div>
                   </EmptyStateCard>
                 </div>
@@ -553,32 +659,27 @@ export default function FitGram({ forceEmpty = false }) {
             </div>
           ) : (
             <>
+              {feedError ? (
+                <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-[12px] text-white/70">
+                  {feedError}
+                </div>
+              ) : null}
+
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
                 {filtered.map((post) => (
                   <FitGramPost
                     key={post.id}
                     post={post}
-                    state={postState[post.id]}
+                    state={postState[post.id] || { liked: false, saved: false, copied: false, showComments: false, commentDraft: '', likes: 0, comments: 0 }}
                     onToggleLike={handleToggleLike}
                     onToggleSave={handleToggleSave}
                     onToggleComments={handleToggleComments}
                     onAddComment={handleAddComment}
                     onCopyWorkout={handleCopyWorkout}
+                    onOpenProfile={() => handleOpenProfile(post.userId)}
                   />
                 ))}
               </div>
-
-              {filtered.length === 0 ? (
-                <div className="rounded-xl border border-white/10 bg-white/[0.04] p-10 text-center text-white/55">
-                  <div className="inline-flex items-center gap-2 text-[13px] font-semibold text-white/70">
-                    <ImageIcon className="h-4 w-4 text-white/50" />
-                    {tr(lang, 'No se encontraron usuarios', 'No users found')}
-                  </div>
-                  <div className="text-[12px] text-white/40 mt-2">
-                    {tr(lang, 'Prueba con otro nombre (ej. ANA, CARLOS...).', 'Try another name (e.g. ANA, CARLOS...).')}
-                  </div>
-                </div>
-              ) : null}
             </>
           )}
         </div>

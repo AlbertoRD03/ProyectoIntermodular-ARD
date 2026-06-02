@@ -9,7 +9,7 @@ import Main from './pages/Main';
 import Entrenamientos from './pages/Entrenamientos';
 import Calendario from './pages/Calendario';
 import SessionDetail from './pages/SessionDetail';
-import FitGram from './pages/FitGram';
+import FitGramReal from './pages/FitGramReal';
 import CreateSession from './pages/CreateSession';
 import CreateFitGramPost from './pages/CreateFitGramPost';
 import Logros from './pages/Logros';
@@ -20,6 +20,8 @@ import Privacy from './pages/Privacy';
 import OnboardingEnforcer from './components/OnboardingEnforcer';
 import WeightEvolution from './pages/WeightEvolution';
 import PrivacySettings from './pages/PrivacySettings';
+import Community from './pages/Community';
+import UserPublicProfile from './pages/UserPublicProfile';
 
 const App = () => {
   return (
@@ -39,9 +41,11 @@ const App = () => {
         <Route path="/dashboard" element={<Main />} />
         <Route path="/entrenamientos" element={<Entrenamientos />} />
         <Route path="/calendario" element={<Calendario />} />
-        <Route path="/fitgram/empty" element={<FitGram forceEmpty />} />
+        <Route path="/fitgram/empty" element={<FitGramReal forceEmpty />} />
         <Route path="/fitgram/create" element={<CreateFitGramPost />} />
-        <Route path="/fitgram" element={<FitGram />} />
+        <Route path="/fitgram" element={<FitGramReal />} />
+        <Route path="/comunidad" element={<Community />} />
+        <Route path="/usuarios/:id" element={<UserPublicProfile />} />
         <Route path="/logros" element={<Logros />} />
         <Route path="/fitia" element={<FitIA />} />
         <Route path="/perfil" element={<Perfil />} />
