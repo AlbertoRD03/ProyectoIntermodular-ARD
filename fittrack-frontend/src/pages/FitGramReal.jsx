@@ -33,9 +33,10 @@ function cx(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-function Card({ children, className }) {
+function Card({ children, className, ...props }) {
   return (
     <section
+      {...props}
       className={cx(
         'rounded-lg sm:rounded-lg md:rounded-xl border border-white/10 bg-white/[0.06] shadow-[0_10px_40px_-30px_rgba(0,0,0,0.8)] overflow-hidden',
         className
@@ -67,7 +68,10 @@ function IconMetric({ icon: Icon, value, active, onClick, ariaLabel }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.();
+      }}
       className={cx(
         'flex w-full items-center justify-center gap-2 py-3 transition border-r border-white/10 last:border-r-0',
         active ? 'text-[#ff7849]' : 'text-white/70 hover:text-white/90'
@@ -85,7 +89,10 @@ function Avatar({ label, src, onClick }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.();
+      }}
       className="h-8 w-8 rounded-md border border-white/15 bg-white/[0.03] flex items-center justify-center overflow-hidden"
       aria-label={label}
       title={label}
@@ -142,12 +149,16 @@ function CommentComposer({ value, onChange, onSend }) {
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onClick={(event) => event.stopPropagation()}
           placeholder={tr(lang, 'Escribe un comentario...', 'Write a comment...')}
           className="flex-1 rounded-lg border border-white/15 bg-white/[0.03] px-3 py-2 text-[12px] text-white/85 placeholder:text-white/30 outline-none focus:border-white/30 focus:bg-white/[0.06]"
         />
         <button
           type="button"
-          onClick={onSend}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSend?.();
+          }}
           className="h-9 w-9 rounded-lg border border-white/15 bg-white/[0.03] hover:bg-white/[0.08] transition flex items-center justify-center"
           aria-label={tr(lang, 'Enviar comentario', 'Send comment')}
           title={tr(lang, 'Enviar', 'Send')}
@@ -209,7 +220,10 @@ function WorkoutSharePanel({ post, state, onSaveWorkout, lang }) {
       <div className="relative flex h-full flex-col justify-center rounded-xl border border-[#ff7849]/25 bg-gradient-to-br from-[#ff7849]/12 via-white/[0.035] to-black/10 p-3 overflow-hidden">
         <button
           type="button"
-          onClick={() => onSaveWorkout(post)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSaveWorkout(post);
+          }}
           className="absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-lg border border-[#ff7849]/55 bg-[#1e1e1e]/90 px-2.5 py-1.5 text-[10px] font-bold text-[#ff7849] hover:bg-[#ff7849]/20 transition"
           aria-label={tr(lang, 'Guardar entreno', 'Save workout')}
           title={tr(lang, 'Guardar entreno', 'Save workout')}
@@ -247,19 +261,22 @@ function WorkoutSharePanel({ post, state, onSaveWorkout, lang }) {
   );
 }
 
-function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments, onAddComment, onCopyWorkout, onOpenProfile }) {
+function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments, onAddComment, onCopyWorkout, onOpenProfile, onOpenPost }) {
   const { lang } = useI18n();
   const isWorkout = post.type === 'workout';
 
   return (
-    <Card className="h-[736px] flex flex-col">
+    <Card className="h-[736px] flex flex-col cursor-pointer" onClick={onOpenPost}>
       <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-white/10">
         <div className="flex items-start gap-3">
           <Avatar label={post.avatarLabel} src={post.authorPhotoUrl} onClick={onOpenProfile} />
           <div>
             <button
               type="button"
-              onClick={onOpenProfile}
+              onClick={(event) => {
+                event.stopPropagation();
+                onOpenProfile?.();
+              }}
               className="text-[12px] font-bold text-white/90 hover:text-white transition"
               title={`@${post.username}`}
             >
@@ -310,7 +327,10 @@ function FitGramPost({ post, state, onToggleLike, onToggleSave, onToggleComments
         />
         <button
           type="button"
-          onClick={() => onToggleSave(post.id)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleSave(post.id);
+          }}
           className={cx(
             'flex w-full items-center justify-center gap-2 py-3 transition',
             state.saved ? 'text-[#ff7849]' : 'text-white/70 hover:text-white/90'
@@ -798,6 +818,9 @@ export default function FitGramReal({ forceEmpty = false }) {
     setEditTags((post.tags || []).join(', '));
   };
 
+  const currentUserId = String(currentUser?.id || currentUser?._id || '');
+  const canManageSelectedPost = selectedOwnPost && currentUserId && String(selectedOwnPost.userId || '') === currentUserId;
+
   const handleDeleteOwnPost = async () => {
     if (!selectedOwnPost?.id) return;
     const postId = selectedOwnPost.id;
@@ -1050,6 +1073,7 @@ export default function FitGramReal({ forceEmpty = false }) {
                       onAddComment={handleAddComment}
                       onCopyWorkout={handleCopyWorkout}
                       onOpenProfile={() => handleOpenProfile(post.userId)}
+                      onOpenPost={() => handleOpenOwnPost(post)}
                     />
                   ))}
                 </div>
@@ -1074,6 +1098,7 @@ export default function FitGramReal({ forceEmpty = false }) {
               </div>
 
               <div className="flex items-center gap-2">
+                {canManageSelectedPost ? (
                 <div className="relative">
                   <button
                     type="button"
@@ -1108,6 +1133,7 @@ export default function FitGramReal({ forceEmpty = false }) {
                   </div>
                   ) : null}
                 </div>
+                ) : null}
 
                 <button
                   type="button"

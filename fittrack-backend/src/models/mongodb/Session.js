@@ -21,7 +21,12 @@ const sessionSchema = new mongoose.Schema({
   tipo_rutina: { type: String, required: true },
   ejercicios_realizados: [ejercicioRealizadoSchema],
   notas: { type: String },
-  duracion_minutos: { type: Number }
+  duracion_minutos: { type: Number },
+  copiedFrom: {
+    postId: { type: mongoose.Schema.Types.ObjectId, ref: 'FitGramPost' },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    username: { type: String, trim: true },
+  }
 }, {
   timestamps: true
 });

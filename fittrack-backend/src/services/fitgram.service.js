@@ -248,8 +248,11 @@ export const copyWorkoutFromPost = async ({ viewerUserId, postId }) => {
 
   const { default: FitGramPost } = await import('../models/mongodb/FitGramPost.js');
   const { default: Session } = await import('../models/mongodb/Session.js');
+  const { default: User } = await import('../models/mongodb/User.js');
   const post = await FitGramPost.findOne({ _id: id, type: 'workout', visibility: 'public' }).lean();
   if (!post?.workoutSnapshot) throw createHttpError(404, 'Entreno no encontrado');
+  const sourceUser = await User.findById(post.authorId).select('_id nombre apodo').lean();
+  const sourceUsername = sourceUser?.apodo || sourceUser?.nombre || 'usuario';
 
   const snapshot = normalizeWorkoutSnapshot(post.workoutSnapshot);
   if (!snapshot?.exercises?.length) throw createHttpError(400, 'La publicación no tiene ejercicios copiables');
@@ -278,8 +281,15 @@ export const copyWorkoutFromPost = async ({ viewerUserId, postId }) => {
     fecha: new Date(),
     tipo_rutina: snapshot.title || 'Entreno copiado de FitGram',
     ejercicios_realizados: exercises,
-    notas: post.caption ? `Copiada desde FitGram: ${String(post.caption).slice(0, 250)}` : 'Copiada desde FitGram',
+    notas: post.caption
+      ? `Copiada desde FitGram de @${sourceUsername}: ${String(post.caption).slice(0, 220)}`
+      : `Copiada desde FitGram de @${sourceUsername}`,
     duracion_minutos: durationMatch ? Number(durationMatch[0]) : undefined,
+    copiedFrom: {
+      postId: post._id,
+      userId: post.authorId,
+      username: sourceUsername,
+    },
   });
 
   return session.toJSON();

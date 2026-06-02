@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bookmark, Check, ChevronDown, ClipboardCopy, Plus, X } from 'lucide-react';
+import { Bookmark, Check, ChevronDown, ClipboardCopy, Plus, Search, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import { useI18n, tr } from '../i18n/I18nProvider';
 import { getDateKey, upsertSession } from '../services/sessionStore';
-import { createSession } from '../services/sessionsApi';
+import { createSession, listSessionHistory } from '../services/sessionsApi';
 import { listZones, searchCatalogExercises } from '../services/catalogApi';
 
 function cx(...classes) {
@@ -343,7 +343,7 @@ function SavedWorkoutCard({ workout, copiedState, onCopyReplace, onCopyAppend })
       <div className="grid grid-cols-3 divide-x divide-white/10 border-y border-white/10 mt-4">
         <SavedWorkoutStat label={tr(lang, 'Ejer', 'Ex')} value={workout.stats.exercises} />
         <SavedWorkoutStat label={tr(lang, 'Dur', 'Dur')} value={workout.stats.duration} />
-        <SavedWorkoutStat label={tr(lang, 'Cal', 'Cal')} value={workout.stats.calories} />
+        <SavedWorkoutStat label={tr(lang, 'Vol', 'Vol')} value={workout.stats.volume} />
       </div>
 
       <div className="mt-4 flex items-center gap-2">
@@ -384,6 +384,9 @@ export default function CreateSession() {
   const [savedQuery, setSavedQuery] = useState('');
   const [copiedWorkoutId, setCopiedWorkoutId] = useState(null);
   const [isSavedPanelOpen, setIsSavedPanelOpen] = useState(false);
+  const [savedWorkouts, setSavedWorkouts] = useState([]);
+  const [savedWorkoutsLoading, setSavedWorkoutsLoading] = useState(false);
+  const [savedWorkoutsError, setSavedWorkoutsError] = useState('');
   const [zoneExerciseMap, setZoneExerciseMap] = useState({});
   const [zoneExerciseLoading, setZoneExerciseLoading] = useState(false);
   const [zoneExerciseError, setZoneExerciseError] = useState('');
@@ -544,13 +547,79 @@ export default function CreateSession() {
     };
   }, [lang, muscleGroups, zones]);
 
-  const savedWorkouts = useMemo(() => [], []);
+  useEffect(() => {
+    let alive = true;
+
+    const mapSavedSession = (session) => {
+      const exercisesRaw = Array.isArray(session?.ejercicios_realizados) ? session.ejercicios_realizados : [];
+      const exercises = exercisesRaw.map((exercise) => {
+        const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
+        return {
+          name: exercise?.nombre_ejercicio || tr(lang, 'Ejercicio', 'Exercise'),
+          setsCount: sets.length,
+          sets: sets.map((set) => ({
+            reps: Number(set?.reps || 0) || '',
+            weight: Number(set?.peso || 0) || '',
+            option: 'OPCIONES',
+          })),
+        };
+      });
+      const volume = exercisesRaw.reduce((sum, exercise) => {
+        const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
+        return sum + sets.reduce((setSum, set) => {
+          const reps = Number(set?.reps || 0);
+          const weight = Number(set?.peso || 0);
+          return setSum + (Number.isFinite(reps) && Number.isFinite(weight) ? reps * weight : 0);
+        }, 0);
+      }, 0);
+      const copiedFrom = session?.copiedFrom || {};
+      const notes = String(session?.notas || '');
+      const fallbackMatch = notes.match(/@([^:\s]+)/);
+      const sourceUser = copiedFrom.username || fallbackMatch?.[1] || 'FitGram';
+      return {
+        id: String(session?._id || session?.id || `${session?.tipo_rutina}-${session?.fecha}`),
+        title: session?.tipo_rutina || tr(lang, 'Entreno guardado', 'Saved workout'),
+        muscleGroup: 'full_body',
+        sourceUser,
+        stats: {
+          exercises: exercises.length,
+          duration: session?.duracion_minutos ? `${session.duracion_minutos}m` : '--',
+          volume: volume ? `${Math.round(volume)}kg` : '--',
+        },
+        exercises,
+      };
+    };
+
+    const loadSavedWorkouts = async () => {
+      try {
+        setSavedWorkoutsLoading(true);
+        setSavedWorkoutsError('');
+        const data = await listSessionHistory();
+        const copiedSessions = (data?.items || []).filter((session) => (
+          session?.copiedFrom?.postId || String(session?.notas || '').toLowerCase().includes('copiada desde fitgram')
+        ));
+        if (alive) setSavedWorkouts(copiedSessions.map(mapSavedSession));
+      } catch (e) {
+        if (!alive) return;
+        setSavedWorkouts([]);
+        setSavedWorkoutsError(e?.message || tr(lang, 'No se pudieron cargar entrenos guardados', 'Could not load saved workouts'));
+      } finally {
+        if (alive) setSavedWorkoutsLoading(false);
+      }
+    };
+
+    if (isSavedPanelOpen) loadSavedWorkouts();
+
+    return () => {
+      alive = false;
+    };
+  }, [isSavedPanelOpen, lang]);
 
   const filteredSavedWorkouts = useMemo(() => {
     const q = savedQuery.trim().toLowerCase();
     if (!q) return savedWorkouts;
     return savedWorkouts.filter(
-      (w) => w.title.toLowerCase().includes(q) || w.muscleGroup.toLowerCase().includes(q)
+      (w) => w.title.toLowerCase().includes(q) || w.sourceUser.toLowerCase().includes(q)
     );
   }, [savedQuery, savedWorkouts]);
 
@@ -560,7 +629,14 @@ export default function CreateSession() {
     return savedWorkout.exercises.map((exercise) => ({
       id: makeId('ex'),
       name: exercise.name,
-      sets: Array.from({ length: Math.max(1, exercise.setsCount || 1) }).map(() => ({
+      sets: Array.isArray(exercise.sets) && exercise.sets.length
+        ? exercise.sets.map((set) => ({
+          id: makeId('set'),
+          reps: set.reps,
+          weight: set.weight,
+          option: set.option || 'OPCIONES',
+        }))
+        : Array.from({ length: Math.max(1, exercise.setsCount || 1) }).map(() => ({
         id: makeId('set'),
         reps: '',
         weight: '',
@@ -1032,7 +1108,19 @@ export default function CreateSession() {
               </div>
 
               <div className="space-y-3">
-                {filteredSavedWorkouts.map((workout) => (
+                {savedWorkoutsLoading ? (
+                  <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4 text-[12px] text-white/60">
+                    {tr(lang, 'Cargando entrenos guardados...', 'Loading saved workouts...')}
+                  </div>
+                ) : null}
+
+                {savedWorkoutsError ? (
+                  <div className="rounded-lg border border-[#ff7849]/25 bg-[#ff7849]/10 p-4 text-[12px] text-white/80">
+                    {savedWorkoutsError}
+                  </div>
+                ) : null}
+
+                {!savedWorkoutsLoading && !savedWorkoutsError && filteredSavedWorkouts.map((workout) => (
                   <SavedWorkoutCard
                     key={workout.id}
                     workout={workout}
@@ -1048,9 +1136,9 @@ export default function CreateSession() {
                   />
                 ))}
 
-                {filteredSavedWorkouts.length === 0 ? (
+                {!savedWorkoutsLoading && !savedWorkoutsError && filteredSavedWorkouts.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-white/15 bg-white/[0.02] p-4 text-[12px] text-white/55">
-                    No hay entrenos guardados que coincidan.
+                    {tr(lang, 'No hay entrenos guardados que coincidan.', 'No saved workouts match.')}
                   </div>
                 ) : null}
               </div>
