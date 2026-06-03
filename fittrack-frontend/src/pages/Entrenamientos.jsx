@@ -434,7 +434,7 @@ export default function Entrenamientos() {
               {loadError}
             </div>
           ) : filteredWorkouts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-5 lg:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-5 lg:gap-6" data-tour="workouts-list">
               {filteredWorkouts.map((workout) => (
                 <WorkoutCard
                   key={workout.id}
@@ -449,7 +449,7 @@ export default function Entrenamientos() {
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 sm:py-16 md:py-20 rounded-xl border border-white/10 bg-white/[0.04]">
+            <div className="flex flex-col items-center justify-center py-12 sm:py-16 md:py-20 rounded-xl border border-white/10 bg-white/[0.04]" data-tour="workouts-list">
               <div className="text-center">
                 <p className="text-[14px] sm:text-[16px] text-white/60 mb-2">{tr(lang, 'No se encontraron entrenamientos', 'No workouts found')}</p>
                 <p className="text-[12px] sm:text-[13px] text-white/40">{tr(lang, 'Intenta ajustar los filtros', 'Try adjusting the filters')}</p>

@@ -405,14 +405,14 @@ export default function Statistics() {
             <EmptyState>{tr(lang, 'Calculando estadísticas...', 'Calculating statistics...')}</EmptyState>
           ) : (
             <>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" data-tour="stats-summary">
                 <StatCard icon={Dumbbell} label={tr(lang, 'Volumen total', 'Total volume')} value={`${formatNumber(metrics.volume, locale)} kg`} helper={`${formatNumber(metrics.avgVolume, locale)} kg / sesión`} tone="orange" />
                 <StatCard icon={CalendarDays} label={tr(lang, 'Sesiones', 'Sessions')} value={metrics.sessions} helper={`${metrics.activeDays} días activos`} tone="blue" />
                 <StatCard icon={Timer} label={tr(lang, 'Duración media', 'Average duration')} value={`${Math.round(metrics.avgDuration)} min`} helper={`${formatNumber(metrics.duration, locale)} min acumulados`} tone="teal" />
                 <StatCard icon={TrendingUp} label="1RM estimado" value={`${formatNumber(metrics.estimated1rm, locale)} kg`} helper={`${formatNumber(metrics.maxWeight, locale)} kg máximo registrado`} tone="purple" />
               </div>
 
-              <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.85fr)]">
+              <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.85fr)]" data-tour="stats-charts">
                 <Card className="p-4 sm:p-5">
                   <div className="mb-5 flex items-center justify-between gap-3">
                     <div>

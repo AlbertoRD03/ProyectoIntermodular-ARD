@@ -855,7 +855,7 @@ export default function FitGramReal({ forceEmpty = false }) {
 
             <div className="flex-1 flex items-center gap-3">
               {activeTab !== 'profile' ? (
-              <div className="flex-1 relative">
+              <div className="flex-1 relative" data-tour="fitgram-search">
                 <Search className="h-4 w-4 text-white/35 absolute left-4 top-1/2 -translate-y-1/2" />
                 <input
                   value={query}
@@ -927,7 +927,7 @@ export default function FitGramReal({ forceEmpty = false }) {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2" data-tour="fitgram-tabs">
             <TabButton active={activeTab === 'for-you'} onClick={() => handleSetTab('for-you')}>
               {tr(lang, 'Para ti', 'For you')}
             </TabButton>
@@ -1046,9 +1046,11 @@ export default function FitGramReal({ forceEmpty = false }) {
               ) : null}
 
               {activeTab === 'profile' ? (
-                <OwnPostGrid posts={filtered} onOpen={handleOpenOwnPost} lang={lang} />
+                <div data-tour="fitgram-feed">
+                  <OwnPostGrid posts={filtered} onOpen={handleOpenOwnPost} lang={lang} />
+                </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6" data-tour="fitgram-feed">
                   {filtered.map((post) => (
                     <FitGramPost
                       key={post.id}

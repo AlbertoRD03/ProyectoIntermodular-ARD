@@ -688,7 +688,7 @@ export default function Logros() {
 
       <div className="px-3 sm:px-4 md:px-6 lg:px-8 py-10 sm:py-12">
         <div className="mx-auto w-full max-w-[1200px]">
-          <div className="flex items-center justify-center gap-3 sm:gap-4">
+          <div className="flex items-center justify-center gap-3 sm:gap-4" data-tour="achievements-tabs">
             <TabButton active={tab === 'mis'} onClick={() => setTab('mis')}>
               {t('ach_tab_my').toUpperCase()}
             </TabButton>
@@ -697,7 +697,7 @@ export default function Logros() {
             </TabButton>
           </div>
 
-          <div className="mt-10 sm:mt-12">
+          <div className="mt-10 sm:mt-12" data-tour="achievements-content">
             {tab === 'completados' ? (
               <div className="space-y-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

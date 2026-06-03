@@ -183,7 +183,7 @@ export default function Notifications() {
           </div>
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-2">
+        <div className="mt-5 flex flex-wrap gap-2" data-tour="notifications-filters">
           {filters.map((filter) => (
             <button
               key={filter.key}
@@ -201,7 +201,7 @@ export default function Notifications() {
           ))}
         </div>
 
-        <section className="mt-5 space-y-3">
+        <section className="mt-5 space-y-3" data-tour="notifications-list">
           {loading ? (
             <div className="rounded-xl border border-white/10 bg-white/[0.04] p-8 text-center text-[13px] text-white/55">
               {tr(lang, 'Cargando notificaciones...', 'Loading notifications...')}

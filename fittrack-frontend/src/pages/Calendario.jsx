@@ -199,7 +199,7 @@ export default function Calendario() {
       <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-5 md:py-6 lg:py-7 xl:py-8">
         <div className="max-w-6xl mx-auto space-y-5 sm:space-y-6 md:space-y-7">
           {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-5" data-tour="calendar-stats">
             <StatCard
               label={t('Días entrenados en total')}
               value={totalSessionsCount === null ? '—' : totalSessionsCount}
@@ -239,7 +239,7 @@ export default function Calendario() {
           ) : null}
 
           {/* Calendar */}
-          <div className="rounded-lg border border-white/10 bg-white/[0.04] overflow-hidden">
+          <div className="rounded-lg border border-white/10 bg-white/[0.04] overflow-hidden" data-tour="calendar-grid">
             {/* Days of week header */}
             <div className="grid grid-cols-7 border-b border-white/10 bg-white/[0.03]">
               {(lang === 'en' ? ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] : ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM']).map((day) => (

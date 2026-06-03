@@ -874,7 +874,7 @@ export default function Perfil() {
 
       <div className="px-3 sm:px-4 md:px-6 lg:px-8 py-10 sm:py-12">
         <div className="mx-auto w-full max-w-[1200px]">
-          <div className="flex items-center justify-center gap-3 sm:gap-4">
+	          <div className="flex items-center justify-center gap-3 sm:gap-4" data-tour="profile-tabs">
             <TabButton active={tab === 'usuario'} onClick={() => setTab('usuario')}>
               {t('profile_user_tab').toUpperCase()}
             </TabButton>
@@ -907,7 +907,7 @@ export default function Perfil() {
             </div>
 
             {tab === 'usuario' ? (
-              <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
+	              <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]" data-tour="profile-user">
                 <div className="space-y-4">
                   <div className="rounded-xl border border-white/35 bg-white/[0.02] p-5 sm:p-6">
                     <div className="mx-auto grid h-[170px] w-full place-items-center rounded-lg border border-white/35 bg-black/10">
@@ -1040,7 +1040,7 @@ export default function Perfil() {
               </div>
             </div>
             ) : (
-              <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+	              <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2" data-tour="profile-physical">
                 <Section title={t('physical_current_metrics').toUpperCase()}>
                   {physicalLoading ? (
                     <div className="text-[13px] text-white/60">{t('Cargando...')}</div>

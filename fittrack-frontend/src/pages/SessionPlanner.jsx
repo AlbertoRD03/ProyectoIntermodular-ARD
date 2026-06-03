@@ -12,9 +12,9 @@ function cx(...classes) {
 const dayNamesEs = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 const dayNamesEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-function Card({ children, className }) {
+function Card({ children, className, ...props }) {
   return (
-    <section className={cx('rounded-2xl border border-white/10 bg-white/[0.055] shadow-[0_24px_70px_-55px_rgba(0,0,0,0.95)]', className)}>
+    <section {...props} className={cx('rounded-2xl border border-white/10 bg-white/[0.055] shadow-[0_24px_70px_-55px_rgba(0,0,0,0.95)]', className)}>
       {children}
     </section>
   );
@@ -313,7 +313,7 @@ export default function SessionPlanner() {
             </Card>
           </div>
 
-          <Card className="p-4">
+          <Card className="p-4" data-tour="planner-preset">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="grid h-11 w-11 place-items-center rounded-xl border border-[#ff7849]/35 bg-[#ff7849]/10 text-[#ff7849]">
@@ -345,7 +345,7 @@ export default function SessionPlanner() {
           {loading ? (
             <Card className="p-8 text-center text-[13px] text-white/55">{tr(lang, 'Cargando planificador...', 'Loading planner...')}</Card>
           ) : sortedSessions.length ? (
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" data-tour="planner-sessions">
               {sortedSessions.map((session, index) => (
                 <SessionEditor
                   key={`${session.dayIndex}_${index}`}
@@ -359,7 +359,7 @@ export default function SessionPlanner() {
               ))}
             </div>
           ) : (
-            <Card className="p-8 text-center">
+            <Card className="p-8 text-center" data-tour="planner-sessions">
               <ClipboardList className="mx-auto h-8 w-8 text-white/25" />
               <div className="mt-3 text-[14px] font-bold uppercase text-white/80">{tr(lang, 'Sin sesiones planificadas', 'No planned sessions')}</div>
             </Card>

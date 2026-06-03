@@ -3,24 +3,46 @@ import { useLocation } from 'react-router-dom';
 import { useI18n, tr } from '../i18n/I18nProvider';
 import { getAuthToken } from '../services/authToken';
 
-const STORAGE_KEY = 'fittrack_guided_tours_v1';
+const STORAGE_KEY = 'fittrack_guided_tours_v2';
 
 const TOUR_DEFINITIONS = {
   dashboard: {
     match: (path) => path === '/dashboard',
     steps: [
       {
-        title: ['Bienvenido a Inicio', 'Welcome to Home'],
+        selector: '[data-tour="main-weekly"]',
+        placement: 'bottom',
+        title: ['Resumen semanal', 'Weekly summary'],
         body: [
-          'Aquí tienes tu resumen semanal, la sesión de hoy, tus logros más cercanos y una vista rápida de FitGram.',
-          'Here you can see your weekly summary, today session, closest achievements and a quick FitGram preview.',
+          'Este bloque resume tu semana. Cada día es clickable: si tiene entreno abre el detalle; si está vacío te lleva a crear sesión para ese día.',
+          'This block summarizes your week. Each day is clickable: with a workout it opens details; empty days take you to create a session for that date.',
         ],
       },
       {
-        title: ['Flujo recomendado', 'Recommended flow'],
+        selector: '[data-tour="main-today"]',
+        placement: 'right',
+        title: ['Sesión de hoy', 'Today session'],
         body: [
-          'Si hoy no tienes sesión, crea una desde el bloque central. Si ya la tienes, podrás abrirla o crear otra.',
-          'If you have no session today, create one from the center card. If you already have one, you can open it or create another.',
+          'Aquí se muestra el entreno del día. Si no hay sesión, puedes crearla; si ya existe, puedes abrirla o añadir otra.',
+          'Today’s workout appears here. If there is no session, you can create it; if it exists, you can open it or add another.',
+        ],
+      },
+      {
+        selector: '[data-tour="main-achievements"]',
+        placement: 'left',
+        title: ['Logros cercanos', 'Closest achievements'],
+        body: [
+          'Se muestran los logros con más progreso para que sepas qué objetivo está más cerca de completarse.',
+          'This shows achievements with the highest progress so you know which goal is closest to completion.',
+        ],
+      },
+      {
+        selector: '[data-tour="main-fitgram"]',
+        placement: 'left',
+        title: ['FitGram rápido', 'Quick FitGram'],
+        body: [
+          'Vista previa de publicaciones. Entra aquí para descubrir usuarios, comentar o guardar entrenos compartidos.',
+          'Post preview. Open it to discover users, comment or save shared workouts.',
         ],
       },
     ],
@@ -29,17 +51,21 @@ const TOUR_DEFINITIONS = {
     match: (path) => path === '/calendario',
     steps: [
       {
+        selector: '[data-tour="calendar-stats"]',
+        placement: 'bottom',
+        title: ['Resumen del calendario', 'Calendar summary'],
+        body: [
+          'Estos datos te dan contexto del mes: días entrenados y carga general antes de entrar al detalle.',
+          'These stats give monthly context: trained days and general activity before checking details.',
+        ],
+      },
+      {
+        selector: '[data-tour="calendar-grid"]',
+        placement: 'top',
         title: ['Calendario', 'Calendar'],
         body: [
           'Usa esta pantalla para revisar tus entrenamientos por fecha y encontrar rápidamente qué hiciste cada día.',
           'Use this screen to review workouts by date and quickly see what you did each day.',
-        ],
-      },
-      {
-        title: ['Crear desde una fecha', 'Create from a date'],
-        body: [
-          'Al elegir un día sin entreno puedes preparar una sesión para esa fecha. Si es futura, FitTrack te avisará.',
-          'When you select a day without a workout, you can prepare a session for that date. If it is future, FitTrack warns you.',
         ],
       },
     ],
@@ -48,6 +74,8 @@ const TOUR_DEFINITIONS = {
     match: (path) => path === '/entrenamientos',
     steps: [
       {
+        selector: '[data-tour="workouts-list"]',
+        placement: 'top',
         title: ['Entrenamientos', 'Workouts'],
         body: [
           'Aquí se agrupan tus sesiones registradas para consultar detalles, volumen, duración y ejercicios.',
@@ -60,17 +88,30 @@ const TOUR_DEFINITIONS = {
     match: (path) => path === '/fitgram',
     steps: [
       {
+        selector: '[data-tour="fitgram-search"]',
+        placement: 'bottom',
+        title: ['Buscar usuarios', 'Search users'],
+        body: [
+          'Usa la búsqueda para encontrar perfiles por nombre o apodo y empezar a seguir a otros usuarios.',
+          'Use search to find profiles by name or handle and start following other users.',
+        ],
+      },
+      {
+        selector: '[data-tour="fitgram-tabs"]',
+        placement: 'bottom',
+        title: ['Secciones de FitGram', 'FitGram sections'],
+        body: [
+          'Para ti muestra contenido general, Mi comunidad filtra seguidos y Mi perfil muestra tus publicaciones.',
+          'For you shows general content, My community filters followed users and My profile shows your posts.',
+        ],
+      },
+      {
+        selector: '[data-tour="fitgram-feed"]',
+        placement: 'top',
         title: ['FitGram', 'FitGram'],
         body: [
           'Comparte publicaciones, descubre usuarios y guarda entrenos de otras personas para copiarlos en tus sesiones.',
           'Share posts, discover users and save other people’s workouts to copy them into your own sessions.',
-        ],
-      },
-      {
-        title: ['Para ti, comunidad y perfil', 'For you, community and profile'],
-        body: [
-          'Para ti mezcla contenido general, Mi comunidad muestra usuarios seguidos y Mi perfil concentra tus publicaciones.',
-          'For you mixes general content, My community shows followed users and My profile gathers your own posts.',
         ],
       },
     ],
@@ -79,17 +120,21 @@ const TOUR_DEFINITIONS = {
     match: (path) => path === '/logros',
     steps: [
       {
+        selector: '[data-tour="achievements-tabs"]',
+        placement: 'bottom',
+        title: ['Tipos de logros', 'Achievement types'],
+        body: [
+          'Alterna entre tus logros de entrenamiento y los logros sociales de FitGram.',
+          'Switch between workout achievements and social FitGram achievements.',
+        ],
+      },
+      {
+        selector: '[data-tour="achievements-content"]',
+        placement: 'top',
         title: ['Logros', 'Achievements'],
         body: [
           'Los logros se actualizan automáticamente con tus sesiones y tu actividad en FitGram.',
           'Achievements update automatically from your sessions and FitGram activity.',
-        ],
-      },
-      {
-        title: ['Completados', 'Completed'],
-        body: [
-          'Cuando completes uno, aparecerá en Logros completados y podrás publicarlo en FitGram.',
-          'When you complete one, it appears in Completed achievements and you can publish it to FitGram.',
         ],
       },
     ],
@@ -98,17 +143,21 @@ const TOUR_DEFINITIONS = {
     match: (path) => path === '/planificador',
     steps: [
       {
+        selector: '[data-tour="planner-preset"]',
+        placement: 'bottom',
+        title: ['Preset recomendado', 'Recommended preset'],
+        body: [
+          'Elige cuántos días entrenas y FitTrack propone una distribución semanal editable.',
+          'Choose how many days you train and FitTrack suggests an editable weekly split.',
+        ],
+      },
+      {
+        selector: '[data-tour="planner-sessions"]',
+        placement: 'top',
         title: ['Planificador', 'Planner'],
         body: [
           'Define cuántos días entrenas, aplica un preset recomendado y edita cada sesión según tu rutina.',
           'Define how many days you train, apply a recommended preset and edit each session to fit your routine.',
-        ],
-      },
-      {
-        title: ['Conexión con crear sesión', 'Create session connection'],
-        body: [
-          'Cuando crees una sesión en un día planificado, FitTrack te ofrecerá usar esa sesión directamente.',
-          'When you create a session on a planned day, FitTrack offers that planned session directly.',
         ],
       },
     ],
@@ -117,6 +166,17 @@ const TOUR_DEFINITIONS = {
     match: (path) => path === '/estadisticas',
     steps: [
       {
+        selector: '[data-tour="stats-summary"]',
+        placement: 'bottom',
+        title: ['Resumen de rendimiento', 'Performance summary'],
+        body: [
+          'Estas tarjetas resumen volumen, sesiones, duración media y fuerza estimada del periodo seleccionado.',
+          'These cards summarize volume, sessions, average duration and estimated strength for the selected period.',
+        ],
+      },
+      {
+        selector: '[data-tour="stats-charts"]',
+        placement: 'top',
         title: ['Estadísticas', 'Statistics'],
         body: [
           'Analiza mejoras por rango de tiempo, ejercicio y rendimiento para entender tu progreso real.',
@@ -129,6 +189,17 @@ const TOUR_DEFINITIONS = {
     match: (path) => path === '/notificaciones',
     steps: [
       {
+        selector: '[data-tour="notifications-filters"]',
+        placement: 'bottom',
+        title: ['Filtros de notificaciones', 'Notification filters'],
+        body: [
+          'Filtra por tipo para separar actividad social, entrenos, planificador y perfil físico.',
+          'Filter by type to separate social activity, workouts, planner and physical profile alerts.',
+        ],
+      },
+      {
+        selector: '[data-tour="notifications-list"]',
+        placement: 'top',
         title: ['Notificaciones', 'Notifications'],
         body: [
           'Aquí llegan avisos sociales, entrenos copiados, recordatorios del planificador y datos físicos pendientes.',
@@ -141,6 +212,8 @@ const TOUR_DEFINITIONS = {
     match: (path) => path === '/perfil',
     steps: [
       {
+        selector: '[data-tour="profile-user"]',
+        placement: 'top',
         title: ['Perfil', 'Profile'],
         body: [
           'Gestiona tus datos de usuario, foto, privacidad, idioma y configuración de cuenta.',
@@ -148,10 +221,12 @@ const TOUR_DEFINITIONS = {
         ],
       },
       {
+        selector: '[data-tour="profile-tabs"]',
+        placement: 'bottom',
         title: ['Perfil físico', 'Physical profile'],
         body: [
-          'En Mi perfil físico se guardan tus métricas, objetivo, nivel y preferencias de entrenamiento.',
-          'Your physical profile stores metrics, goal, level and training preferences.',
+          'Desde estas pestañas puedes cambiar a Mi perfil físico, donde se guardan métricas, objetivos y preferencias.',
+          'Use these tabs to open your physical profile, where metrics, goals and preferences are stored.',
         ],
       },
     ],
@@ -192,6 +267,7 @@ export default function GuidedTour() {
   const { lang } = useI18n();
   const [activeTourKey, setActiveTourKey] = useState('');
   const [stepIndex, setStepIndex] = useState(0);
+  const [targetRect, setTargetRect] = useState(null);
 
   const pathname = location.pathname || '';
   const activeDefinition = useMemo(() => {
@@ -227,11 +303,44 @@ export default function GuidedTour() {
     return () => window.clearTimeout(timer);
   }, [pathname]);
 
-  if (!activeDefinition) return null;
+  const steps = activeDefinition?.steps || [];
+  const currentStep = steps[stepIndex] || steps[0] || null;
 
-  const steps = activeDefinition.steps || [];
-  const currentStep = steps[stepIndex] || steps[0];
-  if (!currentStep) return null;
+  useEffect(() => {
+    if (!currentStep?.selector) {
+      setTargetRect(null);
+      return undefined;
+    }
+
+    const updateRect = (shouldScroll = false) => {
+      const element = document.querySelector(currentStep.selector);
+      if (!element) {
+        setTargetRect(null);
+        return;
+      }
+      if (shouldScroll) element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      window.setTimeout(() => {
+        const rect = element.getBoundingClientRect();
+        setTargetRect({
+          top: Math.max(8, rect.top - 8),
+          left: Math.max(8, rect.left - 8),
+          width: Math.min(window.innerWidth - 16, rect.width + 16),
+          height: Math.min(window.innerHeight - 16, rect.height + 16),
+        });
+      }, 220);
+    };
+
+    updateRect(true);
+    const refreshRect = () => updateRect(false);
+    window.addEventListener('resize', refreshRect);
+    window.addEventListener('scroll', refreshRect, true);
+    return () => {
+      window.removeEventListener('resize', refreshRect);
+      window.removeEventListener('scroll', refreshRect, true);
+    };
+  }, [currentStep]);
+
+  if (!activeDefinition || !currentStep) return null;
 
   const closeTour = () => {
     const userKey = readCurrentUserKey();
@@ -248,9 +357,35 @@ export default function GuidedTour() {
     setStepIndex((prev) => prev + 1);
   };
 
+  const panelStyle = (() => {
+    if (!targetRect) return {};
+    const preferred = currentStep.placement || 'bottom';
+    const panelWidth = Math.min(560, window.innerWidth - 32);
+    const left = Math.min(window.innerWidth - panelWidth - 16, Math.max(16, targetRect.left + (targetRect.width / 2) - (panelWidth / 2)));
+    if (preferred === 'top') return { width: panelWidth, left, top: Math.max(16, targetRect.top - 250) };
+    if (preferred === 'left') return { width: panelWidth, left: Math.max(16, targetRect.left - panelWidth - 18), top: Math.min(window.innerHeight - 250, Math.max(16, targetRect.top)) };
+    if (preferred === 'right') return { width: panelWidth, left: Math.min(window.innerWidth - panelWidth - 16, targetRect.left + targetRect.width + 18), top: Math.min(window.innerHeight - 250, Math.max(16, targetRect.top)) };
+    return { width: panelWidth, left, top: Math.min(window.innerHeight - 250, targetRect.top + targetRect.height + 18) };
+  })();
+
   return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/45 px-4 py-5 backdrop-blur-[2px] sm:items-center">
-      <section className="w-full max-w-[560px] rounded-2xl border border-white/15 bg-[#181818] p-5 text-white shadow-[0_30px_90px_-40px_rgba(0,0,0,0.95)]">
+    <div className="fixed inset-0 z-[80] bg-black/55 px-4 py-5 backdrop-blur-[2px]">
+      {targetRect ? (
+        <div
+          className="pointer-events-none fixed rounded-2xl border-2 border-[#ff7849] shadow-[0_0_0_9999px_rgba(0,0,0,0.55),0_0_35px_rgba(255,120,73,0.45)]"
+          style={{
+            top: targetRect.top,
+            left: targetRect.left,
+            width: targetRect.width,
+            height: targetRect.height,
+          }}
+        />
+      ) : null}
+
+      <section
+        className={`fixed w-full max-w-[560px] rounded-2xl border border-white/15 bg-[#181818] p-5 text-white shadow-[0_30px_90px_-40px_rgba(0,0,0,0.95)] ${targetRect ? '' : 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2'}`}
+        style={panelStyle}
+      >
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#ff7849]">
