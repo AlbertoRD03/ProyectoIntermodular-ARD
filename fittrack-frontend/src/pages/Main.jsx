@@ -1,20 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Heart,
-  LayoutGrid,
   MessageCircle,
   Plus,
-  Trophy,
   Dumbbell,
-  Flame,
-  Star,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import { useI18n } from '../i18n/I18nProvider';
 import { getDateKey, getSessionForDate, getSessionsForDate } from '../services/sessionStore';
 import { listSessionHistory } from '../services/sessionsApi';
-import { getExplore } from '../services/fitgramApi';
+import { getExplore, getUserPosts } from '../services/fitgramApi';
+import { getPublicProfile } from '../services/socialApi';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -197,6 +194,69 @@ function isFutureDateKey(dateKey) {
   return target.getTime() > today.getTime();
 }
 
+function readCurrentUser() {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem('fittrack_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function readCustomAchievements() {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem('fittrack_custom_achievements');
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function getSessionDuration(session) {
+  return Number(session?.duracion_minutos || session?.duration || 0) || 0;
+}
+
+function getSessionHour(session) {
+  const date = new Date(session?.fecha || session?.date || session?.createdAt || Date.now());
+  return Number.isNaN(date.getTime()) ? null : date.getHours();
+}
+
+const ACHIEVEMENT_STYLE = {
+  fuerza: {
+    type: 'Fuerza',
+    fillClass: 'bg-blue-400',
+    surfaceClass: 'bg-blue-500',
+    accent: 'border-blue-300/35 text-blue-200 bg-blue-400/10',
+  },
+  constancia: {
+    type: 'Constancia',
+    fillClass: 'bg-orange-400',
+    surfaceClass: 'bg-orange-500',
+    accent: 'border-orange-300/35 text-orange-200 bg-orange-400/10',
+  },
+  cardio: {
+    type: 'Cardio',
+    fillClass: 'bg-teal-400',
+    surfaceClass: 'bg-teal-500',
+    accent: 'border-teal-300/35 text-teal-200 bg-teal-400/10',
+  },
+  social: {
+    type: 'Social',
+    fillClass: 'bg-purple-400',
+    surfaceClass: 'bg-purple-500',
+    accent: 'border-purple-300/35 text-purple-200 bg-purple-400/10',
+  },
+  elite: {
+    type: 'Élite',
+    fillClass: 'bg-indigo-400',
+    surfaceClass: 'bg-indigo-500',
+    accent: 'border-indigo-300/35 text-indigo-200 bg-indigo-400/10',
+  },
+};
+
 function normalizePost(post, lang) {
   const username = post?.author?.apodo || post?.author?.nombre || 'usuario';
   const createdAt = post?.createdAt ? new Date(post.createdAt) : null;
@@ -232,19 +292,58 @@ function ExerciseRow({ name, series, reps }) {
   );
 }
 
-function AchievementRow({ icon: Icon, title, subtitle, meta, progress = 0 }) {
-  const safeProgress = Math.max(0, Math.min(100, Number(progress) || 0));
+function AchievementRow({ achievement }) {
+  const style = achievement.style || ACHIEVEMENT_STYLE.constancia;
+  const safeMax = Math.max(1, Number(achievement.max) || 1);
+  const safeValue = Math.max(0, Number(achievement.value) || 0);
+  const completed = safeValue >= safeMax;
+  const percent = Math.min(100, Math.round((safeValue / safeMax) * 100));
+  const remaining = Math.max(0, safeMax - safeValue);
+  const unitLabel = achievement.unit ? ` ${achievement.unit}` : '';
   return (
-    <div className="flex items-center gap-3 sm:gap-4 rounded-lg border border-white/10 bg-white/[0.06] px-3 sm:px-4 md:px-5 py-3 sm:py-4 md:py-5">
-      <div className="grid h-10 sm:h-11 md:h-12 w-10 sm:w-11 md:w-12 flex-shrink-0 place-items-center rounded-lg border border-[#ff7849]/70 text-[#ff7849]">
-        <Icon className="h-5 sm:h-5 md:h-6 w-5 sm:w-5 md:w-6" />
+    <div className={cx(
+      'relative overflow-hidden rounded-2xl border bg-white/[0.045] p-3 sm:p-4 shadow-[0_20px_60px_-50px_rgba(0,0,0,0.9)]',
+      completed ? 'border-white/25' : 'border-white/10 hover:border-white/20'
+    )}>
+      <div className={cx('absolute inset-0 opacity-15', completed ? 'bg-emerald-500' : style.surfaceClass)} />
+      <div className={cx('absolute inset-y-0 left-0 w-1', completed ? 'bg-emerald-400' : style.fillClass)} />
+
+      <div className="relative flex items-center gap-3">
+        <div className={cx(
+          'grid h-11 w-11 shrink-0 place-items-center rounded-xl border bg-black/20',
+          completed ? 'border-emerald-300/35 text-emerald-200 bg-emerald-400/10' : style.accent
+        )}>
+          <span className="text-[22px] leading-none">{achievement.emoji}</span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className={cx(
+              'rounded-full border px-2 py-0.5 text-[8px] font-bold uppercase tracking-widest',
+              completed ? 'border-emerald-300/35 text-emerald-200 bg-emerald-400/10' : style.accent
+            )}>
+              {style.type}
+            </span>
+            <span className="text-[9px] uppercase tracking-widest text-white/35">{percent}%</span>
+          </div>
+          <div className="mt-1 truncate text-[13px] font-bold uppercase tracking-wide text-white/95">
+            {achievement.title}
+          </div>
+          <div className="mt-0.5 truncate text-[11px] text-white/45">
+            {completed ? 'Meta alcanzada' : `Faltan ${remaining}${unitLabel}`}
+          </div>
+        </div>
       </div>
-      <div className="min-w-0 flex-1">
-        <div className="text-[10px] sm:text-[11px] md:text-[12px] font-semibold uppercase tracking-wide text-white/75">{title}</div>
-        <div className="mt-0.5 truncate text-[12px] sm:text-[13px] md:text-[14px] font-semibold text-white/90">{subtitle}</div>
-        <div className="mt-0.5 sm:mt-1 text-[10px] sm:text-[11px] md:text-[11px] text-white/45 truncate">{meta}</div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
-          <div className="h-full rounded-full bg-[#ff7849]" style={{ width: `${safeProgress}%` }} />
+
+      <div className="relative mt-3">
+        <div className="mb-1.5 flex items-center justify-between text-[9px] uppercase tracking-widest text-white/40">
+          <span>Progreso</span>
+          <span className="font-semibold text-white/70">{safeValue}/{safeMax}{unitLabel}</span>
+        </div>
+        <div className="h-3 w-full overflow-hidden rounded-2xl border border-white/10 bg-black/25">
+          <div
+            className={cx('h-full rounded-2xl transition-all duration-700', completed ? 'bg-emerald-300' : style.fillClass)}
+            style={{ width: `${completed ? 100 : percent}%` }}
+          />
         </div>
       </div>
     </div>
@@ -306,6 +405,8 @@ export default function Main() {
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [fitgramPosts, setFitgramPosts] = useState([]);
   const [fitgramLoading, setFitgramLoading] = useState(false);
+  const [ownFitgramPosts, setOwnFitgramPosts] = useState([]);
+  const [socialStats, setSocialStats] = useState({ followers: 0, following: 0, posts: 0 });
 
   useEffect(() => {
     setTodaySession(typeof window === 'undefined' ? null : getSessionForDate(todayKey));
@@ -324,6 +425,26 @@ export default function Main() {
       .finally(() => {
         if (!cancelled) setSessionsLoading(false);
       });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const currentUser = readCurrentUser();
+    const userId = currentUser?.id || currentUser?._id;
+    if (!userId) return undefined;
+
+    Promise.all([
+      getUserPosts(userId, { limit: 120 }).catch(() => ({ posts: [] })),
+      getPublicProfile(userId).catch(() => null),
+    ]).then(([postsData, profileData]) => {
+      if (cancelled) return;
+      setOwnFitgramPosts(Array.isArray(postsData?.posts) ? postsData.posts : []);
+      setSocialStats(profileData?.stats || { followers: 0, following: 0, posts: 0 });
+    });
 
     return () => {
       cancelled = true;
@@ -447,42 +568,177 @@ export default function Main() {
 
   const achievements = useMemo(() => {
     const sessionsCount = apiSessions.length;
-    const totalVolume = apiSessions.reduce((sum, session) => sum + getApiSessionVolume(session), 0);
-    const totalSets = apiSessions.reduce((sum, session) => sum + getApiSessionSets(session), 0);
+    const volumes = apiSessions.map(getApiSessionVolume);
+    const maxVolume = volumes.length ? Math.max(...volumes) : 0;
+    const totalVolume = volumes.reduce((sum, volume) => sum + volume, 0);
+    const maxDuration = apiSessions.reduce((max, session) => Math.max(max, getSessionDuration(session)), 0);
+    const uniqueTrainingTypes = new Set(apiSessions.map((session) => String(session?.tipo_rutina || '').trim().toLowerCase()).filter(Boolean)).size;
+    const earlySessions = apiSessions.filter((session) => {
+      const hour = getSessionHour(session);
+      return hour !== null && hour < 7;
+    }).length;
+    const copiedWorkouts = apiSessions.filter((session) => (
+      session?.copiedFrom?.postId || String(session?.notas || '').toLowerCase().includes('copiada desde fitgram')
+    )).length;
+    const workoutPosts = ownFitgramPosts.filter((post) => post.type === 'workout').length;
+    const totalComments = ownFitgramPosts.reduce((sum, post) => sum + (post.commentsCount ?? post.comments?.length ?? 0), 0);
     const streak = calculateStreak(apiSessions);
-    const goals = [
+    const custom = readCustomAchievements();
+    const baseAchievements = [
       {
-        icon: Flame,
-        title: t('Racha'),
-        subtitle: `${Math.min(streak, 7)} / 7 ${t('Días')}`,
-        meta: streak >= 7 ? t('Completado') : `${Math.max(0, 7 - streak)} ${t('Días')}`,
-        progress: (streak / 7) * 100,
+        emoji: '🥇',
+        title: lang === 'en' ? 'First Step' : 'Primer Paso',
+        value: sessionsCount,
+        max: 1,
+        unit: '',
+        style: ACHIEVEMENT_STYLE.constancia,
       },
       {
-        icon: Dumbbell,
-        title: t('Volumen'),
-        subtitle: `${Math.round(totalVolume).toLocaleString(lang === 'en' ? 'en-US' : 'es-ES')} / 50.000 KG`,
-        meta: `${Math.max(0, 50000 - Math.round(totalVolume)).toLocaleString(lang === 'en' ? 'en-US' : 'es-ES')} KG`,
-        progress: (totalVolume / 50000) * 100,
+        emoji: '🔥',
+        title: lang === 'en' ? 'Electric streak' : 'Racha eléctrica',
+        value: streak,
+        max: 7,
+        unit: '',
+        style: ACHIEVEMENT_STYLE.constancia,
       },
       {
-        icon: Trophy,
-        title: t('Entrenamientos'),
-        subtitle: `${Math.min(sessionsCount, 10)} / 10 ${t('Sesiones')}`,
-        meta: sessionsCount >= 10 ? t('Completado') : `${Math.max(0, 10 - sessionsCount)} ${t('Sesiones')}`,
-        progress: (sessionsCount / 10) * 100,
+        emoji: '💪',
+        title: lang === 'en' ? 'Raw strength' : 'Fuerza bruta',
+        value: Math.round(maxVolume),
+        max: 2000,
+        unit: 'kg',
+        style: ACHIEVEMENT_STYLE.fuerza,
       },
       {
-        icon: Star,
-        title: t('Series'),
-        subtitle: `${Math.min(totalSets, 100)} / 100`,
-        meta: `${Math.max(0, 100 - totalSets)} ${t('Series')}`,
-        progress: (totalSets / 100) * 100,
+        emoji: '⭐',
+        title: lang === 'en' ? 'Dedication' : 'Dedicación',
+        value: sessionsCount,
+        max: 10,
+        unit: '',
+        style: ACHIEVEMENT_STYLE.constancia,
+      },
+      {
+        emoji: '❤️',
+        title: 'Cardio Warrior',
+        value: maxDuration,
+        max: 45,
+        unit: 'min',
+        style: ACHIEVEMENT_STYLE.cardio,
+      },
+      {
+        emoji: '🎯',
+        title: lang === 'en' ? 'Versatile' : 'Versátil',
+        value: uniqueTrainingTypes,
+        max: 3,
+        unit: '',
+        style: ACHIEVEMENT_STYLE.elite,
+      },
+      {
+        emoji: '🚀',
+        title: lang === 'en' ? 'Total engine' : 'Motor total',
+        value: Math.round(totalVolume),
+        max: 25000,
+        unit: 'kg',
+        style: ACHIEVEMENT_STYLE.fuerza,
+      },
+      {
+        emoji: '🌅',
+        title: lang === 'en' ? 'Early Bird' : 'Madrugador',
+        value: earlySessions,
+        max: 5,
+        unit: '',
+        style: ACHIEVEMENT_STYLE.cardio,
+      },
+      {
+        emoji: '📸',
+        title: lang === 'en' ? 'First post' : 'Primera publicación',
+        value: ownFitgramPosts.length,
+        max: 1,
+        unit: '',
+        style: ACHIEVEMENT_STYLE.social,
+      },
+      {
+        emoji: '🏋️',
+        title: lang === 'en' ? 'Public coach' : 'Entrenador público',
+        value: workoutPosts,
+        max: 5,
+        unit: '',
+        style: ACHIEVEMENT_STYLE.fuerza,
+      },
+      {
+        emoji: '👥',
+        title: lang === 'en' ? 'Active community' : 'Comunidad activa',
+        value: Number(socialStats.following || 0),
+        max: 10,
+        unit: '',
+        style: ACHIEVEMENT_STYLE.social,
+      },
+      {
+        emoji: '⚡',
+        title: lang === 'en' ? 'Influence' : 'Influencia',
+        value: Number(socialStats.followers || 0),
+        max: 25,
+        unit: '',
+        style: ACHIEVEMENT_STYLE.elite,
+      },
+      {
+        emoji: '💬',
+        title: lang === 'en' ? 'Conversation' : 'Conversación',
+        value: totalComments,
+        max: 15,
+        unit: '',
+        style: ACHIEVEMENT_STYLE.social,
+      },
+      {
+        emoji: '📥',
+        title: lang === 'en' ? 'FitGram library' : 'Biblioteca FitGram',
+        value: copiedWorkouts,
+        max: 3,
+        unit: '',
+        style: ACHIEVEMENT_STYLE.constancia,
       },
     ];
 
-    return goals.sort((a, b) => b.progress - a.progress).slice(0, 3);
-  }, [apiSessions, lang, t]);
+    const customAchievements = custom.map((goal) => {
+      const target = Math.max(1, Number(goal.target || 1));
+      const unit = goal.unit || '';
+      let value = 0;
+      if (unit === 'kg') value = goal.type === 'fuerza' ? Math.round(totalVolume) : Math.round(maxVolume);
+      else if (unit === 'min') value = maxDuration;
+      else if (unit === 'sesiones') value = sessionsCount;
+      else if (goal.type === 'racha') value = streak;
+      else if (goal.type === 'cardio') value = maxDuration;
+      else if (goal.type === 'fuerza') value = Math.round(totalVolume);
+      else value = sessionsCount;
+
+      const style = goal.type === 'cardio'
+        ? ACHIEVEMENT_STYLE.cardio
+        : goal.type === 'racha'
+          ? ACHIEVEMENT_STYLE.constancia
+          : goal.type === 'fuerza'
+            ? ACHIEVEMENT_STYLE.fuerza
+            : ACHIEVEMENT_STYLE.elite;
+
+      return {
+        emoji: goal.type === 'cardio' ? '❤️' : goal.type === 'racha' ? '🔥' : goal.type === 'fuerza' ? '💪' : '⭐',
+        title: goal.title,
+        value,
+        max: target,
+        unit,
+        style,
+      };
+    });
+
+    const allAchievements = [...baseAchievements, ...customAchievements];
+    const byProgressDesc = (a, b) => {
+      const progressA = Number(a.value || 0) / Math.max(1, Number(a.max || 1));
+      const progressB = Number(b.value || 0) / Math.max(1, Number(b.max || 1));
+      return progressB - progressA;
+    };
+    const incomplete = allAchievements.filter((achievement) => Number(achievement.value || 0) < Number(achievement.max || 1));
+    const source = incomplete.length ? incomplete : allAchievements;
+    return [...source].sort(byProgressDesc).slice(0, 3);
+  }, [apiSessions, lang, ownFitgramPosts, socialStats]);
 
   const hasUserAchievements = achievements.length > 0;
 
@@ -641,12 +897,8 @@ export default function Main() {
                   <div className="space-y-2 sm:space-y-3 md:space-y-4">
                     {achievements.map((a, i) => (
                       <AchievementRow
-                        key={`${a.subtitle}-${i}`}
-                        icon={a.icon}
-                        title={a.title}
-                        subtitle={a.subtitle}
-                        meta={a.meta}
-                        progress={a.progress}
+                        key={`${a.title}-${i}`}
+                        achievement={a}
                       />
                     ))}
                   </div>
