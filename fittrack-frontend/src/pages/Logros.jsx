@@ -204,8 +204,24 @@ function getSessionDate(session) {
   return Number.isFinite(date.getTime()) ? date : null;
 }
 
+function getSessionExercises(session) {
+  if (Array.isArray(session?.ejercicios_realizados)) return session.ejercicios_realizados;
+  if (Array.isArray(session?.exercises)) {
+    return session.exercises.map((exercise) => ({
+      nombre_ejercicio: exercise?.name || exercise?.nombre_ejercicio || '',
+      sets: Array.isArray(exercise?.sets)
+        ? exercise.sets.map((set) => ({
+          reps: set?.reps ?? set?.repeticiones ?? 0,
+          peso: set?.peso ?? set?.weight ?? 0,
+        }))
+        : [],
+    }));
+  }
+  return [];
+}
+
 function getSessionVolume(session) {
-  const exercises = Array.isArray(session?.ejercicios_realizados) ? session.ejercicios_realizados : [];
+  const exercises = getSessionExercises(session);
   return exercises.reduce((sum, exercise) => {
     const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
     return sum + sets.reduce((setSum, set) => {
