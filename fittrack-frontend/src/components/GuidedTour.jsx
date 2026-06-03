@@ -368,11 +368,42 @@ export default function GuidedTour() {
     return { width: panelWidth, left, top: Math.min(window.innerHeight - 250, targetRect.top + targetRect.height + 18) };
   })();
 
+  const overlayPieces = targetRect
+    ? [
+        { top: 0, left: 0, width: '100vw', height: targetRect.top },
+        { top: targetRect.top, left: 0, width: targetRect.left, height: targetRect.height },
+        {
+          top: targetRect.top,
+          left: targetRect.left + targetRect.width,
+          width: Math.max(0, window.innerWidth - targetRect.left - targetRect.width),
+          height: targetRect.height,
+        },
+        {
+          top: targetRect.top + targetRect.height,
+          left: 0,
+          width: '100vw',
+          height: Math.max(0, window.innerHeight - targetRect.top - targetRect.height),
+        },
+      ]
+    : [];
+
   return (
-    <div className="fixed inset-0 z-[80] bg-black/55 px-4 py-5 backdrop-blur-[2px]">
+    <div className="pointer-events-none fixed inset-0 z-[80] px-4 py-5">
+      {targetRect ? (
+        overlayPieces.map((piece, index) => (
+          <div
+            key={index}
+            className="pointer-events-auto fixed bg-black/55 backdrop-blur-[2px]"
+            style={piece}
+          />
+        ))
+      ) : (
+        <div className="pointer-events-auto fixed inset-0 bg-black/55 backdrop-blur-[2px]" />
+      )}
+
       {targetRect ? (
         <div
-          className="pointer-events-none fixed rounded-2xl border-2 border-[#ff7849] shadow-[0_0_0_9999px_rgba(0,0,0,0.55),0_0_35px_rgba(255,120,73,0.45)]"
+          className="pointer-events-none fixed rounded-2xl border-2 border-[#ff7849] shadow-[0_0_35px_rgba(255,120,73,0.45)]"
           style={{
             top: targetRect.top,
             left: targetRect.left,
@@ -383,7 +414,7 @@ export default function GuidedTour() {
       ) : null}
 
       <section
-        className={`fixed w-full max-w-[560px] rounded-2xl border border-white/15 bg-[#181818] p-5 text-white shadow-[0_30px_90px_-40px_rgba(0,0,0,0.95)] ${targetRect ? '' : 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2'}`}
+        className={`pointer-events-auto fixed w-full max-w-[560px] rounded-2xl border border-white/15 bg-[#181818] p-5 text-white shadow-[0_30px_90px_-40px_rgba(0,0,0,0.95)] ${targetRect ? '' : 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2'}`}
         style={panelStyle}
       >
         <div className="flex items-start justify-between gap-4">
