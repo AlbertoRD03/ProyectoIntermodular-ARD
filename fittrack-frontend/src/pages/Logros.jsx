@@ -154,59 +154,6 @@ function MiniAchievementCard({ emoji, title, subtitle }) {
   );
 }
 
-function FieldLabel({ children }) {
-  return (
-    <div className="text-[10px] sm:text-[11px] uppercase tracking-[0.25em] text-white/45">
-      {children}
-    </div>
-  );
-}
-
-function Input({ value, onChange, placeholder }) {
-  return (
-    <input
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      className="mt-2 h-[46px] w-full rounded-lg border border-white/35 bg-transparent px-4 text-[13px] text-white/85 placeholder:text-white/25 outline-none focus:border-white/60"
-    />
-  );
-}
-
-function TextArea({ value, onChange, placeholder }) {
-  return (
-    <textarea
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      rows={5}
-      className="mt-2 w-full resize-none rounded-lg border border-white/35 bg-transparent px-4 py-3 text-[13px] text-white/85 placeholder:text-white/25 outline-none focus:border-white/60"
-    />
-  );
-}
-
-function TypeCard({ active, emoji, label, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cx(
-        'h-[96px] sm:h-[104px] rounded-xl border px-4 sm:px-5 transition text-center',
-        active
-          ? 'bg-white text-black border-white'
-          : 'bg-transparent text-white/85 border-white/35 hover:border-white/55 hover:text-white'
-      )}
-    >
-      <div className={cx('mx-auto mt-3 grid h-[40px] w-[56px] place-items-center border bg-black/5', active ? 'border-black/25' : 'border-white/35')}>
-        <span className="text-[22px] leading-none">{emoji}</span>
-      </div>
-      <div className={cx('mt-3 text-[11px] font-bold tracking-wide', active ? 'text-black' : 'text-white/90')}>
-        {label.toUpperCase()}
-      </div>
-    </button>
-  );
-}
-
 function PrimaryButton({ children, onClick }) {
   return (
     <button
@@ -250,11 +197,6 @@ function readCustomAchievements() {
   } catch {
     return [];
   }
-}
-
-function writeCustomAchievements(items) {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem('fittrack_custom_achievements', JSON.stringify(items));
 }
 
 function getSessionDate(session) {
@@ -338,14 +280,9 @@ export default function Logros() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const tabParam = params.get('tab');
-  const initialTab = tabParam === 'fitgram' || tabParam === 'crear' || tabParam === 'mis' || tabParam === 'completados' ? tabParam : 'mis';
-  const [tab, setTab] = useState(initialTab); // mis | fitgram | crear
-  const [goalTitle, setGoalTitle] = useState('');
-  const [goalType, setGoalType] = useState('fuerza'); // fuerza | cardio | racha | otro
-  const [goalDescription, setGoalDescription] = useState('');
-  const [goalTarget, setGoalTarget] = useState('10');
-  const [goalUnit, setGoalUnit] = useState('');
-  const [customAchievements, setCustomAchievements] = useState(() => readCustomAchievements());
+  const initialTab = tabParam === 'fitgram' || tabParam === 'mis' || tabParam === 'completados' ? tabParam : 'mis';
+  const [tab, setTab] = useState(initialTab); // mis | fitgram | completados
+  const [customAchievements] = useState(() => readCustomAchievements());
 
   const demoEmpty = params.get('empty') === '1';
   const [sessions, setSessions] = useState([]);
@@ -631,40 +568,6 @@ export default function Logros() {
     ];
   }, [lang]);
 
-  const handleCancelCreate = () => {
-    setGoalTitle('');
-    setGoalType('fuerza');
-    setGoalDescription('');
-    setGoalTarget('10');
-    setGoalUnit('');
-    setTab('mis');
-  };
-
-  const handleCreate = () => {
-    const title = goalTitle.trim();
-    const target = Number(goalTarget);
-    if (!title || !Number.isFinite(target) || target <= 0) return;
-
-    const nextGoal = {
-      id: `custom_${Date.now().toString(16)}`,
-      title,
-      type: goalType,
-      description: goalDescription.trim(),
-      target,
-      unit: goalUnit,
-      createdAt: new Date().toISOString(),
-    };
-    const next = [nextGoal, ...customAchievements];
-    setCustomAchievements(next);
-    writeCustomAchievements(next);
-    setGoalTitle('');
-    setGoalType('fuerza');
-    setGoalDescription('');
-    setGoalTarget('10');
-    setGoalUnit('');
-    setTab('mis');
-  };
-
   const handlePublishAchievement = (achievement) => {
     const unitLabel = achievement.unit ? ` ${achievement.unit}` : '';
     navigate('/fitgram/create', {
@@ -689,118 +592,10 @@ export default function Logros() {
             <TabButton active={tab === 'fitgram'} onClick={() => setTab('fitgram')}>
               {t('ach_tab_fitgram').toUpperCase()}
             </TabButton>
-            <TabButton active={tab === 'crear'} onClick={() => setTab('crear')}>
-              {t('ach_tab_create').toUpperCase()}
-            </TabButton>
           </div>
 
           <div className="mt-10 sm:mt-12">
-            {tab === 'crear' ? (
-              <div className="mx-auto w-full max-w-[760px]">
-                <div className="text-center">
-                  <div className="text-[20px] sm:text-[22px] font-bold tracking-wide text-white/95" style={{ fontFamily: 'Arimo, Poppins, system-ui' }}>
-                    {t('ach_create_title').toUpperCase()}
-                  </div>
-                  <div className="mt-2 text-[12px] sm:text-[13px] text-white/45">
-                    {t('ach_create_subtitle')}
-                  </div>
-                </div>
-
-                <div className="mt-8 sm:mt-10 space-y-7 sm:space-y-8">
-                  <div>
-                    <FieldLabel>{t('ach_create_goal_title').toUpperCase()}</FieldLabel>
-                    <Input
-                      value={goalTitle}
-                      onChange={(e) => setGoalTitle(e.target.value)}
-                      placeholder={tr(lang, 'Ej: Correr 5km sin parar', 'e.g. Run 5km without stopping')}
-                    />
-                  </div>
-
-                  <div>
-                    <FieldLabel>{t('ach_create_type').toUpperCase()}</FieldLabel>
-                    <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-                      <TypeCard
-                        active={goalType === 'fuerza'}
-                        emoji="💪"
-                        label={tr(lang, 'Fuerza', 'Strength')}
-                        onClick={() => setGoalType('fuerza')}
-                      />
-                      <TypeCard
-                        active={goalType === 'cardio'}
-                        emoji="❤️"
-                        label={tr(lang, 'Cardio', 'Cardio')}
-                        onClick={() => setGoalType('cardio')}
-                      />
-                      <TypeCard
-                        active={goalType === 'racha'}
-                        emoji="🔥"
-                        label={tr(lang, 'Racha', 'Streak')}
-                        onClick={() => setGoalType('racha')}
-                      />
-                      <TypeCard
-                        active={goalType === 'otro'}
-                        emoji="⭐"
-                        label={tr(lang, 'Otro', 'Other')}
-                        onClick={() => setGoalType('otro')}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <FieldLabel>{t('ach_create_desc').toUpperCase()}</FieldLabel>
-                    <TextArea
-                      value={goalDescription}
-                      onChange={(e) => setGoalDescription(e.target.value)}
-                      placeholder={tr(lang, 'Describe tu objetivo y cómo quieres conseguirlo...', 'Describe your goal and how you want to achieve it...')}
-                    />
-                  </div>
-
-                  <div>
-                    <FieldLabel>{t('ach_create_numeric').toUpperCase()}</FieldLabel>
-                    <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div>
-                        <div className="text-[10px] uppercase tracking-[0.25em] text-white/35">{t('ach_create_target').toUpperCase()}</div>
-                        <input
-                          value={goalTarget}
-                          onChange={(e) => setGoalTarget(e.target.value)}
-                          className="mt-2 h-[46px] w-full rounded-lg border border-white/35 bg-transparent px-4 text-[13px] text-white/85 outline-none focus:border-white/60"
-                          inputMode="numeric"
-                        />
-                      </div>
-                      <div>
-                        <div className="text-[10px] uppercase tracking-[0.25em] text-white/35">{t('ach_create_unit').toUpperCase()}</div>
-                        <select
-                          value={goalUnit}
-                          onChange={(e) => setGoalUnit(e.target.value)}
-                          className="mt-2 h-[46px] w-full rounded-lg border border-white/35 bg-transparent px-4 text-[13px] text-white/85 outline-none focus:border-white/60"
-                        >
-                          <option value="" className="bg-[#1e1e1e]">
-                            {tr(lang, 'Selecciona…', 'Select…')}
-                          </option>
-                          <option value="kg" className="bg-[#1e1e1e]">
-                            kg
-                          </option>
-                          <option value="min" className="bg-[#1e1e1e]">
-                            min
-                          </option>
-                          <option value="sesiones" className="bg-[#1e1e1e]">
-                            {tr(lang, 'sesiones', 'sessions')}
-                          </option>
-                          <option value="reps" className="bg-[#1e1e1e]">
-                            reps
-                          </option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-center gap-4 sm:gap-6">
-                    <SecondaryButton onClick={handleCancelCreate}>{t('ach_cancel').toUpperCase()}</SecondaryButton>
-                    <PrimaryButton onClick={handleCreate}>{t('ach_create').toUpperCase()}</PrimaryButton>
-                  </div>
-                </div>
-              </div>
-            ) : tab === 'completados' ? (
+            {tab === 'completados' ? (
               <div className="space-y-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                   <div>

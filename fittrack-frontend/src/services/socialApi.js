@@ -42,3 +42,6 @@ export const followUser = async (userId) =>
 
 export const unfollowUser = async (userId) =>
   apiFetch(`/users/${encodeURIComponent(userId)}/follow`, { method: 'DELETE' });
+
+export const listFollowing = async (userId, { limit = 100, signal } = {}) =>
+  apiFetch(`/users/${encodeURIComponent(userId)}/following?limit=${encodeURIComponent(String(limit))}`, { signal });

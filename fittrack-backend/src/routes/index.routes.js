@@ -11,6 +11,7 @@ import catalogRoutes from './catalog.routes.js';
 import uploadRoutes from './upload.routes.js';
 import fitgramRoutes from './fitgram.routes.js';
 import notificationRoutes from './notification.routes.js';
+import challengeRoutes from './challenge.routes.js';
 import swaggerSpec from '../config/swagger.js';
 
 const registerRoutes = (app) => {
@@ -66,6 +67,7 @@ const registerRoutes = (app) => {
   app.use('/api/uploads', uploadRoutes);
   app.use('/api/fitgram', fitgramRoutes);
   app.use('/api/notifications', notificationRoutes);
+  app.use('/api/challenges', challengeRoutes);
   app.use(
     '/api/docs',
     swaggerUi.serve,
