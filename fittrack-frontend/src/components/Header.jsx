@@ -3,7 +3,7 @@ import {
   CalendarDays,
   Home,
   LayoutGrid,
-  MessageSquareText,
+  BarChart3,
   Trophy,
   UserRound,
   ChevronDown,
@@ -180,7 +180,7 @@ export default function Header() {
           />
           <NavItem active={isActive('/fitgram')} icon={LayoutGrid} label={t('nav_fitgram')} onClick={() => navigate('/fitgram')} />
           <NavItem active={isActive('/logros')} icon={Trophy} label={t('nav_achievements')} onClick={() => navigate('/logros')} />
-          <NavItem active={isActive('/fitia')} icon={MessageSquareText} label={t('nav_ai_chat')} onClick={() => navigate('/fitia')} />
+          <NavItem active={isActive('/estadisticas')} icon={BarChart3} label={t('nav_stats')} onClick={() => navigate('/estadisticas')} />
         </nav>
 
         <div className="hidden md:block" />
