@@ -354,7 +354,7 @@ function AchievementRow({ achievement }) {
 function FitgramPost({ post }) {
   const { t } = useI18n();
   return (
-    <div className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.06]">
+    <article className="flex-none overflow-hidden rounded-xl border border-white/10 bg-white/[0.06]">
       <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3 md:px-5 md:py-4">
         <div className="h-9 w-9 rounded-lg border border-[#ff7849]/60 bg-white/[0.04] overflow-hidden flex-shrink-0">
           {post.avatarUrl ? <img src={post.avatarUrl} alt={post.username} className="h-full w-full object-cover" /> : null}
@@ -365,7 +365,10 @@ function FitgramPost({ post }) {
         </div>
       </div>
 
-      <div className="relative h-[300px] sm:h-[340px] xl:h-[390px] 2xl:h-[430px] bg-gradient-to-br from-[#ff7849]/25 via-white/5 to-black/10">
+      <div
+        className="relative bg-gradient-to-br from-[#ff7849]/25 via-white/5 to-black/10"
+        style={{ height: '220px' }}
+      >
         {post.imageUrl ? (
           <img src={post.imageUrl} alt={post.caption || post.username} className="h-full w-full object-cover" loading="lazy" />
         ) : (
@@ -390,7 +393,7 @@ function FitgramPost({ post }) {
           </div>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -943,7 +946,7 @@ export default function Main() {
                   </div>
                 </div>
               ) : (
-                <div className="grid h-full min-h-0 grid-cols-1 gap-4 overflow-y-auto overflow-x-hidden pr-2 sm:grid-cols-2 sm:gap-5 xl:grid-cols-1 xl:pr-3">
+                <div className="flex h-full min-h-0 flex-col gap-5 overflow-y-auto overflow-x-hidden pr-2 overscroll-contain xl:pr-3">
                   {fitgram.map((p) => (
                     <FitgramPost key={p.id} post={p} />
                   ))}
