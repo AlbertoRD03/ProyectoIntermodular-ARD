@@ -782,8 +782,8 @@ export default function Main() {
       {/* Layout */}
       <div className="grid h-[calc(100vh-56px)] w-full grid-cols-1 items-stretch gap-4 overflow-hidden px-3 py-4 sm:h-[calc(100vh-64px)] sm:gap-5 sm:px-4 sm:py-5 md:gap-6 md:px-6 md:py-6 lg:px-7 lg:py-7 xl:grid-cols-[minmax(0,1fr)_360px] xl:px-8 xl:py-8 2xl:grid-cols-[minmax(0,1fr)_400px] 2xl:px-10">
         {/* Left */}
-        <div className="min-h-0 min-w-0 space-y-4 overflow-hidden sm:space-y-5 md:space-y-6">
-          <Card className="p-0">
+        <div className="flex min-h-0 min-w-0 flex-col gap-4 overflow-hidden sm:gap-5 md:gap-6">
+          <Card className="shrink-0 p-0">
             <div className="px-4 sm:px-5 md:px-6 pt-4 sm:pt-5 md:pt-6">
               <div className="text-[14px] sm:text-[16px] md:text-[18px] font-semibold tracking-wide text-white/85" style={{ fontFamily: 'Arimo, Poppins, system-ui' }}>
                 {t('Resumen semanal').toUpperCase()}
@@ -840,8 +840,8 @@ export default function Main() {
             </div>
           </Card>
 
-          <div className="grid grid-cols-1 gap-4 sm:gap-5 md:gap-6 lg:grid-cols-2">
-            <Card className="min-h-[320px] sm:min-h-[380px] md:min-h-[420px] lg:min-h-[480px] xl:h-[520px] xl:min-h-0">
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 sm:gap-5 md:gap-6 lg:grid-cols-2">
+            <Card className="min-h-[320px] sm:min-h-[380px] md:min-h-[420px] lg:min-h-0 lg:h-full">
               <CardTitle>{t('Sesión de hoy').toUpperCase()}</CardTitle>
               <div className="px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6 pt-3 sm:pt-4 md:pt-5">
                 {sessionsLoading && !todayExercises.length ? (
@@ -885,7 +885,7 @@ export default function Main() {
               </div>
             </Card>
 
-            <Card className="min-h-[320px] sm:min-h-[380px] md:min-h-[420px] lg:min-h-[480px] xl:h-[520px] xl:min-h-0 overflow-hidden">
+            <Card className="min-h-[320px] sm:min-h-[380px] md:min-h-[420px] lg:min-h-0 lg:h-full overflow-hidden">
               <button
                 type="button"
                 onClick={() => navigate(hasUserAchievements ? '/logros?tab=mis' : '/logros?tab=fitgram')}
