@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bookmark, Check, ChevronDown, ClipboardCopy, Plus, Search, X } from 'lucide-react';
+import { Bookmark, CalendarCheck, Check, ChevronDown, ClipboardCopy, Plus, Search, X } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import { useI18n, tr } from '../i18n/I18nProvider';
 import { getDateKey, upsertSession } from '../services/sessionStore';
 import { createSession, listSessionHistory } from '../services/sessionsApi';
 import { listZones, searchCatalogExercises } from '../services/catalogApi';
+import { getSessionPlan } from '../services/sessionPlanApi';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -311,6 +312,13 @@ function makeId(prefix = 'id') {
   return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
 }
 
+function getDayIndexFromDateKey(dateKey) {
+  const date = new Date(`${dateKey}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return 1;
+  const day = date.getDay();
+  return day === 0 ? 7 : day;
+}
+
 function SavedWorkoutStat({ label, value }) {
   return (
     <div className="flex flex-col items-center justify-center py-2">
@@ -394,6 +402,9 @@ export default function CreateSession() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [catalogError, setCatalogError] = useState('');
+  const [plannedSession, setPlannedSession] = useState(null);
+  const [plannedSessionLoading, setPlannedSessionLoading] = useState(false);
+  const [plannedChoice, setPlannedChoice] = useState('');
 
   const addMuscleGroup = () => setMuscleGroups((prev) => [...prev, 'full_body']);
   const removeMuscleGroup = (index) =>
@@ -429,6 +440,27 @@ export default function CreateSession() {
       year: 'numeric',
     });
   }, [dateKey, lang]);
+
+  useEffect(() => {
+    let alive = true;
+    setPlannedSessionLoading(true);
+    getSessionPlan()
+      .then((data) => {
+        if (!alive) return;
+        const sessions = Array.isArray(data?.plan?.sessions) ? data.plan.sessions : [];
+        const dayIndex = getDayIndexFromDateKey(dateKey);
+        setPlannedSession(sessions.find((session) => Number(session?.dayIndex) === dayIndex) || null);
+      })
+      .catch(() => {
+        if (alive) setPlannedSession(null);
+      })
+      .finally(() => {
+        if (alive) setPlannedSessionLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [dateKey]);
 
   useEffect(() => {
     let alive = true;
@@ -634,6 +666,33 @@ export default function CreateSession() {
 
   const [added, setAdded] = useState(() => []);
 
+  const applyPlannedSession = () => {
+    if (!plannedSession) return;
+    const title = String(plannedSession.title || '').trim();
+    const zonesToUse = Array.isArray(plannedSession.zoneKeys) && plannedSession.zoneKeys.length
+      ? plannedSession.zoneKeys
+      : ['full_body'];
+    setSessionName(title);
+    setSessionNameTouched(true);
+    setMuscleGroups(zonesToUse);
+    setAdded((Array.isArray(plannedSession.exercises) ? plannedSession.exercises : []).map((exercise) => ({
+      id: makeId('ex'),
+      catalogId: exercise.catalogId || '',
+      name: String(exercise.name || '').trim().toUpperCase(),
+      sets: Array.from({ length: Math.max(1, Number(exercise.setsCount || 3) || 3) }).map(() => ({
+        id: makeId('set'),
+        reps: '',
+        weight: '',
+        option: 'OPCIONES',
+      })),
+    })).filter((exercise) => exercise.name));
+    setPlannedChoice('planned');
+  };
+
+  const startCustomSession = () => {
+    setPlannedChoice('custom');
+  };
+
   const toAddedExercises = (savedWorkout) => {
     return savedWorkout.exercises.map((exercise) => ({
       id: makeId('ex'),
@@ -832,6 +891,44 @@ export default function CreateSession() {
               {location.state?.infoMessage || tr(lang, 'Estás creando una sesión para una fecha futura.', 'You are creating a session for a future date.')}
             </div>
           ) : null}
+
+          {plannedSessionLoading ? (
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 sm:px-5 py-3 text-[12px] sm:text-[13px] text-white/60">
+              {tr(lang, 'Comprobando sesión planificada...', 'Checking planned session...')}
+            </div>
+          ) : plannedSession ? (
+            <Card className="border-[#ff7849]/20 bg-[#ff7849]/[0.06] p-4 sm:p-5">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[#ff7849]/35 bg-[#ff7849]/10 text-[#ff7849]">
+                    <CalendarCheck className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] uppercase tracking-[0.25em] text-[#ff7849]/80">
+                      {tr(lang, 'Sesión planificada para este día', 'Planned session for this day')}
+                    </div>
+                    <div className="mt-1 text-[16px] font-bold uppercase text-white/95">{plannedSession.title}</div>
+                    <div className="mt-1 text-[12px] text-white/55">
+                      {(plannedSession.exercises || []).length} {tr(lang, 'ejercicios predefinidos', 'predefined exercises')}
+                      {plannedSession.zoneKeys?.length ? ` · ${plannedSession.zoneKeys.join(' + ')}` : ''}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <OutlineButton onClick={startCustomSession} className={plannedChoice === 'custom' ? 'border-white/40 bg-white/[0.08]' : ''}>
+                    {tr(lang, 'Hacer sesión propia', 'Create custom')}
+                  </OutlineButton>
+                  <PrimaryButton onClick={applyPlannedSession} className={plannedChoice === 'planned' ? 'ring-2 ring-[#ff7849]/30' : ''}>
+                    {tr(lang, 'Usar planificada', 'Use planned')}
+                  </PrimaryButton>
+                </div>
+              </div>
+            </Card>
+          ) : (
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 sm:px-5 py-3 text-[12px] sm:text-[13px] text-white/60">
+              {tr(lang, 'No hay sesión planificada para este día. Puedes crear una propia o configurar el planificador.', 'No planned session for this day. You can create a custom one or configure the planner.')}
+            </div>
+          )}
 
           <Card className="p-5 sm:p-6 md:p-7 border-white/15">
             <div className="text-[13px] sm:text-[14px] font-bold uppercase tracking-widest text-white/85">

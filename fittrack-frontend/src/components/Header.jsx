@@ -4,7 +4,7 @@ import {
   Home,
   LayoutGrid,
   BarChart3,
-  Target,
+  ClipboardList,
   Trophy,
   UserRound,
   ChevronDown,
@@ -181,7 +181,7 @@ export default function Header() {
           />
           <NavItem active={isActive('/fitgram')} icon={LayoutGrid} label={t('nav_fitgram')} onClick={() => navigate('/fitgram')} />
           <NavItem active={isActive('/logros')} icon={Trophy} label={t('nav_achievements')} onClick={() => navigate('/logros')} />
-          <NavItem active={isActive('/retos')} icon={Target} label={t('nav_challenges')} onClick={() => navigate('/retos')} />
+          <NavItem active={isActive('/planificador')} icon={ClipboardList} label={t('nav_planner')} onClick={() => navigate('/planificador')} />
           <NavItem active={isActive('/estadisticas')} icon={BarChart3} label={t('nav_stats')} onClick={() => navigate('/estadisticas')} />
         </nav>
 

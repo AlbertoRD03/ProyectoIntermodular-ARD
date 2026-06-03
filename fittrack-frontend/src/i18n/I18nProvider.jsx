@@ -14,7 +14,7 @@ const translations = {
     nav_achievements: 'Logros',
     nav_ai_chat: 'Chat IA',
     nav_stats: 'Estadísticas',
-    nav_challenges: 'Retos',
+    nav_planner: 'Planificador',
     nav_profile: 'Perfil',
 
     profile_user_tab: 'Usuario',
@@ -108,7 +108,7 @@ const translations = {
     nav_achievements: 'Achievements',
     nav_ai_chat: 'AI Chat',
     nav_stats: 'Statistics',
-    nav_challenges: 'Challenges',
+    nav_planner: 'Planner',
     nav_profile: 'Profile',
 
     profile_user_tab: 'User',

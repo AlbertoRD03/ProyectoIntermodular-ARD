@@ -15,7 +15,7 @@ import CreateFitGramPost from './pages/CreateFitGramPost';
 import Logros from './pages/Logros';
 import Perfil from './pages/Perfil';
 import Statistics from './pages/Statistics';
-import Challenges from './pages/Challenges';
+import SessionPlanner from './pages/SessionPlanner';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import OnboardingEnforcer from './components/OnboardingEnforcer';
@@ -50,7 +50,8 @@ const App = () => {
         <Route path="/comunidad" element={<Navigate to="/fitgram?tab=community" replace />} />
         <Route path="/usuarios/:id" element={<UserPublicProfile />} />
         <Route path="/logros" element={<Logros />} />
-        <Route path="/retos" element={<Challenges />} />
+        <Route path="/planificador" element={<SessionPlanner />} />
+        <Route path="/retos" element={<Navigate to="/planificador" replace />} />
         <Route path="/estadisticas" element={<Statistics />} />
         <Route path="/fitia" element={<Navigate to="/estadisticas" replace />} />
         <Route path="/perfil" element={<Perfil />} />
