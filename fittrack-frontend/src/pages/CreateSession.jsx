@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Bookmark, Check, ChevronDown, ClipboardCopy, Plus, Search, X } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import { useI18n, tr } from '../i18n/I18nProvider';
 import { getDateKey, upsertSession } from '../services/sessionStore';
@@ -375,6 +375,7 @@ function SavedWorkoutCard({ workout, copiedState, onCopyReplace, onCopyAppend })
 
 export default function CreateSession() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { lang } = useI18n();
   const [params] = useSearchParams();
   const [zones, setZones] = useState([]);
@@ -409,6 +410,14 @@ export default function CreateSession() {
     if (Number.isNaN(d.getTime())) return getDateKey(new Date());
     return getDateKey(d);
   }, [params]);
+
+  const isFutureSession = useMemo(() => {
+    if (params.get('future') === '1' || location.state?.futureSession) return true;
+    const selected = new Date(`${dateKey}T12:00:00`);
+    const today = new Date(`${getDateKey(new Date())}T12:00:00`);
+    if (Number.isNaN(selected.getTime())) return false;
+    return selected.getTime() > today.getTime();
+  }, [dateKey, location.state, params]);
 
   const workoutDateLabel = useMemo(() => {
     const base = new Date(`${dateKey}T12:00:00`);
@@ -817,6 +826,12 @@ export default function CreateSession() {
               {tr(lang, 'ENTRENOS GUARDADOS', 'SAVED WORKOUTS')}
             </button>
           </div>
+
+          {isFutureSession ? (
+            <div className="rounded-xl border border-[#ff7849]/30 bg-[#ff7849]/10 px-4 sm:px-5 py-3 text-[12px] sm:text-[13px] text-white/85">
+              {location.state?.infoMessage || tr(lang, 'Estás creando una sesión para una fecha futura.', 'You are creating a session for a future date.')}
+            </div>
+          ) : null}
 
           <Card className="p-5 sm:p-6 md:p-7 border-white/15">
             <div className="text-[13px] sm:text-[14px] font-bold uppercase tracking-widest text-white/85">

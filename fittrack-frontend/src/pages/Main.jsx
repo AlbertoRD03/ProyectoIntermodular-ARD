@@ -68,7 +68,7 @@ function Chip({ children }) {
   );
 }
 
-function WeeklyWorkoutBadge({ type, onClick }) {
+function WeeklyWorkoutBadge({ type }) {
   const { t } = useI18n();
   const colorMap = {
     pecho: 'bg-[#ff7849]/20 text-[#ff7849]',
@@ -84,18 +84,15 @@ function WeeklyWorkoutBadge({ type, onClick }) {
   const key = normalized.toLowerCase();
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <span
       className={cx(
-        'inline-flex items-center justify-center px-2 py-1 rounded text-[9px] sm:text-[10px] font-semibold uppercase tracking-wide transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-white/20',
+        'inline-flex items-center justify-center px-2 py-1 rounded text-[9px] sm:text-[10px] font-semibold uppercase tracking-wide',
         colorMap[key] || 'bg-white/10 text-white/70'
       )}
-      aria-label={`${t('Abrir entrenamiento')}: ${t(normalized)}`}
       title={t('Abrir detalle')}
     >
       {t(normalized)}
-    </button>
+    </span>
   );
 }
 
@@ -191,6 +188,13 @@ function calculateStreak(sessions) {
     cursor.setDate(cursor.getDate() - 1);
   }
   return streak;
+}
+
+function isFutureDateKey(dateKey) {
+  const target = new Date(`${dateKey}T12:00:00`);
+  const today = new Date(`${getDateKey(new Date())}T12:00:00`);
+  if (Number.isNaN(target.getTime())) return false;
+  return target.getTime() > today.getTime();
 }
 
 function normalizePost(post, lang) {
@@ -492,6 +496,29 @@ export default function Main() {
     return fitgramPosts.map((post) => normalizePost(post, lang));
   }, [demo, fitgramPosts, lang, t]);
 
+  const openWeeklyDay = (day) => {
+    const firstSession = day.items.find((item) => item.session);
+    if (firstSession) {
+      const workout = firstSession.source === 'api'
+        ? formatSessionForDetail(firstSession.session, lang)
+        : firstSession.session;
+      navigate(`/sessiondetail/${workout.id || firstSession.id}`, { state: { workout } });
+      return;
+    }
+
+    const future = isFutureDateKey(day.dateKey);
+    navigate(`/crear-sesion?date=${day.dateKey}${future ? '&future=1' : ''}`, {
+      state: {
+        futureSession: future,
+        infoMessage: future
+          ? (lang === 'en'
+              ? 'You are creating a session for a future date.'
+              : 'Estás creando una sesión para una fecha futura.')
+          : '',
+      },
+    });
+  };
+
   return (
     <div className="min-h-screen bg-[#1e1e1e] text-[#f5f5f5]">
       <Header />
@@ -511,13 +538,21 @@ export default function Main() {
               <div className="grid grid-cols-2 min-[520px]:grid-cols-3 md:grid-cols-4 2xl:grid-cols-7 gap-2 sm:gap-3 md:gap-4">
                 {weekly.map((d) => {
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={`${d.label}-${d.date}`}
+                      onClick={() => openWeeklyDay(d)}
                       className={cx(
-                        'flex min-h-[120px] sm:min-h-[132px] flex-col rounded-lg sm:rounded-xl border bg-white/[0.04] p-2.5 sm:p-3 transition-all',
-                        'w-full min-w-0',
-                        d.isToday ? 'border-white/70 bg-white/[0.08]' : 'border-white/10'
+                        'flex min-h-[120px] sm:min-h-[132px] w-full min-w-0 flex-col rounded-lg sm:rounded-xl border bg-white/[0.04] p-2.5 sm:p-3 text-left transition-all',
+                        'hover:border-[#ff7849]/60 hover:bg-white/[0.07] focus:outline-none focus:ring-2 focus:ring-[#ff7849]/25',
+                        d.isToday ? 'border-white/70 bg-white/[0.08]' : 'border-white/10',
+                        isFutureDateKey(d.dateKey) && !d.items.length ? 'border-white/10 border-dashed' : ''
                       )}
+                      aria-label={
+                        d.items.length
+                          ? `${t('Abrir entrenamiento')}: ${d.label} ${d.date}`
+                          : `${t('Crear sesión de hoy')}: ${d.label} ${d.date}`
+                      }
                     >
                       <div className="text-[9px] sm:text-[10px] md:text-[11px] font-semibold uppercase tracking-wide text-white/45">
                         {d.label}
@@ -532,10 +567,6 @@ export default function Main() {
                                 <WeeklyWorkoutBadge
                                   key={it.id}
                                   type={it.label}
-                                  onClick={() => {
-                                    const workout = it.source === 'api' ? formatSessionForDetail(it.session, lang) : it.session;
-                                    navigate(`/sessiondetail/${workout.id || it.id}`, { state: { workout } });
-                                  }}
                                 />
                               ) : (
                                 <Chip key={it.id}>{it.label}</Chip>
@@ -546,7 +577,7 @@ export default function Main() {
                           <div className="text-[9px] sm:text-[10px] text-white/35">+{d.items.length - 2}</div>
                         ) : null}
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
