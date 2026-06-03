@@ -353,18 +353,18 @@ function AchievementRow({ achievement }) {
 function FitgramPost({ post }) {
   const { t } = useI18n();
   return (
-    <div className="overflow-hidden rounded-lg sm:rounded-xl border border-white/10 bg-white/[0.06]">
-      <div className="flex items-center gap-2 sm:gap-3 md:gap-4 border-b border-white/10 px-3 sm:px-4 md:px-5 py-2 sm:py-3 md:py-4">
-        <div className="h-7 w-7 rounded-lg border border-[#ff7849]/60 bg-white/[0.04] overflow-hidden flex-shrink-0">
+    <div className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.06]">
+      <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3 md:px-5 md:py-4">
+        <div className="h-9 w-9 rounded-lg border border-[#ff7849]/60 bg-white/[0.04] overflow-hidden flex-shrink-0">
           {post.avatarUrl ? <img src={post.avatarUrl} alt={post.username} className="h-full w-full object-cover" /> : null}
         </div>
         <div className="min-w-0">
-          <div className="text-[12px] sm:text-[13px] md:text-[14px] font-semibold text-white/85 truncate">@{post.username}</div>
-          <div className="text-[9px] uppercase tracking-widest text-white/35">{post.dateLabel || t('FitGram')}</div>
+          <div className="text-[14px] font-semibold text-white/85 truncate">@{post.username}</div>
+          <div className="text-[10px] uppercase tracking-widest text-white/35">{post.dateLabel || t('FitGram')}</div>
         </div>
       </div>
 
-      <div className="relative aspect-[4/3] bg-gradient-to-br from-[#ff7849]/25 via-white/5 to-black/10">
+      <div className="relative aspect-square bg-gradient-to-br from-[#ff7849]/25 via-white/5 to-black/10">
         {post.imageUrl ? (
           <img src={post.imageUrl} alt={post.caption || post.username} className="h-full w-full object-cover" loading="lazy" />
         ) : (
@@ -375,15 +375,15 @@ function FitgramPost({ post }) {
         <div className="absolute inset-0 bg-black/10" />
       </div>
 
-      <div className="px-3 sm:px-4 md:px-5 py-3">
-        <p className="line-clamp-2 text-[11px] sm:text-[12px] text-white/70">
+      <div className="px-4 py-3.5 md:px-5 md:py-4">
+        <p className="line-clamp-2 text-[13px] text-white/70">
           <span className="font-semibold text-white/85">@{post.username}</span> {post.caption}
         </p>
         <div className="mt-3 flex items-center gap-3 text-white/55">
-          <Heart className="h-4 w-4 flex-shrink-0" />
-          <span className="text-[11px]">{post.likes}</span>
-          <MessageCircle className="h-4 w-4 flex-shrink-0" />
-          <span className="text-[11px]">{post.comments}</span>
+          <Heart className="h-[18px] w-[18px] flex-shrink-0" />
+          <span className="text-[12px]">{post.likes}</span>
+          <MessageCircle className="h-[18px] w-[18px] flex-shrink-0" />
+          <span className="text-[12px]">{post.comments}</span>
           <div className="ml-auto text-[10px] uppercase tracking-widest text-white/35">
             {post.type === 'workout' ? t('Entreno') : `${post.tags.length} tags`}
           </div>
@@ -780,7 +780,7 @@ export default function Main() {
       <Header />
 
       {/* Layout */}
-      <div className="grid h-[calc(100vh-56px)] w-full grid-cols-1 items-stretch gap-4 overflow-hidden px-3 py-4 sm:h-[calc(100vh-64px)] sm:gap-5 sm:px-4 sm:py-5 md:gap-6 md:px-6 md:py-6 lg:px-7 lg:py-7 xl:grid-cols-[minmax(0,1fr)_360px] xl:px-8 xl:py-8 2xl:grid-cols-[minmax(0,1fr)_400px] 2xl:px-10">
+      <div className="grid h-[calc(100vh-56px)] w-full grid-cols-1 items-stretch gap-4 overflow-hidden px-3 py-4 sm:h-[calc(100vh-64px)] sm:gap-5 sm:px-4 sm:py-5 md:gap-6 md:px-6 md:py-6 lg:px-7 lg:py-7 xl:grid-cols-[minmax(0,1fr)_430px] xl:px-8 xl:py-8 2xl:grid-cols-[minmax(0,1fr)_470px] 2xl:px-10">
         {/* Left */}
         <div className="flex min-h-0 min-w-0 flex-col gap-4 overflow-hidden sm:gap-5 md:gap-6">
           <Card className="shrink-0 p-0">
@@ -941,7 +941,7 @@ export default function Main() {
                   </div>
                 </div>
               ) : (
-                <div className="grid h-full min-h-0 grid-cols-1 gap-3 overflow-auto pr-1.5 sm:grid-cols-2 sm:gap-4 xl:grid-cols-1 xl:pr-2">
+                <div className="grid h-full min-h-0 grid-cols-1 gap-4 overflow-y-auto overflow-x-hidden pr-2 sm:grid-cols-2 sm:gap-5 xl:grid-cols-1 xl:pr-3">
                   {fitgram.map((p) => (
                     <FitgramPost key={p.id} post={p} />
                   ))}
