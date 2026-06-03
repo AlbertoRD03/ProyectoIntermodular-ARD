@@ -776,13 +776,13 @@ export default function Main() {
   };
 
   return (
-    <div className="min-h-screen bg-[#1e1e1e] text-[#f5f5f5]">
+    <div className="h-screen overflow-hidden bg-[#1e1e1e] text-[#f5f5f5]">
       <Header />
 
       {/* Layout */}
-      <div className="w-full grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px] items-stretch gap-4 sm:gap-5 md:gap-6 px-3 sm:px-4 md:px-6 lg:px-7 xl:px-8 2xl:px-10 py-4 sm:py-5 md:py-6 lg:py-7 xl:py-8">
+      <div className="grid h-[calc(100vh-56px)] w-full grid-cols-1 items-stretch gap-4 overflow-hidden px-3 py-4 sm:h-[calc(100vh-64px)] sm:gap-5 sm:px-4 sm:py-5 md:gap-6 md:px-6 md:py-6 lg:px-7 lg:py-7 xl:grid-cols-[minmax(0,1fr)_360px] xl:px-8 xl:py-8 2xl:grid-cols-[minmax(0,1fr)_400px] 2xl:px-10">
         {/* Left */}
-        <div className="min-w-0 space-y-4 sm:space-y-5 md:space-y-6">
+        <div className="min-h-0 min-w-0 space-y-4 overflow-hidden sm:space-y-5 md:space-y-6">
           <Card className="p-0">
             <div className="px-4 sm:px-5 md:px-6 pt-4 sm:pt-5 md:pt-6">
               <div className="text-[14px] sm:text-[16px] md:text-[18px] font-semibold tracking-wide text-white/85" style={{ fontFamily: 'Arimo, Poppins, system-ui' }}>
@@ -916,16 +916,16 @@ export default function Main() {
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') navigate('/fitgram');
           }}
-          className="h-full w-full min-w-0 cursor-pointer text-left"
+          className="min-h-0 h-full w-full min-w-0 cursor-pointer text-left"
         >
-          <Card className="flex h-full min-h-[400px] flex-col overflow-hidden sm:min-h-[500px] md:min-h-[600px] xl:min-h-0">
+          <Card className="flex h-full min-h-0 flex-col overflow-hidden">
             <div className="flex items-center justify-between px-4 sm:px-5 md:px-6 pt-4 sm:pt-5 md:pt-6">
               <h2 className="text-[16px] sm:text-[18px] md:text-[20px] lg:text-[22px] font-bold tracking-wide text-white/90" style={{ fontFamily: 'Arimo, Poppins, system-ui' }}>
                 {t('FitGram').toUpperCase()}
               </h2>
             </div>
 
-            <div className="min-h-0 flex-1 px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6 pt-3 sm:pt-4 md:pt-5">
+            <div className="min-h-0 flex-1 px-4 pb-4 pt-3 sm:px-5 sm:pb-5 sm:pt-4 md:px-6 md:pb-6 md:pt-5">
               {fitgramLoading ? (
                 <div className="flex h-full items-center justify-center min-h-[320px] sm:min-h-[400px] md:min-h-[480px] xl:min-h-0">
                   <div className="max-w-[360px] text-center text-white/60 text-[12px] sm:text-[13px]">
