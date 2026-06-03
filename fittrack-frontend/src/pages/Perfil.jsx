@@ -1030,7 +1030,7 @@ export default function Perfil() {
                       {t('profile_account_config').toUpperCase()}
                     </div>
                   <div className="mt-5 flex flex-wrap items-center justify-center gap-4">
-                    <ActionButton>{t('profile_change_password').toUpperCase()}</ActionButton>
+                    <ActionButton onClick={() => navigate('/password-recovery')}>{t('profile_change_password').toUpperCase()}</ActionButton>
                     <ActionButton onClick={() => navigate('/privacy-settings')}>{t('profile_privacy_settings').toUpperCase()}</ActionButton>
                     <ActionButton variant="danger" onClick={() => { setDeleteError(''); setShowDeleteConfirm(true); }}>
                       {t('profile_delete_account').toUpperCase()}
@@ -1343,11 +1343,9 @@ export default function Perfil() {
                   <div className="text-center text-[10px] uppercase tracking-[0.25em] text-white/35">
                     {t('physical_history_stats').toUpperCase()}
                   </div>
-                  <div className="mt-5 flex flex-wrap items-center justify-center gap-4">
-                    <ActionButton onClick={() => navigate('/evolucion-peso')}>{t('physical_see_weight').toUpperCase()}</ActionButton>
-                    <ActionButton>{t('physical_measures_history').toUpperCase()}</ActionButton>
-                    <ActionButton variant="primary">{t('physical_new_measure').toUpperCase()}</ActionButton>
-                  </div>
+	                  <div className="mt-5 flex flex-wrap items-center justify-center gap-4">
+	                    <ActionButton onClick={() => navigate('/evolucion-peso')}>{t('physical_see_weight').toUpperCase()}</ActionButton>
+	                  </div>
                 </div>
               </div>
             )}

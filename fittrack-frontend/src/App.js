@@ -19,6 +19,7 @@ import SessionPlanner from './pages/SessionPlanner';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import OnboardingEnforcer from './components/OnboardingEnforcer';
+import GuidedTour from './components/GuidedTour';
 import WeightEvolution from './pages/WeightEvolution';
 import PrivacySettings from './pages/PrivacySettings';
 import UserPublicProfile from './pages/UserPublicProfile';
@@ -28,6 +29,7 @@ const App = () => {
   return (
     <>
       <OnboardingEnforcer />
+      <GuidedTour />
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
