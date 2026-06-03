@@ -87,20 +87,51 @@ export const ensurePhysicalDataReminder = async ({ userId }) => {
   });
 };
 
+const getTodayKey = () => new Date().toISOString().slice(0, 10);
+
+const getTodayDayIndex = () => {
+  const day = new Date().getDay();
+  return day === 0 ? 7 : day;
+};
+
+export const ensurePlannerReminder = async ({ userId }) => {
+  assertMongoReady();
+  const recipientId = assertObjectId(userId, 'Usuario inválido');
+  const { default: SessionPlan } = await import('../models/mongodb/SessionPlan.js');
+  const plan = await SessionPlan.findOne({ userId: recipientId }).lean();
+  const session = (Array.isArray(plan?.sessions) ? plan.sessions : []).find((item) => Number(item?.dayIndex) === getTodayDayIndex());
+  if (!session?.title) return null;
+
+  const dayKey = getTodayKey();
+  const title = String(session.title || 'entreno').trim();
+  return createNotification({
+    userId: recipientId,
+    type: 'planner_reminder',
+    title: 'Entreno planificado para hoy',
+    message: `Hoy te toca ${title}. Dale duro para ponerte como un toro.`,
+    link: `/crear-sesion?date=${dayKey}`,
+    metadata: { dayKey, plannedTitle: title },
+    dedupeKey: `planner:${recipientId}:${dayKey}`,
+  });
+};
+
 export const listNotifications = async ({ userId, limit = 50, unreadOnly = false } = {}) => {
   assertMongoReady();
   const recipientId = assertObjectId(userId, 'Usuario inválido');
-  await ensurePhysicalDataReminder({ userId: recipientId });
+  await Promise.all([
+    ensurePhysicalDataReminder({ userId: recipientId }),
+    ensurePlannerReminder({ userId: recipientId }),
+  ]);
 
   const safeLimit = Math.min(100, Math.max(1, Number(limit) || 50));
   const { default: Notification } = await import('../models/mongodb/Notification.js');
   const { default: User } = await import('../models/mongodb/User.js');
-  const query = { userId: recipientId };
+  const query = { userId: recipientId, type: { $ne: 'challenge_request' } };
   if (unreadOnly) query.readAt = { $exists: false };
 
   const [notifications, unreadCount] = await Promise.all([
     Notification.find(query).sort({ createdAt: -1 }).limit(safeLimit).lean(),
-    Notification.countDocuments({ userId: recipientId, readAt: { $exists: false } }),
+    Notification.countDocuments({ userId: recipientId, type: { $ne: 'challenge_request' }, readAt: { $exists: false } }),
   ]);
 
   const actorIds = Array.from(new Set(notifications.map((item) => String(item.actorId || '')).filter(Boolean)));

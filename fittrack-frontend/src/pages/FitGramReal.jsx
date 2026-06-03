@@ -425,7 +425,7 @@ function readCurrentUser() {
   }
 }
 
-function OwnProfileHeader({ user, postsCount, stats, onCreate, onBack, lang }) {
+function OwnProfileHeader({ user, postsCount, stats, onBack, lang }) {
   const displayName = user?.apodo || user?.nombre || 'user';
   const fullName = user?.nombre || '';
   const avatarLabel = (displayName[0] || 'U').toUpperCase();
@@ -469,16 +469,6 @@ function OwnProfileHeader({ user, postsCount, stats, onCreate, onBack, lang }) {
           <Stat label={tr(lang, 'Seguidos', 'Following')} value={stats?.following ?? 0} />
         </div>
 
-        <div className="sm:ml-auto">
-          <button
-            type="button"
-            onClick={onCreate}
-            className="inline-flex items-center gap-2 rounded-lg border border-[#ff7849]/70 bg-[#ff7849]/10 px-4 py-2.5 text-[12px] font-semibold text-[#ff7849] hover:bg-[#ff7849]/20 transition"
-          >
-            <Plus className="h-4 w-4" />
-            {tr(lang, 'Nueva publicación', 'New post')}
-          </button>
-        </div>
       </div>
       </div>
     </>
@@ -925,17 +915,15 @@ export default function FitGramReal({ forceEmpty = false }) {
                 <div className="flex-1" />
               )}
 
-              {activeTab === 'profile' ? (
-                <button
-                  type="button"
-                  onClick={() => navigate('/fitgram/create')}
-                  className="h-[46px] w-[46px] rounded-lg border border-white/15 bg-white/[0.03] hover:bg-white/[0.08] transition flex items-center justify-center"
-                  aria-label={tr(lang, 'Crear publicación', 'Create post')}
-                  title={tr(lang, 'Crear publicación', 'Create post')}
-                >
-                  <Plus className="h-5 w-5 text-white/70" />
-                </button>
-              ) : null}
+              <button
+                type="button"
+                onClick={() => navigate('/fitgram/create')}
+                className="h-[46px] w-[46px] rounded-lg border border-white/15 bg-white/[0.03] hover:bg-white/[0.08] transition flex items-center justify-center"
+                aria-label={tr(lang, 'Crear publicación', 'Create post')}
+                title={tr(lang, 'Crear publicación', 'Create post')}
+              >
+                <Plus className="h-5 w-5 text-white/70" />
+              </button>
             </div>
           </div>
 
@@ -958,7 +946,6 @@ export default function FitGramReal({ forceEmpty = false }) {
               user={currentUser}
               postsCount={posts.length}
               stats={ownStats}
-              onCreate={() => navigate('/fitgram/create')}
               onBack={() => handleSetTab('for-you')}
               lang={lang}
             />

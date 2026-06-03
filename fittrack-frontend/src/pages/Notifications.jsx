@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bell, CheckCheck, Dumbbell, MessageCircle, Target, UserPlus, Weight, X } from 'lucide-react';
+import { Bell, CalendarCheck, CheckCheck, Dumbbell, MessageCircle, UserPlus, Weight, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import { listNotifications, markAllNotificationsRead, markNotificationRead } from '../services/notificationApi';
@@ -13,7 +13,7 @@ const TYPE_META = {
   new_follower: { icon: UserPlus, tone: 'text-sky-200', label: 'Social' },
   post_comment: { icon: MessageCircle, tone: 'text-[#ff7849]', label: 'FitGram' },
   workout_copied: { icon: Dumbbell, tone: 'text-emerald-200', label: 'Entrenos' },
-  challenge_request: { icon: Target, tone: 'text-purple-200', label: 'Retos' },
+  planner_reminder: { icon: CalendarCheck, tone: 'text-purple-200', label: 'Planificador' },
   physical_data_reminder: { icon: Weight, tone: 'text-amber-200', label: 'Perfil físico' },
   system: { icon: Bell, tone: 'text-white/70', label: 'Sistema' },
 };
@@ -84,7 +84,7 @@ export default function Notifications() {
     { key: 'all', label: tr(lang, 'Todas', 'All') },
     { key: 'social', label: 'Social' },
     { key: 'training', label: tr(lang, 'Entrenos', 'Training') },
-    { key: 'challenges', label: tr(lang, 'Retos', 'Challenges') },
+    { key: 'planner', label: tr(lang, 'Planificador', 'Planner') },
     { key: 'profile', label: tr(lang, 'Perfil físico', 'Physical profile') },
   ], [lang]);
   const [activeFilter, setActiveFilter] = useState('all');
@@ -97,7 +97,7 @@ export default function Notifications() {
         setError('');
         const data = await listNotifications({ limit: 80 });
         if (!alive) return;
-        setItems(data?.items || []);
+        setItems((data?.items || []).filter((item) => item.type !== 'challenge_request'));
         setUnreadCount(Number(data?.unreadCount || 0));
       } catch (e) {
         if (!alive) return;
@@ -117,7 +117,7 @@ export default function Notifications() {
     if (activeFilter === 'all') return items;
     if (activeFilter === 'social') return items.filter((item) => ['new_follower', 'post_comment'].includes(item.type));
     if (activeFilter === 'training') return items.filter((item) => item.type === 'workout_copied');
-    if (activeFilter === 'challenges') return items.filter((item) => item.type === 'challenge_request');
+    if (activeFilter === 'planner') return items.filter((item) => item.type === 'planner_reminder');
     if (activeFilter === 'profile') return items.filter((item) => item.type === 'physical_data_reminder');
     return items;
   }, [activeFilter, items]);

@@ -38,7 +38,7 @@ function GoogleMark({ className }) {
 export default function Login() {
   const navigate = useNavigate();
   const { t } = useI18n();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -50,10 +50,10 @@ export default function Login() {
   const rightImageSrc = '/login-right.jpg';
 
   const canSubmit = useMemo(() => {
-    if (!email.trim() || !password) return false;
+    if (!identifier.trim() || !password) return false;
     // Same behavior as the screenshot: keep validation light and defer to backend.
     return true;
-  }, [email, password]);
+  }, [identifier, password]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -64,7 +64,7 @@ export default function Login() {
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: identifier.trim(), password }),
       });
 
       const data = await response.json().catch(() => ({}));
@@ -158,11 +158,11 @@ export default function Login() {
 
             <form onSubmit={handleLogin} className="mx-auto mt-12 w-full max-w-[640px] space-y-5 lg:max-w-none">
               <input
-                type="email"
-                placeholder={t('Email')}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
+                type="text"
+                placeholder={t('Email o apodo')}
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                autoComplete="username"
                 className="h-14 w-full rounded-md border border-white/15 bg-transparent px-6 text-[16px] text-[#f5f5f5] placeholder:text-white/35 outline-none transition focus:border-[#ff7849]/70 focus:ring-2 focus:ring-[#ff7849]/15"
               />
 

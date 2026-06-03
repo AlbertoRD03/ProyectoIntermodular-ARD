@@ -38,6 +38,11 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+userSchema.index(
+  { apodo: 1 },
+  { unique: true, partialFilterExpression: { apodo: { $type: 'string', $gt: '' } } }
+);
+
 userSchema.set('toJSON', {
   transform: (_doc, ret) => {
     ret.id = String(ret._id);

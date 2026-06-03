@@ -37,9 +37,17 @@ export const register = async (userData) => {
   }
 
   const { default: User } = await import('../models/mongodb/User.js');
-  const existing = await User.findOne({ email }).lean();
-  if (existing) {
+  const existing = await User.findOne({
+    $or: [
+      { email },
+      ...(apodo ? [{ apodo }] : []),
+    ],
+  }).lean();
+  if (existing?.email === email) {
     throw createHttpError(409, 'El email ya está registrado.');
+  }
+  if (apodo && existing?.apodo === apodo) {
+    throw createHttpError(409, 'El apodo ya está registrado.');
   }
 
   const user = await User.create({
@@ -54,10 +62,11 @@ export const register = async (userData) => {
 };
 
 export const login = async (email, password) => {
-  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const identifier = String(email || '').trim();
+  const normalizedEmail = identifier.toLowerCase();
   const rawPassword = String(password || '');
 
-  if (!normalizedEmail || !rawPassword) {
+  if (!identifier || !rawPassword) {
     throw createHttpError(400, 'Completa todos los campos obligatorios.');
   }
 
@@ -90,7 +99,13 @@ export const login = async (email, password) => {
   }
 
   const { default: User } = await import('../models/mongodb/User.js');
-  const user = await User.findOne({ email: normalizedEmail });
+  const escapedIdentifier = identifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const user = await User.findOne({
+    $or: [
+      { email: normalizedEmail },
+      { apodo: { $regex: `^${escapedIdentifier}$`, $options: 'i' } },
+    ],
+  });
   if (!user) throw createHttpError(401, invalidCredentialsMessage);
 
   const isMatch = await bcrypt.compare(rawPassword, user.passwordHash);

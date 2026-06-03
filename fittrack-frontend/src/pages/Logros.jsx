@@ -331,6 +331,9 @@ export default function Logros() {
     const totalVolume = volumes.reduce((sum, value) => sum + value, 0);
     const maxDuration = sessions.reduce((max, session) => Math.max(max, Number(session?.duracion_minutos || 0)), 0);
     const uniqueTrainingTypes = new Set(sessions.map((session) => String(session?.tipo_rutina || '').trim().toLowerCase()).filter(Boolean)).size;
+    const uniqueExercises = new Set(sessions.flatMap((session) => getSessionExercises(session).map((exercise) => String(exercise?.nombre_ejercicio || '').trim().toLowerCase())).filter(Boolean)).size;
+    const totalSets = sessions.reduce((sum, session) => sum + getSessionExercises(session).reduce((exerciseSum, exercise) => exerciseSum + (Array.isArray(exercise?.sets) ? exercise.sets.length : 0), 0), 0);
+    const maxWeight = sessions.reduce((max, session) => Math.max(max, ...getSessionExercises(session).flatMap((exercise) => (Array.isArray(exercise?.sets) ? exercise.sets : []).map((set) => Number(set?.peso || 0)).filter(Number.isFinite))), 0);
     const earlySessions = sessions.filter((session) => {
       const date = getSessionDate(session);
       return date ? date.getHours() < 7 : false;
@@ -348,6 +351,9 @@ export default function Logros() {
       totalVolume,
       maxDuration,
       uniqueTrainingTypes,
+      uniqueExercises,
+      totalSets,
+      maxWeight,
       earlySessions,
       copiedWorkouts,
       workoutPosts,
@@ -414,6 +420,42 @@ export default function Logros() {
         max: 3,
         unit: '',
         style: ACHIEVEMENT_STYLE.constancia,
+      },
+      {
+        emoji: '🧲',
+        title: tr(lang, 'Red sólida', 'Solid network'),
+        subtitle: tr(lang, 'Sigue a 25 usuarios de la comunidad', 'Follow 25 community users'),
+        value: m.following,
+        max: 25,
+        unit: '',
+        style: ACHIEVEMENT_STYLE.social,
+      },
+      {
+        emoji: '🚀',
+        title: tr(lang, 'Creador constante', 'Consistent creator'),
+        subtitle: tr(lang, 'Publica 10 veces en FitGram', 'Publish 10 FitGram posts'),
+        value: m.fitgramPosts,
+        max: 10,
+        unit: '',
+        style: ACHIEVEMENT_STYLE.elite,
+      },
+      {
+        emoji: '🎓',
+        title: tr(lang, 'Coach compartido', 'Shared coach'),
+        subtitle: tr(lang, 'Comparte 12 sesiones copiables', 'Share 12 copyable sessions'),
+        value: m.workoutPosts,
+        max: 12,
+        unit: '',
+        style: ACHIEVEMENT_STYLE.fuerza,
+      },
+      {
+        emoji: '🔥',
+        title: tr(lang, 'Publicación caliente', 'Hot post'),
+        subtitle: tr(lang, 'Acumula 50 comentarios en tus publicaciones', 'Accumulate 50 comments on your posts'),
+        value: m.totalComments,
+        max: 50,
+        unit: '',
+        style: ACHIEVEMENT_STYLE.cardio,
       },
     ];
   }, [achievementMetrics, lang]);
@@ -492,6 +534,51 @@ export default function Logros() {
         value: m.earlySessions,
         max: 5,
         unit: '',
+        style: ACHIEVEMENT_STYLE.cardio,
+      },
+      {
+        emoji: '🧱',
+        title: tr(lang, 'Base sólida', 'Solid base'),
+        subtitle: tr(lang, 'Completa 50 series registradas', 'Complete 50 logged sets'),
+        value: m.totalSets,
+        max: 50,
+        unit: '',
+        style: ACHIEVEMENT_STYLE.fuerza,
+      },
+      {
+        emoji: '🏆',
+        title: tr(lang, 'Sesión élite', 'Elite session'),
+        subtitle: tr(lang, 'Levanta 5.000 kg de volumen en una sesión', 'Lift 5,000 kg of volume in one session'),
+        value: Math.round(m.maxVolume),
+        max: 5000,
+        unit: 'kg',
+        style: ACHIEVEMENT_STYLE.elite,
+      },
+      {
+        emoji: '⚙️',
+        title: tr(lang, 'Técnico completo', 'Complete technician'),
+        subtitle: tr(lang, 'Registra 12 ejercicios diferentes', 'Log 12 different exercises'),
+        value: m.uniqueExercises,
+        max: 12,
+        unit: '',
+        style: ACHIEVEMENT_STYLE.constancia,
+      },
+      {
+        emoji: '🦍',
+        title: tr(lang, 'Peso pesado', 'Heavy lifter'),
+        subtitle: tr(lang, 'Registra una serie con 100 kg o más', 'Log a set with 100 kg or more'),
+        value: Math.round(m.maxWeight),
+        max: 100,
+        unit: 'kg',
+        style: ACHIEVEMENT_STYLE.fuerza,
+      },
+      {
+        emoji: '⏱️',
+        title: tr(lang, 'Sesión larga', 'Long session'),
+        subtitle: tr(lang, 'Completa una sesión de 90 minutos', 'Complete a 90-minute session'),
+        value: m.maxDuration,
+        max: 90,
+        unit: 'min',
         style: ACHIEVEMENT_STYLE.cardio,
       },
     ];
