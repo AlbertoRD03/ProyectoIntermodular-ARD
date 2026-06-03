@@ -13,6 +13,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import { useI18n } from '../i18n/I18nProvider';
 import { getDateKey, getSessionForDate, getSessionsForDate } from '../services/sessionStore';
+import { listSessionHistory } from '../services/sessionsApi';
+import { getExplore } from '../services/fitgramApi';
 
 function cx(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -115,6 +117,100 @@ function toWorkoutLabel(raw) {
   return map[upper] || s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 }
 
+function getApiSessionKey(session) {
+  const rawDate = session?.fecha || session?.date || session?.createdAt;
+  if (!rawDate) return '';
+  const date = new Date(rawDate);
+  if (Number.isNaN(date.getTime())) return '';
+  return getDateKey(date);
+}
+
+function getApiSessionVolume(session) {
+  const exercises = Array.isArray(session?.ejercicios_realizados) ? session.ejercicios_realizados : [];
+  return exercises.reduce((total, exercise) => {
+    const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
+    return total + sets.reduce((setTotal, set) => {
+      const reps = Number(set?.reps) || 0;
+      const weight = Number(set?.peso ?? set?.weight) || 0;
+      return setTotal + reps * weight;
+    }, 0);
+  }, 0);
+}
+
+function getApiSessionSets(session) {
+  const exercises = Array.isArray(session?.ejercicios_realizados) ? session.ejercicios_realizados : [];
+  return exercises.reduce((total, exercise) => total + (Array.isArray(exercise?.sets) ? exercise.sets.length : 0), 0);
+}
+
+function formatShortDate(value, lang) {
+  const date = new Date(value || Date.now());
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'es-ES', { day: '2-digit', month: 'short' }).format(date);
+}
+
+function formatSessionForDetail(session, lang) {
+  const date = new Date(session?.fecha || session?.date || Date.now());
+  const exercises = Array.isArray(session?.ejercicios_realizados)
+    ? session.ejercicios_realizados.map((exercise) => ({
+        name: exercise?.nombre_ejercicio || exercise?.name || '',
+        sets: Array.isArray(exercise?.sets)
+          ? exercise.sets.map((set, index) => ({
+              number: index + 1,
+              reps: Number(set?.reps) || 0,
+              weight: set?.peso ?? set?.weight ?? '',
+            }))
+          : [],
+      }))
+    : [];
+
+  return {
+    id: session?.id || session?._id,
+    title: toWorkoutLabel(session?.tipo_rutina || session?.title || (lang === 'en' ? 'Workout' : 'Entrenamiento')),
+    date: Number.isNaN(date.getTime())
+      ? ''
+      : new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'es-ES', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(date),
+    time: Number.isNaN(date.getTime())
+      ? ''
+      : new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'es-ES', { hour: '2-digit', minute: '2-digit' }).format(date),
+    duration: String(session?.duracion_minutos || session?.duration || ''),
+    muscleGroup: toWorkoutLabel(session?.tipo_rutina || session?.muscleGroup || ''),
+    volume: String(Math.round(getApiSessionVolume(session))),
+    series: String(getApiSessionSets(session)),
+    exercises,
+  };
+}
+
+function calculateStreak(sessions) {
+  const keys = new Set((sessions || []).map(getApiSessionKey).filter(Boolean));
+  let streak = 0;
+  const cursor = new Date();
+  for (;;) {
+    const key = getDateKey(cursor);
+    if (!keys.has(key)) break;
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+function normalizePost(post, lang) {
+  const username = post?.author?.apodo || post?.author?.nombre || 'usuario';
+  const createdAt = post?.createdAt ? new Date(post.createdAt) : null;
+  const comments = post?.commentsCount ?? post?.comments?.length ?? 0;
+  return {
+    id: post?.id || post?._id || `${username}-${post?.createdAt || Math.random()}`,
+    username,
+    imageUrl: post?.image_url || '',
+    avatarUrl: post?.author?.photo_url || '',
+    caption: post?.caption || (lang === 'en' ? 'Community post' : 'Publicación de la comunidad'),
+    likes: post?.likesCount ?? post?.likes ?? 0,
+    comments,
+    tags: Array.isArray(post?.tags) ? post.tags : [],
+    type: post?.type || 'photo',
+    dateLabel: createdAt && !Number.isNaN(createdAt.getTime()) ? formatShortDate(createdAt, lang).toUpperCase() : '',
+  };
+}
+
 function ExerciseRow({ name, series, reps }) {
   const { t } = useI18n();
   return (
@@ -132,7 +228,8 @@ function ExerciseRow({ name, series, reps }) {
   );
 }
 
-function AchievementRow({ icon: Icon, title, subtitle, meta }) {
+function AchievementRow({ icon: Icon, title, subtitle, meta, progress = 0 }) {
+  const safeProgress = Math.max(0, Math.min(100, Number(progress) || 0));
   return (
     <div className="flex items-center gap-3 sm:gap-4 rounded-lg border border-white/10 bg-white/[0.06] px-3 sm:px-4 md:px-5 py-3 sm:py-4 md:py-5">
       <div className="grid h-10 sm:h-11 md:h-12 w-10 sm:w-11 md:w-12 flex-shrink-0 place-items-center rounded-lg border border-[#ff7849]/70 text-[#ff7849]">
@@ -142,32 +239,51 @@ function AchievementRow({ icon: Icon, title, subtitle, meta }) {
         <div className="text-[10px] sm:text-[11px] md:text-[12px] font-semibold uppercase tracking-wide text-white/75">{title}</div>
         <div className="mt-0.5 truncate text-[12px] sm:text-[13px] md:text-[14px] font-semibold text-white/90">{subtitle}</div>
         <div className="mt-0.5 sm:mt-1 text-[10px] sm:text-[11px] md:text-[11px] text-white/45 truncate">{meta}</div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+          <div className="h-full rounded-full bg-[#ff7849]" style={{ width: `${safeProgress}%` }} />
+        </div>
       </div>
     </div>
   );
 }
 
-function FitgramPost({ username, likes }) {
+function FitgramPost({ post }) {
   const { t } = useI18n();
   return (
     <div className="overflow-hidden rounded-lg sm:rounded-xl border border-white/10 bg-white/[0.06]">
       <div className="flex items-center gap-2 sm:gap-3 md:gap-4 border-b border-white/10 px-3 sm:px-4 md:px-5 py-2 sm:py-3 md:py-4">
-        <div className="h-4 sm:h-5 w-4 sm:w-5 rounded-full border-2 border-[#ff7849] opacity-90 flex-shrink-0" />
-        <div className="text-[12px] sm:text-[13px] md:text-[14px] font-semibold text-white/85 truncate">@{username}</div>
+        <div className="h-7 w-7 rounded-lg border border-[#ff7849]/60 bg-white/[0.04] overflow-hidden flex-shrink-0">
+          {post.avatarUrl ? <img src={post.avatarUrl} alt={post.username} className="h-full w-full object-cover" /> : null}
+        </div>
+        <div className="min-w-0">
+          <div className="text-[12px] sm:text-[13px] md:text-[14px] font-semibold text-white/85 truncate">@{post.username}</div>
+          <div className="text-[9px] uppercase tracking-widest text-white/35">{post.dateLabel || t('FitGram')}</div>
+        </div>
       </div>
 
       <div className="relative aspect-[4/3] bg-gradient-to-br from-[#ff7849]/25 via-white/5 to-black/10">
-        <div className="absolute inset-0 grid place-items-center">
-          <Dumbbell className="h-8 sm:h-9 md:h-10 w-8 sm:w-9 md:w-10 text-white/15" />
-        </div>
+        {post.imageUrl ? (
+          <img src={post.imageUrl} alt={post.caption || post.username} className="h-full w-full object-cover" loading="lazy" />
+        ) : (
+          <div className="absolute inset-0 grid place-items-center">
+            <Dumbbell className="h-8 sm:h-9 md:h-10 w-8 sm:w-9 md:w-10 text-white/15" />
+          </div>
+        )}
         <div className="absolute inset-0 bg-black/10" />
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 md:px-5 py-2 sm:py-3 md:py-4 text-white/55">
-        <Heart className="h-4 w-4 flex-shrink-0" />
-        <MessageCircle className="h-4 w-4 flex-shrink-0" />
-        <div className="ml-auto text-[11px] sm:text-[12px] md:text-[13px] text-white/60 whitespace-nowrap">
-          {likes} {t('me gusta')}
+      <div className="px-3 sm:px-4 md:px-5 py-3">
+        <p className="line-clamp-2 text-[11px] sm:text-[12px] text-white/70">
+          <span className="font-semibold text-white/85">@{post.username}</span> {post.caption}
+        </p>
+        <div className="mt-3 flex items-center gap-3 text-white/55">
+          <Heart className="h-4 w-4 flex-shrink-0" />
+          <span className="text-[11px]">{post.likes}</span>
+          <MessageCircle className="h-4 w-4 flex-shrink-0" />
+          <span className="text-[11px]">{post.comments}</span>
+          <div className="ml-auto text-[10px] uppercase tracking-widest text-white/35">
+            {post.type === 'workout' ? t('Entreno') : `${post.tags.length} tags`}
+          </div>
         </div>
       </div>
     </div>
@@ -182,10 +298,59 @@ export default function Main() {
   const todayKey = useMemo(() => getDateKey(new Date()), []);
   const [todaySession, setTodaySession] = useState(() => (typeof window === 'undefined' ? null : getSessionForDate(todayKey)));
   const [sessionActionOpen, setSessionActionOpen] = useState(false);
+  const [apiSessions, setApiSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [fitgramPosts, setFitgramPosts] = useState([]);
+  const [fitgramLoading, setFitgramLoading] = useState(false);
 
   useEffect(() => {
     setTodaySession(typeof window === 'undefined' ? null : getSessionForDate(todayKey));
   }, [todayKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setSessionsLoading(true);
+    listSessionHistory()
+      .then((data) => {
+        if (!cancelled) setApiSessions(Array.isArray(data?.items) ? data.items : []);
+      })
+      .catch(() => {
+        if (!cancelled) setApiSessions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSessionsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setFitgramLoading(true);
+    getExplore({ limit: 6 })
+      .then((data) => {
+        if (!cancelled) setFitgramPosts(Array.isArray(data?.posts) ? data.posts : []);
+      })
+      .catch(() => {
+        if (!cancelled) setFitgramPosts([]);
+      })
+      .finally(() => {
+        if (!cancelled) setFitgramLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const todayApiSession = useMemo(
+    () => apiSessions.find((session) => getApiSessionKey(session) === todayKey) || null,
+    [apiSessions, todayKey]
+  );
+
+  const activeTodaySession = todayApiSession || todaySession;
 
   const weekly = useMemo(() => {
     const today = new Date();
@@ -213,7 +378,16 @@ export default function Main() {
         id: String(s.id),
         label: toWorkoutLabel(s.muscleGroup || (s.title || '').split('·')[0]),
         session: s,
+        source: 'local',
       }));
+      const apiItems = apiSessions
+        .filter((session) => getApiSessionKey(session) === dateKey)
+        .map((session) => ({
+          id: String(session.id || session._id),
+          label: toWorkoutLabel(session.tipo_rutina || session.title),
+          session,
+          source: 'api',
+        }));
 
       const demoItems =
         demo && i <= dayIndex
@@ -234,16 +408,27 @@ export default function Main() {
         dateKey,
         dayIndex: i,
         isToday: i === dayIndex,
-        items: storedItems.length ? storedItems : demoItems.map((x, idx) => ({ id: `demo_${i}_${idx}`, label: x, session: null })),
+        items: apiItems.length || storedItems.length
+          ? [...apiItems, ...storedItems]
+          : demoItems.map((x, idx) => ({ id: `demo_${i}_${idx}`, label: x, session: null, source: 'demo' })),
       });
     }
     
     return weekDays;
-  }, [demo, lang, t]);
+  }, [apiSessions, demo, lang, t]);
 
   const todayExercises = useMemo(() => {
-    if (todaySession?.exercises?.length) {
-      return todaySession.exercises
+    if (todayApiSession?.ejercicios_realizados?.length) {
+      return todayApiSession.ejercicios_realizados
+        .slice(0, 4)
+        .map((ex) => ({
+          name: String(ex.nombre_ejercicio || ex.name || ''),
+          series: Array.isArray(ex.sets) ? ex.sets.length : 0,
+          reps: Array.isArray(ex.sets) ? (ex.sets[0]?.reps ?? 0) : 0,
+        }));
+    }
+    if (activeTodaySession?.exercises?.length) {
+      return activeTodaySession.exercises
         .slice(0, 4)
         .map((ex) => ({ name: String(ex.name || ''), series: ex.sets?.length || 0, reps: ex.sets?.[0]?.reps ?? 0 }));
     }
@@ -254,62 +439,67 @@ export default function Main() {
       { name: t('Peso muerto'), series: 3, reps: 15 },
       { name: t('Hip Trust'), series: 4, reps: 10 },
     ];
-  }, [demo, t, todaySession]);
+  }, [activeTodaySession, demo, t, todayApiSession]);
 
   const achievements = useMemo(() => {
-    if (!demo) return [];
-    // "Más cercanos de conseguir" (demo): prioriza los que están en progreso.
-    return [
-      { icon: Flame, title: t('Racha de 30'), subtitle: t('Días'), meta: t('En progreso 21 / 30') },
-      { icon: Trophy, title: t('7 DÍAS'), subtitle: t('CONSECUTIVOS'), meta: t('Completado el 15/01') },
-      { icon: Dumbbell, title: '50', subtitle: t('Entrenamientos'), meta: t('Completado el 10/01') },
+    const sessionsCount = apiSessions.length;
+    const totalVolume = apiSessions.reduce((sum, session) => sum + getApiSessionVolume(session), 0);
+    const totalSets = apiSessions.reduce((sum, session) => sum + getApiSessionSets(session), 0);
+    const streak = calculateStreak(apiSessions);
+    const goals = [
+      {
+        icon: Flame,
+        title: t('Racha'),
+        subtitle: `${Math.min(streak, 7)} / 7 ${t('Días')}`,
+        meta: streak >= 7 ? t('Completado') : `${Math.max(0, 7 - streak)} ${t('Días')}`,
+        progress: (streak / 7) * 100,
+      },
+      {
+        icon: Dumbbell,
+        title: t('Volumen'),
+        subtitle: `${Math.round(totalVolume).toLocaleString(lang === 'en' ? 'en-US' : 'es-ES')} / 50.000 KG`,
+        meta: `${Math.max(0, 50000 - Math.round(totalVolume)).toLocaleString(lang === 'en' ? 'en-US' : 'es-ES')} KG`,
+        progress: (totalVolume / 50000) * 100,
+      },
+      {
+        icon: Trophy,
+        title: t('Entrenamientos'),
+        subtitle: `${Math.min(sessionsCount, 10)} / 10 ${t('Sesiones')}`,
+        meta: sessionsCount >= 10 ? t('Completado') : `${Math.max(0, 10 - sessionsCount)} ${t('Sesiones')}`,
+        progress: (sessionsCount / 10) * 100,
+      },
+      {
+        icon: Star,
+        title: t('Series'),
+        subtitle: `${Math.min(totalSets, 100)} / 100`,
+        meta: `${Math.max(0, 100 - totalSets)} ${t('Series')}`,
+        progress: (totalSets / 100) * 100,
+      },
     ];
-  }, [demo, t]);
 
-  const basicFittrackAchievements = useMemo(
-    () => [
-      { icon: Trophy, title: t('7 DÍAS'), subtitle: t('CONSECUTIVOS'), meta: t('Crear sesión de hoy') },
-      { icon: Star, title: t('Primer Mes'), subtitle: t('Completo'), meta: t('Logros') },
-      { icon: Dumbbell, title: '10', subtitle: t('Entrenamientos'), meta: t('Entrenamientos') },
-    ],
-    [t]
-  );
+    return goals.sort((a, b) => b.progress - a.progress).slice(0, 3);
+  }, [apiSessions, lang, t]);
 
   const hasUserAchievements = achievements.length > 0;
 
   const fitgram = useMemo(() => {
     if (demo) {
       return [
-        { username: 'usuario1', likes: 32 },
-        { username: 'usuario2', likes: 18 },
+        { id: 'demo-1', username: 'usuario1', likes: 32, comments: 4, tags: ['PECHO'], caption: t('Entreno compartido'), type: 'workout', imageUrl: '', avatarUrl: '', dateLabel: 'DEMO' },
+        { id: 'demo-2', username: 'usuario2', likes: 18, comments: 1, tags: ['CARDIO'], caption: t('Publicación de la comunidad'), type: 'photo', imageUrl: '', avatarUrl: '', dateLabel: 'DEMO' },
       ];
     }
-    if (typeof window === 'undefined') return [];
-    const raw = window.localStorage.getItem('fittrack_following');
-    const following = raw ? (() => { try { return JSON.parse(raw); } catch { return []; } })() : [];
-    return Array.isArray(following) && following.length ? [{ username: following[0], likes: 12 }] : [];
-  }, [demo]);
-
-  const isFollowingAnyone = useMemo(() => {
-    if (demo) return true;
-    if (typeof window === 'undefined') return false;
-    const raw = window.localStorage.getItem('fittrack_following');
-    try {
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) && parsed.length > 0;
-    } catch {
-      return false;
-    }
-  }, [demo]);
+    return fitgramPosts.map((post) => normalizePost(post, lang));
+  }, [demo, fitgramPosts, lang, t]);
 
   return (
     <div className="min-h-screen bg-[#1e1e1e] text-[#f5f5f5]">
       <Header />
 
       {/* Layout */}
-      <div className="w-full grid grid-cols-1 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_360px] 2xl:grid-cols-[1fr_400px] gap-4 sm:gap-5 md:gap-6 px-3 sm:px-4 md:px-6 lg:px-7 xl:px-8 2xl:px-10 py-4 sm:py-5 md:py-6 lg:py-7 xl:py-8">
+      <div className="w-full grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px] gap-4 sm:gap-5 md:gap-6 px-3 sm:px-4 md:px-6 lg:px-7 xl:px-8 2xl:px-10 py-4 sm:py-5 md:py-6 lg:py-7 xl:py-8">
         {/* Left */}
-        <div className="space-y-4 sm:space-y-5 md:space-y-6">
+        <div className="min-w-0 space-y-4 sm:space-y-5 md:space-y-6">
           <Card className="p-0">
             <div className="px-4 sm:px-5 md:px-6 pt-4 sm:pt-5 md:pt-6">
               <div className="text-[14px] sm:text-[16px] md:text-[18px] font-semibold tracking-wide text-white/85" style={{ fontFamily: 'Arimo, Poppins, system-ui' }}>
@@ -317,15 +507,15 @@ export default function Main() {
               </div>
             </div>
 
-            <div className="mt-4 sm:mt-5 md:mt-6 overflow-x-auto px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6">
-              <div className="flex gap-2 sm:gap-3 md:gap-4">
+            <div className="mt-4 sm:mt-5 md:mt-6 px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6">
+              <div className="grid grid-cols-2 min-[520px]:grid-cols-3 md:grid-cols-4 2xl:grid-cols-7 gap-2 sm:gap-3 md:gap-4">
                 {weekly.map((d) => {
                   return (
                     <div
                       key={`${d.label}-${d.date}`}
                       className={cx(
-                        'flex flex-col rounded-lg sm:rounded-xl border bg-white/[0.04] p-2 sm:p-3 transition-all flex-shrink-0',
-                        'w-[85px] h-[105px] sm:w-[100px] sm:h-[120px] md:w-[110px] md:h-[130px] lg:w-[120px] lg:h-[140px]',
+                        'flex min-h-[120px] sm:min-h-[132px] flex-col rounded-lg sm:rounded-xl border bg-white/[0.04] p-2.5 sm:p-3 transition-all',
+                        'w-full min-w-0',
                         d.isToday ? 'border-white/70 bg-white/[0.08]' : 'border-white/10'
                       )}
                     >
@@ -342,7 +532,10 @@ export default function Main() {
                                 <WeeklyWorkoutBadge
                                   key={it.id}
                                   type={it.label}
-                                  onClick={() => navigate(`/sessiondetail/${it.session.id}`, { state: { workout: it.session } })}
+                                  onClick={() => {
+                                    const workout = it.source === 'api' ? formatSessionForDetail(it.session, lang) : it.session;
+                                    navigate(`/sessiondetail/${workout.id || it.id}`, { state: { workout } });
+                                  }}
                                 />
                               ) : (
                                 <Chip key={it.id}>{it.label}</Chip>
@@ -364,7 +557,11 @@ export default function Main() {
             <Card className="min-h-[320px] sm:min-h-[380px] md:min-h-[420px] lg:min-h-[480px] xl:min-h-[520px]">
               <CardTitle>{t('Sesión de hoy').toUpperCase()}</CardTitle>
               <div className="px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6 pt-3 sm:pt-4 md:pt-5">
-                {!todayExercises.length ? (
+                {sessionsLoading && !todayExercises.length ? (
+                  <div className="flex min-h-[180px] items-center justify-center text-[12px] text-white/45">
+                    {lang === 'en' ? 'Loading sessions...' : 'Cargando sesiones...'}
+                  </div>
+                ) : !todayExercises.length ? (
                   <PlusEmpty label={t('Crear sesión de hoy')} onClick={() => navigate(`/crear-sesion?date=${todayKey}`)} />
                 ) : (
                   <>
@@ -389,7 +586,7 @@ export default function Main() {
                     <div className="mt-4 sm:mt-5 md:mt-6 flex justify-center">
                       <button
                         type="button"
-                        onClick={() => (todaySession ? setSessionActionOpen(true) : navigate(`/crear-sesion?date=${todayKey}`))}
+                        onClick={() => (activeTodaySession ? setSessionActionOpen(true) : navigate(`/crear-sesion?date=${todayKey}`))}
                         className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/[0.04] px-4 sm:px-5 py-2 text-[12px] sm:text-[13px] font-medium text-white/75 transition hover:border-white/25 hover:text-white/90"
                       >
                         <Plus className="h-4 w-4" />
@@ -411,13 +608,14 @@ export default function Main() {
                 <CardTitle>{t('Logros').toUpperCase()}</CardTitle>
                 <div className="px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6 pt-3 sm:pt-4 md:pt-5">
                   <div className="space-y-2 sm:space-y-3 md:space-y-4">
-                    {(hasUserAchievements ? achievements : basicFittrackAchievements).map((a, i) => (
+                    {achievements.map((a, i) => (
                       <AchievementRow
                         key={`${a.subtitle}-${i}`}
                         icon={a.icon}
                         title={a.title}
                         subtitle={a.subtitle}
                         meta={a.meta}
+                        progress={a.progress}
                       />
                     ))}
                   </div>
@@ -428,8 +626,16 @@ export default function Main() {
         </div>
 
         {/* Right */}
-        <button type="button" onClick={() => navigate('/fitgram')} className="w-full text-left">
-          <Card className="h-auto min-h-[400px] sm:min-h-[500px] md:min-h-[600px] lg:min-h-[700px] xl:min-h-[800px] overflow-hidden">
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => navigate('/fitgram')}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') navigate('/fitgram');
+          }}
+          className="w-full min-w-0 cursor-pointer text-left"
+        >
+          <Card className="h-auto min-h-[400px] sm:min-h-[500px] md:min-h-[600px] xl:min-h-[800px] overflow-hidden">
             <div className="flex items-center justify-between px-4 sm:px-5 md:px-6 pt-4 sm:pt-5 md:pt-6">
               <h2 className="text-[16px] sm:text-[18px] md:text-[20px] lg:text-[22px] font-bold tracking-wide text-white/90" style={{ fontFamily: 'Arimo, Poppins, system-ui' }}>
                 {t('FitGram').toUpperCase()}
@@ -437,24 +643,30 @@ export default function Main() {
             </div>
 
             <div className="px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6 pt-3 sm:pt-4 md:pt-5 h-full">
-              {!isFollowingAnyone ? (
+              {fitgramLoading ? (
+                <div className="flex h-full items-center justify-center min-h-[320px] sm:min-h-[400px] md:min-h-[480px]">
+                  <div className="max-w-[360px] text-center text-white/60 text-[12px] sm:text-[13px]">
+                    {lang === 'en' ? 'Loading FitGram posts...' : 'Cargando publicaciones de FitGram...'}
+                  </div>
+                </div>
+              ) : !fitgram.length ? (
                 <div className="flex h-full items-center justify-center min-h-[320px] sm:min-h-[400px] md:min-h-[480px] lg:min-h-[600px]">
                   <div className="max-w-[360px] text-center text-white/60 text-[12px] sm:text-[13px]">
                     {lang === 'en'
-                      ? "You're not following anyone yet. Take your first steps in FitGram."
-                      : 'Todavía no sigues a nadie. Da tus primeros pasos en FitGram.'}
+                      ? 'There are no FitGram posts yet. Create the first one from your profile.'
+                      : 'Todavía no hay publicaciones en FitGram. Crea la primera desde tu perfil.'}
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3 sm:space-y-4 max-h-[calc(100vh-180px)] overflow-auto pr-1.5 md:pr-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3 sm:gap-4 xl:max-h-[calc(100vh-180px)] xl:overflow-auto xl:pr-2">
                   {fitgram.map((p) => (
-                    <FitgramPost key={p.username} username={p.username} likes={p.likes} />
+                    <FitgramPost key={p.id} post={p} />
                   ))}
                 </div>
               )}
             </div>
           </Card>
-        </button>
+        </div>
       </div>
 
       {sessionActionOpen ? (
@@ -478,12 +690,15 @@ export default function Main() {
                 type="button"
                 onClick={() => {
                   setSessionActionOpen(false);
-                  if (todaySession) navigate(`/sessiondetail/${todaySession.id}`, { state: { workout: todaySession } });
+                  if (activeTodaySession) {
+                    const workout = todayApiSession ? formatSessionForDetail(todayApiSession, lang) : activeTodaySession;
+                    navigate(`/sessiondetail/${workout.id || activeTodaySession.id}`, { state: { workout } });
+                  }
                 }}
-                disabled={!todaySession}
+                disabled={!activeTodaySession}
                 className={cx(
                   'w-full rounded-xl border px-4 py-3 text-left transition',
-                  todaySession ? 'border-white/15 bg-white/[0.03] hover:bg-white/[0.06] text-white/85' : 'border-white/10 bg-white/[0.02] text-white/35 cursor-not-allowed'
+                  activeTodaySession ? 'border-white/15 bg-white/[0.03] hover:bg-white/[0.06] text-white/85' : 'border-white/10 bg-white/[0.02] text-white/35 cursor-not-allowed'
                 )}
               >
                 <div className="text-[12px] font-bold uppercase tracking-wide">{lang === 'en' ? 'Edit session' : 'Editar sesión'}</div>
