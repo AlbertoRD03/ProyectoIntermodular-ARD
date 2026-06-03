@@ -28,7 +28,95 @@ const normalizeType = (type) => {
   return ['volume', 'sessions', 'duration', 'exercise_max'].includes(value) ? value : 'volume';
 };
 
-const normalizeChallenge = (challenge, userMap = new Map()) => ({
+const normalizeExerciseName = (value) => String(value || '')
+  .trim()
+  .toLowerCase()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '');
+
+const getSessionDate = (session) => {
+  const date = new Date(session?.fecha || session?.date || session?.createdAt || Date.now());
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getSessionExercises = (session) => (Array.isArray(session?.ejercicios_realizados) ? session.ejercicios_realizados : []);
+
+const calculateSessionVolume = (session) => getSessionExercises(session).reduce((total, exercise) => {
+  const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
+  return total + sets.reduce((setTotal, set) => {
+    const reps = Number(set?.reps || 0);
+    const weight = Number(set?.peso || 0);
+    if (!Number.isFinite(reps) || !Number.isFinite(weight)) return setTotal;
+    return setTotal + (reps * weight);
+  }, 0);
+}, 0);
+
+const calculateChallengeProgress = (challenge, sessions = []) => {
+  const start = new Date(challenge.acceptedAt || challenge.createdAt || Date.now());
+  const startTime = Number.isNaN(start.getTime()) ? 0 : start.getTime();
+  const relevantSessions = sessions.filter((session) => {
+    const date = getSessionDate(session);
+    return date && date.getTime() >= startTime;
+  });
+
+  if (challenge.type === 'sessions') return relevantSessions.length;
+  if (challenge.type === 'duration') {
+    return relevantSessions.reduce((sum, session) => sum + (Number(session?.duracion_minutos || 0) || 0), 0);
+  }
+  if (challenge.type === 'exercise_max') {
+    const needle = normalizeExerciseName(challenge.exerciseName);
+    if (!needle) return 0;
+    return relevantSessions.reduce((max, session) => {
+      const sessionMax = getSessionExercises(session).reduce((exerciseMax, exercise) => {
+        const exerciseName = normalizeExerciseName(exercise?.nombre_ejercicio);
+        if (!exerciseName.includes(needle)) return exerciseMax;
+        const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
+        return Math.max(exerciseMax, ...sets.map((set) => Number(set?.peso || 0)).filter(Number.isFinite));
+      }, 0);
+      return Math.max(max, sessionMax);
+    }, 0);
+  }
+  return relevantSessions.reduce((sum, session) => sum + calculateSessionVolume(session), 0);
+};
+
+const buildProgress = (challenge, sessions) => {
+  const value = calculateChallengeProgress(challenge, sessions);
+  const target = Math.max(1, Number(challenge.targetValue || 1));
+  return {
+    value,
+    target,
+    percent: Math.min(100, Math.round((value / target) * 100)),
+    completed: value >= target,
+    updatedAt: new Date().toISOString(),
+  };
+};
+
+const attachProgress = async (challenges) => {
+  const targetIds = Array.from(new Set(challenges.map((challenge) => String(challenge.targetId || '')).filter(Boolean)));
+  if (!targetIds.length) return new Map();
+
+  const { default: Session } = await import('../models/mongodb/Session.js');
+  const queryIds = [
+    ...targetIds,
+    ...targetIds.filter((id) => mongoose.Types.ObjectId.isValid(id)).map((id) => new mongoose.Types.ObjectId(id)),
+  ];
+  const sessions = await Session.find({ usuario_id: { $in: queryIds } })
+    .select('usuario_id fecha createdAt duracion_minutos ejercicios_realizados')
+    .lean();
+  const sessionsByUser = sessions.reduce((map, session) => {
+    const key = String(session.usuario_id);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(session);
+    return map;
+  }, new Map());
+
+  return new Map(challenges.map((challenge) => {
+    const targetSessions = sessionsByUser.get(String(challenge.targetId)) || [];
+    return [String(challenge._id || challenge.id), buildProgress(challenge, targetSessions)];
+  }));
+};
+
+const normalizeChallenge = (challenge, userMap = new Map(), progressMap = new Map()) => ({
   id: String(challenge._id || challenge.id),
   creatorId: String(challenge.creatorId),
   targetId: String(challenge.targetId),
@@ -44,21 +132,23 @@ const normalizeChallenge = (challenge, userMap = new Map()) => ({
   status: challenge.status || 'pending',
   acceptedAt: challenge.acceptedAt || null,
   completedAt: challenge.completedAt || null,
+  progress: progressMap.get(String(challenge._id || challenge.id)) || buildProgress(challenge, []),
   createdAt: challenge.createdAt,
   updatedAt: challenge.updatedAt,
 });
 
 const attachUsers = async (challenges) => {
+  const progressMap = await attachProgress(challenges);
   const ids = Array.from(new Set(challenges.flatMap((challenge) => [
     String(challenge.creatorId || ''),
     String(challenge.targetId || ''),
   ]).filter(Boolean)));
-  if (!ids.length) return challenges.map((challenge) => normalizeChallenge(challenge));
+  if (!ids.length) return challenges.map((challenge) => normalizeChallenge(challenge, new Map(), progressMap));
 
   const { default: User } = await import('../models/mongodb/User.js');
   const users = await User.find({ _id: { $in: ids } }).select('_id nombre apodo photo_url').lean();
   const userMap = new Map(users.map((user) => [String(user._id), toPublicUser(user)]));
-  return challenges.map((challenge) => normalizeChallenge(challenge, userMap));
+  return challenges.map((challenge) => normalizeChallenge(challenge, userMap, progressMap));
 };
 
 export const createChallenge = async ({ creatorId, targetId, title, description, type, targetValue, unit, exerciseName, deadline }) => {

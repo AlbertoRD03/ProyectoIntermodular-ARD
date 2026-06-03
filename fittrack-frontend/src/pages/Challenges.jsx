@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Check, Clock, Dumbbell, Flame, Send, Target, Timer, Trophy, UserPlus, X } from 'lucide-react';
 import Header from '../components/Header';
 import { useI18n, tr } from '../i18n/I18nProvider';
+import { searchCatalogExercises } from '../services/catalogApi';
 import { createChallenge, listChallenges, updateChallengeStatus } from '../services/challengeApi';
 import { listFollowing } from '../services/socialApi';
 import { listSessionHistory } from '../services/sessionsApi';
@@ -72,53 +73,20 @@ function Select({ children, ...props }) {
   );
 }
 
-function getSessionDate(session) {
-  const date = new Date(session?.fecha || session?.date || session?.createdAt || Date.now());
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
 function getExercises(session) {
   return Array.isArray(session?.ejercicios_realizados) ? session.ejercicios_realizados : [];
 }
 
-function getSessionStats(session) {
-  return getExercises(session).reduce((acc, exercise) => {
-    const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
-    sets.forEach((set) => {
-      const reps = Number(set?.reps || 0);
-      const weight = Number(set?.peso || 0);
-      if (!Number.isFinite(reps) || !Number.isFinite(weight)) return;
-      acc.volume += reps * weight;
-      acc.maxWeight = Math.max(acc.maxWeight, weight);
-    });
-    return acc;
-  }, { volume: 0, maxWeight: 0 });
+function getExerciseOptionName(exercise) {
+  return String(exercise?.nombre || exercise?.nombre_ejercicio || exercise?.name || exercise?.label || '').trim();
 }
 
-function calculateChallengeProgress(challenge, sessions) {
-  const createdAt = new Date(challenge?.acceptedAt || challenge?.createdAt || Date.now());
-  const relevantSessions = sessions.filter((session) => {
-    const date = getSessionDate(session);
-    return date && date >= createdAt;
-  });
-
-  if (challenge.type === 'sessions') return relevantSessions.length;
-  if (challenge.type === 'duration') {
-    return relevantSessions.reduce((sum, session) => sum + (Number(session?.duracion_minutos || 0) || 0), 0);
-  }
-  if (challenge.type === 'exercise_max') {
-    const needle = String(challenge.exerciseName || '').trim().toLowerCase();
-    return relevantSessions.reduce((max, session) => {
-      const exerciseMax = getExercises(session)
-        .filter((exercise) => String(exercise?.nombre_ejercicio || '').toLowerCase().includes(needle))
-        .reduce((exerciseAcc, exercise) => {
-          const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
-          return Math.max(exerciseAcc, ...sets.map((set) => Number(set?.peso || 0)).filter(Number.isFinite));
-        }, 0);
-      return Math.max(max, exerciseMax);
-    }, 0);
-  }
-  return relevantSessions.reduce((sum, session) => sum + getSessionStats(session).volume, 0);
+function buildExerciseOptions(catalogItems, sessions) {
+  const names = [
+    ...(Array.isArray(catalogItems) ? catalogItems.map(getExerciseOptionName) : []),
+    ...(Array.isArray(sessions) ? sessions.flatMap((session) => getExercises(session).map((exercise) => String(exercise?.nombre_ejercicio || '').trim())) : []),
+  ].filter(Boolean);
+  return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
 }
 
 function ChallengeIcon({ type }) {
@@ -152,12 +120,12 @@ function StatusBadge({ status, lang }) {
   );
 }
 
-function ChallengeCard({ challenge, currentUserId, sessions, onStatus, lang }) {
+function ChallengeCard({ challenge, currentUserId, onStatus, lang }) {
   const isReceiver = String(challenge.targetId) === String(currentUserId);
   const opponent = isReceiver ? challenge.creator : challenge.target;
-  const progress = calculateChallengeProgress(challenge, sessions);
-  const target = Math.max(1, Number(challenge.targetValue || 1));
-  const percent = Math.min(100, Math.round((progress / target) * 100));
+  const progress = Number(challenge.progress?.value ?? 0);
+  const target = Math.max(1, Number(challenge.progress?.target || challenge.targetValue || 1));
+  const percent = Math.min(100, Number(challenge.progress?.percent ?? Math.round((progress / target) * 100)));
   const unit = challenge.unit ? ` ${challenge.unit}` : '';
   const canComplete = challenge.status === 'accepted' && isReceiver && progress >= target;
 
@@ -232,7 +200,7 @@ export default function Challenges() {
   const [tab, setTab] = useState('active');
   const [challenges, setChallenges] = useState([]);
   const [following, setFollowing] = useState([]);
-  const [sessions, setSessions] = useState([]);
+  const [exerciseOptions, setExerciseOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -249,16 +217,19 @@ export default function Challenges() {
 
   const loadData = async () => {
     setLoading(true);
-    const [challengeData, sessionData, followingData] = await Promise.all([
+    const [challengeData, sessionData, followingData, catalogData] = await Promise.all([
       listChallenges().catch(() => ({ challenges: [] })),
       listSessionHistory().catch(() => ({ items: [] })),
       currentUserId ? listFollowing(currentUserId).catch(() => ({ users: [] })) : Promise.resolve({ users: [] }),
+      searchCatalogExercises({ limit: 500 }).catch(() => ({ items: [] })),
     ]);
     setChallenges(Array.isArray(challengeData?.challenges) ? challengeData.challenges : []);
-    setSessions(Array.isArray(sessionData?.items) ? sessionData.items : []);
+    const sessions = Array.isArray(sessionData?.items) ? sessionData.items : [];
+    const exercises = buildExerciseOptions(catalogData?.items, sessions);
+    setExerciseOptions(exercises);
     const users = Array.isArray(followingData?.users) ? followingData.users : [];
     setFollowing(users);
-    setForm((prev) => ({ ...prev, targetId: prev.targetId || users[0]?.id || '' }));
+    setForm((prev) => ({ ...prev, targetId: prev.targetId || users[0]?.id || '', exerciseName: prev.exerciseName || exercises[0] || '' }));
     setLoading(false);
   };
 
@@ -283,12 +254,22 @@ export default function Challenges() {
   const setType = (type) => {
     const unitMap = { volume: 'kg', sessions: 'sesiones', duration: 'min', exercise_max: 'kg' };
     const targetMap = { volume: '5000', sessions: '5', duration: '180', exercise_max: '100' };
-    setForm((prev) => ({ ...prev, type, unit: unitMap[type], targetValue: targetMap[type] }));
+    setForm((prev) => ({
+      ...prev,
+      type,
+      unit: unitMap[type],
+      targetValue: targetMap[type],
+      exerciseName: type === 'exercise_max' ? (prev.exerciseName || exerciseOptions[0] || '') : prev.exerciseName,
+    }));
   };
 
   const handleCreate = async () => {
     if (!form.targetId || !form.title.trim()) {
       setMessage(tr(lang, 'Selecciona un amigo y escribe un título.', 'Select a friend and write a title.'));
+      return;
+    }
+    if (form.type === 'exercise_max' && !form.exerciseName) {
+      setMessage(tr(lang, 'Selecciona un ejercicio para este reto.', 'Select an exercise for this challenge.'));
       return;
     }
     setSaving(true);
@@ -300,7 +281,7 @@ export default function Challenges() {
         targetValue: Number(form.targetValue),
         deadline: form.deadline || undefined,
       });
-      setForm((prev) => ({ ...prev, title: '', description: '', exerciseName: '', deadline: '' }));
+      setForm((prev) => ({ ...prev, title: '', description: '', exerciseName: exerciseOptions[0] || '', deadline: '' }));
       setTab('sent');
       await loadData();
       setMessage(tr(lang, 'Reto enviado correctamente.', 'Challenge sent successfully.'));
@@ -374,7 +355,11 @@ export default function Challenges() {
 
                 {form.type === 'exercise_max' ? (
                   <Field label={tr(lang, 'Ejercicio', 'Exercise')}>
-                    <Input value={form.exerciseName} onChange={(e) => setForm((prev) => ({ ...prev, exerciseName: e.target.value }))} placeholder={tr(lang, 'Press banca, sentadilla...', 'Bench press, squat...')} />
+                    <Select value={form.exerciseName} onChange={(e) => setForm((prev) => ({ ...prev, exerciseName: e.target.value }))}>
+                      {exerciseOptions.length ? exerciseOptions.map((exerciseName) => (
+                        <option key={exerciseName} value={exerciseName}>{exerciseName}</option>
+                      )) : <option value="">{tr(lang, 'No hay ejercicios disponibles', 'No exercises available')}</option>}
+                    </Select>
                   </Field>
                 ) : null}
 
@@ -432,7 +417,6 @@ export default function Challenges() {
                       key={challenge.id}
                       challenge={challenge}
                       currentUserId={currentUserId}
-                      sessions={sessions}
                       onStatus={handleStatus}
                       lang={lang}
                     />
