@@ -780,7 +780,7 @@ export default function Main() {
       <Header />
 
       {/* Layout */}
-      <div className="w-full grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px] gap-4 sm:gap-5 md:gap-6 px-3 sm:px-4 md:px-6 lg:px-7 xl:px-8 2xl:px-10 py-4 sm:py-5 md:py-6 lg:py-7 xl:py-8">
+      <div className="w-full grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px] items-stretch gap-4 sm:gap-5 md:gap-6 px-3 sm:px-4 md:px-6 lg:px-7 xl:px-8 2xl:px-10 py-4 sm:py-5 md:py-6 lg:py-7 xl:py-8">
         {/* Left */}
         <div className="min-w-0 space-y-4 sm:space-y-5 md:space-y-6">
           <Card className="p-0">
@@ -841,7 +841,7 @@ export default function Main() {
           </Card>
 
           <div className="grid grid-cols-1 gap-4 sm:gap-5 md:gap-6 lg:grid-cols-2">
-            <Card className="min-h-[320px] sm:min-h-[380px] md:min-h-[420px] lg:min-h-[480px] xl:min-h-[520px]">
+            <Card className="min-h-[320px] sm:min-h-[380px] md:min-h-[420px] lg:min-h-[480px] xl:h-[520px] xl:min-h-0">
               <CardTitle>{t('Sesión de hoy').toUpperCase()}</CardTitle>
               <div className="px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6 pt-3 sm:pt-4 md:pt-5">
                 {sessionsLoading && !todayExercises.length ? (
@@ -885,15 +885,15 @@ export default function Main() {
               </div>
             </Card>
 
-            <Card className="min-h-[320px] sm:min-h-[380px] md:min-h-[420px] lg:min-h-[480px] xl:min-h-[520px]">
+            <Card className="min-h-[320px] sm:min-h-[380px] md:min-h-[420px] lg:min-h-[480px] xl:h-[520px] xl:min-h-0 overflow-hidden">
               <button
                 type="button"
                 onClick={() => navigate(hasUserAchievements ? '/logros?tab=mis' : '/logros?tab=fitgram')}
-                className="w-full text-left"
+                className="flex h-full w-full flex-col text-left"
                 aria-label={t('Logros')}
               >
                 <CardTitle>{t('Logros').toUpperCase()}</CardTitle>
-                <div className="px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6 pt-3 sm:pt-4 md:pt-5">
+                <div className="min-h-0 flex-1 overflow-hidden px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6 pt-3 sm:pt-4 md:pt-5">
                   <div className="space-y-2 sm:space-y-3 md:space-y-4">
                     {achievements.map((a, i) => (
                       <AchievementRow
@@ -916,24 +916,24 @@ export default function Main() {
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') navigate('/fitgram');
           }}
-          className="w-full min-w-0 cursor-pointer text-left"
+          className="h-full w-full min-w-0 cursor-pointer text-left"
         >
-          <Card className="h-auto min-h-[400px] sm:min-h-[500px] md:min-h-[600px] xl:min-h-[800px] overflow-hidden">
+          <Card className="flex h-full min-h-[400px] flex-col overflow-hidden sm:min-h-[500px] md:min-h-[600px] xl:min-h-0">
             <div className="flex items-center justify-between px-4 sm:px-5 md:px-6 pt-4 sm:pt-5 md:pt-6">
               <h2 className="text-[16px] sm:text-[18px] md:text-[20px] lg:text-[22px] font-bold tracking-wide text-white/90" style={{ fontFamily: 'Arimo, Poppins, system-ui' }}>
                 {t('FitGram').toUpperCase()}
               </h2>
             </div>
 
-            <div className="px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6 pt-3 sm:pt-4 md:pt-5 h-full">
+            <div className="min-h-0 flex-1 px-4 sm:px-5 md:px-6 pb-4 sm:pb-5 md:pb-6 pt-3 sm:pt-4 md:pt-5">
               {fitgramLoading ? (
-                <div className="flex h-full items-center justify-center min-h-[320px] sm:min-h-[400px] md:min-h-[480px]">
+                <div className="flex h-full items-center justify-center min-h-[320px] sm:min-h-[400px] md:min-h-[480px] xl:min-h-0">
                   <div className="max-w-[360px] text-center text-white/60 text-[12px] sm:text-[13px]">
                     {lang === 'en' ? 'Loading FitGram posts...' : 'Cargando publicaciones de FitGram...'}
                   </div>
                 </div>
               ) : !fitgram.length ? (
-                <div className="flex h-full items-center justify-center min-h-[320px] sm:min-h-[400px] md:min-h-[480px] lg:min-h-[600px]">
+                <div className="flex h-full items-center justify-center min-h-[320px] sm:min-h-[400px] md:min-h-[480px] lg:min-h-[600px] xl:min-h-0">
                   <div className="max-w-[360px] text-center text-white/60 text-[12px] sm:text-[13px]">
                     {lang === 'en'
                       ? 'There are no FitGram posts yet. Create the first one from your profile.'
@@ -941,7 +941,7 @@ export default function Main() {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-3 sm:gap-4 xl:max-h-[calc(100vh-180px)] xl:overflow-auto xl:pr-2">
+                <div className="grid h-full min-h-0 grid-cols-1 gap-3 overflow-auto pr-1.5 sm:grid-cols-2 sm:gap-4 xl:grid-cols-1 xl:pr-2">
                   {fitgram.map((p) => (
                     <FitgramPost key={p.id} post={p} />
                   ))}
