@@ -1,7 +1,5 @@
 import { createHttpError } from '../utils/httpError.js';
 
-const EMAIL_PROVIDER = String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
-
 const parseFrom = (raw) => {
   const value = String(raw || '').trim();
   if (!value) return { name: '', email: '' };
@@ -10,24 +8,46 @@ const parseFrom = (raw) => {
   return { name: '', email: value };
 };
 
+const getEmailProvider = () => String(process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
+
+const getFromRaw = () =>
+  String(
+    process.env.EMAIL_FROM ||
+      process.env.SMTP_FROM ||
+      process.env.BREVO_FROM_EMAIL ||
+      process.env.RESEND_FROM_EMAIL ||
+      ''
+  ).trim();
+
 const isBrevoSelected = () =>
-  EMAIL_PROVIDER === 'brevo' || (EMAIL_PROVIDER === '' && Boolean(process.env.BREVO_API_KEY));
+  getEmailProvider() === 'brevo' ||
+  (getEmailProvider() === '' && Boolean(process.env.BREVO_API_KEY));
+
+const isResendSelected = () =>
+  getEmailProvider() === 'resend' ||
+  (getEmailProvider() === '' && !process.env.BREVO_API_KEY && Boolean(process.env.RESEND_API_KEY));
+
+const isProduction = () => String(process.env.NODE_ENV || '').toLowerCase() === 'production';
 
 export const isEmailConfigured = () => {
   // Allow "no-op email" in dev if email isn't configured.
-  if (!process.env.SMTP_FROM) return false;
+  if (!getFromRaw()) return false;
   if (isBrevoSelected()) return Boolean(process.env.BREVO_API_KEY);
+  if (isResendSelected()) return Boolean(process.env.RESEND_API_KEY);
   return Boolean(process.env.SMTP_HOST);
 };
 
 export const sendPasswordResetEmail = async ({ to, resetUrl }) => {
-  const fromRaw = process.env.SMTP_FROM;
+  const fromRaw = getFromRaw();
   const appName = process.env.APP_NAME || 'FitTrack';
 
   if (!isEmailConfigured()) {
     console.warn(
       `[email] Email no configurado. Enlace de recuperación para ${to}: ${resetUrl}`
     );
+    if (isProduction()) {
+      throw createHttpError(503, 'Servicio de email no configurado', { expose: false });
+    }
     return;
   }
 
@@ -75,7 +95,42 @@ export const sendPasswordResetEmail = async ({ to, resetUrl }) => {
       console.error(
         `[email] Brevo error status=${res.status} body=${String(body || '').slice(0, 800)}`
       );
+      if (String(body || '').toLowerCase().includes('unrecognised ip address')) {
+        console.error(
+          '[email] Brevo ha bloqueado la IP del servidor. Autoriza la IP en Brevo o usa EMAIL_PROVIDER=resend.'
+        );
+      }
       // Map provider failures to 503 (dependency), keep details hidden from clients.
+      throw createHttpError(503, 'Servicio de email no disponible', { expose: false });
+    }
+    return;
+  }
+
+  if (isResendSelected()) {
+    const apiKey = String(process.env.RESEND_API_KEY || '').trim();
+    if (!apiKey) throw createHttpError(503, 'Servicio de email no configurado', { expose: false });
+    if (!fromRaw) throw createHttpError(500, 'Remitente inválido', { expose: false });
+
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        from: fromRaw,
+        to: [String(to).trim()],
+        subject,
+        text,
+        html,
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      console.error(
+        `[email] Resend error status=${res.status} body=${String(body || '').slice(0, 800)}`
+      );
       throw createHttpError(503, 'Servicio de email no disponible', { expose: false });
     }
     return;

@@ -45,6 +45,10 @@ export default function PasswordRecovery() {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (res.status === 503) {
+          setError(t('Servicio de recuperación temporalmente no disponible. Inténtalo de nuevo más tarde.'));
+          return;
+        }
         setError(data?.error || data?.message || t('No se pudo completar la operación.'));
         return;
       }

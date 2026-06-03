@@ -125,6 +125,8 @@ const sha256Hex = (input) =>
 
 const createResetToken = () => crypto.randomBytes(32).toString('hex');
 
+const isProduction = () => String(process.env.NODE_ENV || '').toLowerCase() === 'production';
+
 const getResetUrl = (token) => {
   const base = String(process.env.APP_BASE_URL || '').trim();
   if (!base) return '';
@@ -179,6 +181,9 @@ export const requestPasswordReset = async ({ email }) => {
     console.warn(
       `[auth] APP_BASE_URL no configurado. No se puede construir el enlace de reset para ${normalizedEmail}.`
     );
+    if (isProduction()) {
+      throw createHttpError(503, 'Servicio de recuperación no configurado', { expose: false });
+    }
     return;
   }
 
