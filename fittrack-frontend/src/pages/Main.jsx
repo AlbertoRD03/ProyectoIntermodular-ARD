@@ -364,7 +364,7 @@ function FitgramPost({ post }) {
         </div>
       </div>
 
-      <div className="relative aspect-square bg-gradient-to-br from-[#ff7849]/25 via-white/5 to-black/10">
+      <div className="relative h-[300px] sm:h-[340px] xl:h-[390px] 2xl:h-[430px] bg-gradient-to-br from-[#ff7849]/25 via-white/5 to-black/10">
         {post.imageUrl ? (
           <img src={post.imageUrl} alt={post.caption || post.username} className="h-full w-full object-cover" loading="lazy" />
         ) : (
@@ -780,7 +780,7 @@ export default function Main() {
       <Header />
 
       {/* Layout */}
-      <div className="grid h-[calc(100vh-56px)] w-full grid-cols-1 items-stretch gap-4 overflow-hidden px-3 py-4 sm:h-[calc(100vh-64px)] sm:gap-5 sm:px-4 sm:py-5 md:gap-6 md:px-6 md:py-6 lg:px-7 lg:py-7 xl:grid-cols-[minmax(0,1fr)_430px] xl:px-8 xl:py-8 2xl:grid-cols-[minmax(0,1fr)_470px] 2xl:px-10">
+      <div className="grid h-[calc(100vh-56px)] w-full grid-cols-1 items-stretch gap-4 overflow-hidden px-3 py-4 sm:h-[calc(100vh-64px)] sm:gap-5 sm:px-4 sm:py-5 md:gap-6 md:px-6 md:py-6 lg:px-7 lg:py-7 xl:grid-cols-[minmax(0,1fr)_360px] xl:px-8 xl:py-8 2xl:grid-cols-[minmax(0,1fr)_400px] 2xl:px-10">
         {/* Left */}
         <div className="flex min-h-0 min-w-0 flex-col gap-4 overflow-hidden sm:gap-5 md:gap-6">
           <Card className="shrink-0 p-0">
